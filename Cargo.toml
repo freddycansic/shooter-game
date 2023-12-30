@@ -1,0 +1,20 @@
+[package]
+name = "vulkano-teapot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytemuck = "1.14.0"
+cgmath = { version = "0.18.0", features = ["swizzle"] }
+# Remove wasm-bindgen feature cause not using web
+chrono = { version = "0.4.31", default-features = false, features = ["alloc", "std", "clock"] }
+color-eyre = "0.6.2"
+fern = { version = "0.6.2", features = ["colored"] }
+gltf = "1.4.0"
+itertools = "0.12.0"
+vulkano = { git = "https://github.com/vulkano-rs/vulkano.git" }
+vulkano-shaders = "0.34.0"
+winit = "0.29.7"
+log = "0.4.20"
