@@ -24,3 +24,28 @@ pub fn create_depth_buffer(
 
     Ok(image_view)
 }
+
+pub fn create_mapped_buffer_from_iter<T, I>(
+    memory_allocator: Arc<StandardMemoryAllocator>,
+    usage: BufferUsage,
+    memory_type_filter: MemoryTypeFilter,
+    iter: I,
+) -> Result<Subbuffer<[T]>>
+where
+    T: BufferContents,
+    I: IntoIterator<Item = T>,
+    I::IntoIter: ExactSizeIterator,
+{
+    Ok(Buffer::from_iter(
+        memory_allocator.clone(),
+        BufferCreateInfo {
+            usage,
+            ..Default::default()
+        },
+        AllocationCreateInfo {
+            memory_type_filter,
+            ..Default::default()
+        },
+        iter,
+    )?)
+}

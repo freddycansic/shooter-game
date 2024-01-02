@@ -13,6 +13,7 @@ use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
 
+use crate::buffers;
 use crate::vertex::Vertex;
 
 pub struct Model {
@@ -65,12 +66,6 @@ impl Primitive {
         file_buffers: &[Data],
         memory_allocator: Arc<StandardMemoryAllocator>,
     ) -> Result<Self> {
-        let num_vertices = primitive.attributes().into_iter().next().unwrap().1.count();
-        let num_indices = primitive.indices().expect("No indices? Help, bad.").count();
-
-        assert_ne!(num_vertices, 0, "Empty indices in primitive!");
-        assert_ne!(num_indices, 0, "Empty indices in primitive!");
-
         let available_attributes = primitive
             .attributes()
             .map(|(semantic, _)| semantic)
@@ -83,15 +78,59 @@ impl Primitive {
             "No position data for primitive!"
         );
 
-        let mut vertices = vec![Vertex::default(); num_vertices];
+        let mut vertices = Self::extract_vertices(&primitive, file_buffers);
+        let indices = Self::extract_indices(&primitive, file_buffers);
 
+        // TODO understand tex coord set index
+        if !available_attributes.contains(&Semantic::TexCoords(0)) {
+            warn!("Mesh primitive does include texture coordinates! Generating...");
+            generate_tex_coords(&mut vertices);
+        }
+
+        let vertex_buffer = buffers::create_mapped_buffer_from_iter(
+            memory_allocator.clone(),
+            BufferUsage::VERTEX_BUFFER,
+            MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            vertices,
+        )?;
+
+        let index_buffer = buffers::create_mapped_buffer_from_iter(
+            memory_allocator.clone(),
+            BufferUsage::INDEX_BUFFER,
+            MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            indices,
+        )?;
+
+        Ok(Primitive {
+            vertex_buffer,
+            index_buffer,
+        })
+    }
+
+    fn extract_indices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<u16> {
+        let num_indices = primitive.indices().expect("No indices? Help, bad.").count();
         // TODO allow differently sized indices
         let mut indices = vec![0_u16; num_indices];
+
+        map_accessor_data_to_buffer(
+            &mut indices,
+            // No offset as indices are scalar
+            0,
+            &primitive.indices().unwrap(),
+            &file_buffers,
+        );
+
+        indices
+    }
+
+    fn extract_vertices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<Vertex> {
+        let num_vertices = primitive.attributes().into_iter().next().unwrap().1.count();
+        let mut vertices = vec![Vertex::default(); num_vertices];
 
         for (semantic, accessor) in primitive.attributes() {
             match semantic {
                 Semantic::Positions => {
-                    map_accessor_data_to_buffer::<Vertex>(
+                    map_accessor_data_to_buffer(
                         &mut vertices,
                         offset_of!(Vertex, position),
                         &accessor,
@@ -99,7 +138,7 @@ impl Primitive {
                     );
                 }
                 Semantic::Normals => {
-                    map_accessor_data_to_buffer::<Vertex>(
+                    map_accessor_data_to_buffer(
                         &mut vertices,
                         offset_of!(Vertex, normal),
                         &accessor,
@@ -107,7 +146,7 @@ impl Primitive {
                     );
                 }
                 Semantic::TexCoords(0) => {
-                    map_accessor_data_to_buffer::<Vertex>(
+                    map_accessor_data_to_buffer(
                         &mut vertices,
                         offset_of!(Vertex, tex_coord),
                         &accessor,
@@ -118,54 +157,7 @@ impl Primitive {
             }
         }
 
-        // TODO understand tex coord set index
-        if !available_attributes.contains(&Semantic::TexCoords(0)) {
-            warn!("Mesh primitive does include texture coordinates! Generating...");
-            generate_tex_coords(&mut vertices);
-        }
-
-        // No offset as indices are scalar
-        map_accessor_data_to_buffer::<u16>(
-            &mut indices,
-            0,
-            &primitive.indices().unwrap(),
-            &file_buffers,
-        );
-
-        let vertex_buffer = Buffer::from_iter(
-            memory_allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::VERTEX_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            vertices,
-        )
-        .unwrap();
-
-        let index_buffer = Buffer::from_iter(
-            memory_allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::INDEX_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            indices,
-        )
-        .unwrap();
-
-        Ok(Primitive {
-            vertex_buffer,
-            index_buffer,
-        })
+        vertices
     }
 }
 

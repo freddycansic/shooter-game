@@ -1,3 +1,4 @@
+use crate::buffers;
 use color_eyre::Result;
 use image::io::Reader;
 use image::{DynamicImage, EncodableLayout, ImageFormat};
@@ -5,7 +6,7 @@ use itertools::Itertools;
 use log::info;
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{CopyBufferToImageInfo, RecordingCommandBuffer};
+use vulkano::command_buffer::{CopyBufferToImageInfo, CopyImageInfo, RecordingCommandBuffer};
 use vulkano::device::Device;
 use vulkano::format::Format;
 use vulkano::image::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
@@ -54,25 +55,12 @@ impl Texture {
         let extent = [texture_file.width(), texture_file.height(), 1];
 
         // copy texture into generic buffer
-        let upload_buffer = Buffer::from_iter(
+        let image_buffer = buffers::create_mapped_buffer_from_iter(
             memory_allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_HOST
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            texture_file
-                .into_rgba32f()
-                .into_raw()
-                .into_iter()
-                // Convert 0..1 float mapping to 0..255
-                .map(|px_val| (px_val * 255.0) as u8),
-        )
-        .unwrap();
+            BufferUsage::TRANSFER_SRC,
+            MemoryTypeFilter::PREFER_HOST | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
+            texture_file.into_rgba8().into_raw(),
+        )?;
 
         let image = Image::new(
             memory_allocator,
@@ -91,7 +79,7 @@ impl Texture {
         // copy texture from generic buffer to image
         command_buffer
             .copy_buffer_to_image(CopyBufferToImageInfo::buffer_image(
-                upload_buffer,
+                image_buffer,
                 image.clone(),
             ))
             .unwrap();

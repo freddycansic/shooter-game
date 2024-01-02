@@ -1,6 +1,6 @@
 use color_eyre::Result;
 use fern::colors::{Color, ColoredLevelConfig};
-use log::{debug, error, info, trace, warn};
+use log::{error, info, trace, warn};
 use std::sync::Arc;
 use vulkano::instance::debug::{
     DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
