@@ -18,3 +18,7 @@ vulkano = { git = "https://github.com/vulkano-rs/vulkano.git" }
 vulkano-shaders = "0.34.0"
 winit = "0.29.7"
 log = "0.4.20"
+image = { version = "0.24.7", default-features = false, features = ["png", "jpeg", "jpeg_rayon"] }
+fastrand = "2.0.1"
+memoffset = "0.9.0"
+png = "0.17.10"

@@ -1,8 +1,9 @@
 #version 450
 
-layout(location = 0) in vec3 normal;
-layout(location = 1) in vec3 position;
-layout(location = 2) in vec3 camera_position;
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec2 tex_coord;
+layout(location = 3) in vec3 camera_position;
 
 layout(location = 0) out vec4 out_color;
 
@@ -16,6 +17,9 @@ layout(set = 0, binding = 2) uniform LightsUniform {
     Light lights[10];
 } lights_uniform;
 
+layout(set = 0, binding = 3) uniform sampler texture_sampler;
+layout(set = 0, binding = 4) uniform texture2D tex;
+
 void main() {
     Light light = lights_uniform.lights[0];
 
@@ -23,8 +27,7 @@ void main() {
     float ambient_strength = 0.1;
     vec3 ambient = ambient_strength * light.color;
 
-    // TODO
-    vec3 color = vec3(1.0, 0.0, 0.0);
+    vec4 color = texture(sampler2D(tex, texture_sampler), tex_coord);
 
     // diffuse
     // how close is the angle of incidence to the normal?
@@ -43,7 +46,5 @@ void main() {
     float specularity = pow(max(dot(view_direction, reflection_direction), 0.0), shininess);
     vec3 specular = specular_strength * specularity * light.color;
 
-    vec3 result = (ambient + diffuse + specular) * color;
-
-    out_color = vec4(result, 1.0);
+    out_color = vec4(ambient + diffuse + specular, 1.0) * color;
 }

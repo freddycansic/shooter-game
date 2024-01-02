@@ -1,16 +1,20 @@
+#![feature(offset_of)]
+
 mod buffers;
 mod debug;
+mod maths;
 mod model;
 mod shaders;
+mod texture;
 mod vertex;
 
-use cgmath::{Matrix, Matrix4, Point3, Rad, SquareMatrix, Vector3};
+use cgmath::{Deg, Euler, Matrix, Matrix4, Point3, Quaternion, Rad, SquareMatrix, Vector3};
 use itertools::Itertools;
 use log::info;
 use std::sync::Arc;
 use std::time::Instant;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
-use vulkano::buffer::BufferUsage;
+use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 use vulkano::command_buffer::sys::CommandBufferBeginInfo;
 use vulkano::command_buffer::{
     allocator::StandardCommandBufferAllocator, RecordingCommandBuffer, RenderPassBeginInfo,
@@ -23,16 +27,18 @@ use vulkano::device::physical::PhysicalDeviceType;
 use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo, QueueFlags};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
-use vulkano::image::{Image, ImageUsage};
+use vulkano::image::{Image, ImageFormatInfo, ImageType, ImageUsage};
 use vulkano::instance::debug::{DebugUtilsMessageSeverity, DebugUtilsMessageType};
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
 use vulkano::library::VulkanLibrary;
-use vulkano::memory::allocator::{MemoryTypeFilter, StandardMemoryAllocator};
-use vulkano::pipeline::graphics::color_blend::{ColorBlendAttachmentState, ColorBlendState};
+use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
+use vulkano::pipeline::graphics::color_blend::{
+    AttachmentBlend, ColorBlendAttachmentState, ColorBlendState,
+};
 use vulkano::pipeline::graphics::depth_stencil::{DepthState, DepthStencilState};
 use vulkano::pipeline::graphics::input_assembly::InputAssemblyState;
 use vulkano::pipeline::graphics::multisample::MultisampleState;
-use vulkano::pipeline::graphics::rasterization::RasterizationState;
+use vulkano::pipeline::graphics::rasterization::{CullMode, RasterizationState};
 use vulkano::pipeline::graphics::vertex_input::VertexDefinition;
 use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
 use vulkano::pipeline::graphics::GraphicsPipelineCreateInfo;
@@ -93,6 +99,17 @@ fn main() {
     )
     .expect("Failed to create Instance.");
 
+    info!("Vulkan version: {}", instance.api_version());
+    info!(
+        "Enabled extensions: {:?}",
+        instance
+            .enabled_extensions()
+            .into_iter()
+            .filter(|(_, enabled)| *enabled)
+            .map(|(extension, _)| extension)
+            .format(", ")
+    );
+
     // DO NOT LET THIS FALL OUT OF SCOPE
     let _debug_callback = debug::create_debug_callback(
         instance.clone(),
@@ -100,17 +117,6 @@ fn main() {
         DebugUtilsMessageType::GENERAL
             | DebugUtilsMessageType::VALIDATION
             | DebugUtilsMessageType::PERFORMANCE,
-    );
-
-    info!("Vulkan version: {}", instance.api_version());
-    info!(
-        "enabled extensions: {:?}",
-        instance
-            .enabled_extensions()
-            .into_iter()
-            .filter(|(_, enabled)| *enabled)
-            .map(|(extension, _)| extension)
-            .format(", ")
     );
 
     let window = Arc::new(
@@ -160,7 +166,7 @@ fn main() {
         .expect("No suitable physical device found.");
 
     info!(
-        "using device {} of type {:?}",
+        "Using device {} of type {:?}",
         physical_device.properties().device_name,
         physical_device.properties().device_type
     );
@@ -211,8 +217,12 @@ fn main() {
 
     let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
 
-    let teapot = model::Model::load("assets/models/teapot.gltf", memory_allocator.clone())
+    let teapot = model::Model::load("assets/models/teapot2.gltf", memory_allocator.clone())
         .expect("Could not load model.");
+
+    let cube = model::Model::load("assets/models/cube.glb", memory_allocator.clone()).unwrap();
+
+    let model = &teapot;
 
     let uniform_buffer_allocator = SubbufferAllocator::new(
         memory_allocator.clone(),
@@ -294,7 +304,10 @@ fn main() {
                 multisample_state: Some(MultisampleState::default()),
                 color_blend_state: Some(ColorBlendState::with_attachment_states(
                     subpass.num_color_attachments(),
-                    ColorBlendAttachmentState::default(),
+                    ColorBlendAttachmentState {
+                        blend: Some(AttachmentBlend::alpha()),
+                        ..Default::default()
+                    },
                 )),
                 // By making the viewport dynamic, we can simply recreate it when the window is resized instead of having to recreate the entire pipeline
                 dynamic_state: [DynamicState::Viewport].into_iter().collect(),
@@ -323,6 +336,44 @@ fn main() {
         Default::default(),
     ));
 
+    let mut uploads = RecordingCommandBuffer::new(
+        command_buffer_allocator.clone(),
+        queue.queue_family_index(),
+        CommandBufferLevel::Primary,
+        CommandBufferBeginInfo {
+            usage: CommandBufferUsage::OneTimeSubmit,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    let ferris = texture::Texture::load(
+        "assets/textures/ferris.png",
+        memory_allocator.clone(),
+        device.clone(),
+        &mut uploads,
+    )
+    .unwrap();
+
+    // TODO change
+    let wojak = texture::Texture::load(
+        "assets/textures/wojak.jpg",
+        memory_allocator.clone(),
+        device.clone(),
+        &mut uploads,
+    )
+    .unwrap();
+
+    let gmod = texture::Texture::load(
+        "assets/textures/gmod.jpg",
+        memory_allocator.clone(),
+        device.clone(),
+        &mut uploads,
+    )
+    .unwrap();
+
+    let texture = &wojak;
+
     let descriptor_set_allocator = Arc::new(StandardDescriptorSetAllocator::new(
         device.clone(),
         Default::default(),
@@ -330,8 +381,15 @@ fn main() {
 
     let mut recreate_swapchain = false;
 
-    // Hold previous frame's submission to avoid blocking GPU
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    // Submit uploading textures
+    let mut previous_frame_end = Some(
+        uploads
+            .end()
+            .unwrap()
+            .execute(queue.clone())
+            .unwrap()
+            .boxed(),
+    );
 
     let start = Instant::now();
 
@@ -396,7 +454,7 @@ fn main() {
                             100.0,
                         );
 
-                        let camera_position = Point3::new(5.0, 0.7, 5.0);
+                        let camera_position = Point3::new(5.0, 2.0, 5.0);
 
                         let view = Matrix4::look_at_rh(
                             camera_position,
@@ -417,10 +475,12 @@ fn main() {
                     };
 
                     let model_normal_uniform_subbuffer = {
-                        let model = teapot.model_matrix.clone()
-                            * Matrix4::from_angle_y(Rad(
-                                start.elapsed().as_millis() as f32 / 1000.0
-                            ));
+                        let model = model.model_matrix.clone()
+                            * Matrix4::from(Quaternion::from(Euler::new(
+                                Rad(0.0),
+                                Rad(start.elapsed().as_millis() as f32 / 1000.0),
+                                Rad(start.elapsed().as_millis() as f32 / 2000.0),
+                            )));
 
                         let uniform_data = shaders::vs::ModelUniform {
                             model: model.into(),
@@ -466,6 +526,8 @@ fn main() {
                             WriteDescriptorSet::buffer(0, camera_uniform_subbuffer),
                             WriteDescriptorSet::buffer(1, model_normal_uniform_subbuffer),
                             WriteDescriptorSet::buffer(2, lights_uniform_subbuffer),
+                            WriteDescriptorSet::sampler(3, texture.sampler.clone()),
+                            WriteDescriptorSet::image_view(4, texture.image_view.clone()),
                         ],
                         [],
                     )
@@ -532,18 +594,15 @@ fn main() {
                             set,
                         )
                         .unwrap()
-                        .bind_vertex_buffers(
-                            0,
-                            teapot.meshes[0].primitives[0].vertex_buffer.clone(),
-                        )
+                        .bind_vertex_buffers(0, model.meshes[0].primitives[0].vertex_buffer.clone())
                         .unwrap()
-                        .bind_index_buffer(teapot.meshes[0].primitives[0].index_buffer.clone())
+                        .bind_index_buffer(model.meshes[0].primitives[0].index_buffer.clone())
                         .unwrap();
 
                     unsafe {
                         builder
                             .draw_indexed(
-                                teapot.meshes[0].primitives[0].index_buffer.len() as u32,
+                                model.meshes[0].primitives[0].index_buffer.len() as u32,
                                 1,
                                 0,
                                 0,

@@ -1,9 +1,13 @@
-use crate::buffers;
+use crate::maths;
 use cgmath::{Matrix4, SquareMatrix};
 use color_eyre::Result;
 use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
 use gltf::{Accessor, Semantic};
+use itertools::Itertools;
+use log::{debug, warn};
+use std::fmt::Debug;
+use std::mem::offset_of;
 use std::ptr;
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
@@ -23,19 +27,23 @@ pub struct Primitive {
 }
 
 pub struct Mesh {
+    pub name: Option<String>,
     pub primitives: Vec<Primitive>,
 }
 
 impl Model {
     pub fn load(path: &str, memory_allocator: Arc<StandardMemoryAllocator>) -> Result<Self> {
+        debug!("Loading model \"{path}\"...");
+
         // TODO parse materials
-        let (document, file_buffers, images) = gltf::import(path)?;
+        let (document, file_buffers, _images) = gltf::import(path)?;
 
         Ok(Model {
             meshes: document
                 .meshes()
                 .into_iter()
                 .map(|mesh| Mesh {
+                    name: mesh.name().map(str::to_owned),
                     primitives: mesh
                         .primitives()
                         .into_iter()
@@ -63,6 +71,18 @@ impl Primitive {
         assert_ne!(num_vertices, 0, "Empty indices in primitive!");
         assert_ne!(num_indices, 0, "Empty indices in primitive!");
 
+        let available_attributes = primitive
+            .attributes()
+            .map(|(semantic, _)| semantic)
+            .collect_vec();
+
+        debug!("Available attributes: {available_attributes:?}");
+
+        assert!(
+            available_attributes.contains(&Semantic::Positions),
+            "No position data for primitive!"
+        );
+
         let mut vertices = vec![Vertex::default(); num_vertices];
 
         // TODO allow differently sized indices
@@ -71,30 +91,43 @@ impl Primitive {
         for (semantic, accessor) in primitive.attributes() {
             match semantic {
                 Semantic::Positions => {
-                    const POSITION_OFFSET: usize = 0;
-                    // TODO get rid of the explicit Vertex type parameter
-                    map_accessor_data_to_buffer::<Vertex, POSITION_OFFSET>(
+                    map_accessor_data_to_buffer::<Vertex>(
                         &mut vertices,
+                        offset_of!(Vertex, position),
                         &accessor,
                         &file_buffers,
                     );
                 }
                 Semantic::Normals => {
-                    // 3 lots of 4 byte floats = position
-                    const NORMAL_OFFSET: usize = 3 * 4;
-                    map_accessor_data_to_buffer::<Vertex, NORMAL_OFFSET>(
+                    map_accessor_data_to_buffer::<Vertex>(
                         &mut vertices,
+                        offset_of!(Vertex, normal),
                         &accessor,
                         &file_buffers,
                     );
                 }
-                _ => unimplemented!("{:?}", semantic),
+                Semantic::TexCoords(0) => {
+                    map_accessor_data_to_buffer::<Vertex>(
+                        &mut vertices,
+                        offset_of!(Vertex, tex_coord),
+                        &accessor,
+                        &file_buffers,
+                    );
+                }
+                _ => unimplemented!("{semantic:?}"),
             }
         }
 
+        // TODO understand tex coord set index
+        if !available_attributes.contains(&Semantic::TexCoords(0)) {
+            warn!("Mesh primitive does include texture coordinates! Generating...");
+            generate_tex_coords(&mut vertices);
+        }
+
         // No offset as indices are scalar
-        map_accessor_data_to_buffer::<u16, 0>(
+        map_accessor_data_to_buffer::<u16>(
             &mut indices,
+            0,
             &primitive.indices().unwrap(),
             &file_buffers,
         );
@@ -136,9 +169,10 @@ impl Primitive {
     }
 }
 
-/// Fills the member, specified by the `OFFSET`, of each element of a given buffer from an `Accessor`
-fn map_accessor_data_to_buffer<T, const OFFSET: usize>(
-    buffer: &mut [T],
+/// Fills the member, specified by the `byte_offset`, of each element of a given buffer from an `Accessor`
+fn map_accessor_data_to_buffer<T: Debug>(
+    destination_buffer: &mut [T],
+    byte_offset: usize,
     accessor: &Accessor,
     file_buffers: &[Data],
 ) {
@@ -153,19 +187,21 @@ fn map_accessor_data_to_buffer<T, const OFFSET: usize>(
         .unwrap_or(calculate_bit_stride(&accessor))
         / 8;
 
-    let positions_start = buffer_view.offset();
+    let file_buffer_offset = buffer_view.offset();
 
-    for (index, position_index) in (positions_start..positions_start + buffer_view.length())
+    for (index, element_start_index) in (file_buffer_offset
+        ..file_buffer_offset + buffer_view.length())
         .step_by(byte_stride)
         .enumerate()
     {
         unsafe {
             // Cast to pointer to stop the borrow checker from freaking out then cast to u8
-            let current_element_pointer: *mut u8 = &mut buffer[index] as *mut T as *mut u8;
-            let member_destination_pointer = current_element_pointer.add(OFFSET);
+            let current_destination_pointer: *mut u8 =
+                &mut destination_buffer[index] as *mut T as *mut u8;
+            let member_destination_pointer = current_destination_pointer.add(byte_offset);
 
             // Extract slice from the loaded file buffer
-            let member_source_pointer: *const u8 = &file_buffer[position_index];
+            let member_source_pointer: *const u8 = &file_buffer[element_start_index];
 
             ptr::copy(
                 member_source_pointer,
@@ -173,6 +209,29 @@ fn map_accessor_data_to_buffer<T, const OFFSET: usize>(
                 byte_stride,
             );
         }
+    }
+}
+
+fn generate_tex_coords(mut vertices: &mut [Vertex]) {
+    let mut x_min = f32::MAX;
+    let mut x_max = f32::MIN;
+    let mut z_min = f32::MAX;
+    let mut z_max = f32::MIN;
+
+    for vertex in vertices.iter() {
+        x_min = x_min.min(vertex.position[0]);
+        x_max = x_max.max(vertex.position[0]);
+
+        z_min = z_min.min(vertex.position[2]);
+        z_max = x_max.max(vertex.position[2]);
+    }
+
+    // project texture coordinates on to xz plane over primitive
+    for vertex in vertices.iter_mut() {
+        let x_tex_coord = maths::linear_map(vertex.position[0], x_min, x_max, 0.0, 1.0);
+        let y_tex_coord = maths::linear_map(vertex.position[2], z_min, z_max, 0.0, 1.0);
+
+        vertex.tex_coord = [x_tex_coord, y_tex_coord];
     }
 }
 
