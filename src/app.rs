@@ -12,6 +12,8 @@ use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
+use crate::model::ModelInstance;
+use crate::scene::Scene;
 use vulkano::swapchain::{acquire_next_image, SwapchainCreateInfo, SwapchainPresentInfo};
 use vulkano::sync::GpuFuture;
 use vulkano::{sync, Validated, VulkanError};
@@ -21,7 +23,6 @@ use winit::event_loop::{ControlFlow, EventLoop};
 pub struct App {
     scene: scene::Scene,
     texture: texture::Texture,
-    model: model::Model,
     vulkan_context: context::VulkanContext,
     rendering_context: context::RenderingContext,
     window_context: context::WindowContext,
@@ -42,19 +43,34 @@ impl App {
         let rendering_context =
             context::RenderingContext::new(&vulkan_context, &mut window_context, &allocators);
 
+        // TODO move models, textures to resource manager / scene
         let teapot = model::Model::load(
-            "assets/models/teapot2.gltf",
+            "assets/models/teapot.glb",
             allocators.memory_allocator.clone(),
         )
         .expect("Could not load model.");
+
+        let backdrop = model::Model::load(
+            "assets/models/backdrop.glb",
+            allocators.memory_allocator.clone(),
+        )
+        .unwrap();
+
+        let cube = model::Model::load(
+            "assets/models/cube.glb",
+            allocators.memory_allocator.clone(),
+        )
+        .unwrap();
+
+        let scene = Scene {
+            models: vec![teapot.into(), backdrop.into(), cube.into()],
+        };
 
         let _cube = model::Model::load(
             "assets/models/cube.glb",
             allocators.memory_allocator.clone(),
         )
         .unwrap();
-
-        let _model = &teapot;
 
         let mut texture_uploads = RecordingCommandBuffer::new(
             allocators.command_buffer_allocator.clone(),
@@ -67,29 +83,22 @@ impl App {
         )
         .unwrap();
 
-        let _ferris = texture::Texture::load(
-            "assets/textures/ferris.png",
-            allocators.memory_allocator.clone(),
-            vulkan_context.device.clone(),
-            &mut texture_uploads,
-        )
-        .unwrap();
+        let mut load_texture = |path| {
+            texture::Texture::load(
+                path,
+                allocators.memory_allocator.clone(),
+                vulkan_context.device.clone(),
+                &mut texture_uploads,
+            )
+            .unwrap()
+        };
 
-        let wojak = texture::Texture::load(
-            "assets/textures/wojak.jpg",
-            allocators.memory_allocator.clone(),
-            vulkan_context.device.clone(),
-            &mut texture_uploads,
-        )
-        .unwrap();
+        let _ferris = load_texture("assets/textures/ferris.png");
+        let _wojak = load_texture("assets/textures/wojak.jpg");
+        let _gmod = load_texture("assets/textures/gmod.jpg");
+        let white = load_texture("assets/textures/white.jpg");
 
-        let _gmod = texture::Texture::load(
-            "assets/textures/gmod.jpg",
-            allocators.memory_allocator.clone(),
-            vulkan_context.device.clone(),
-            &mut texture_uploads,
-        )
-        .unwrap();
+        let texture = white;
 
         // Submit uploading textures
         let texture_uploads_end = Some(
@@ -107,9 +116,8 @@ impl App {
             vulkan_context,
             allocators,
             previous_frame_end: texture_uploads_end,
-            texture: wojak,
-            model: teapot,
-            scene: scene::Scene { models: vec![] },
+            scene,
+            texture,
         }
     }
 
@@ -197,40 +205,18 @@ impl App {
             subbuffer
         };
 
-        let model_normal_uniform_subbuffer = {
-            let model = self.model.model_matrix
-                * Matrix4::from(Quaternion::from(Euler::new(
-                    Rad(0.0),
-                    Rad(frame_state.start.elapsed().as_millis() as f32 / 1000.0),
-                    Rad(frame_state.start.elapsed().as_millis() as f32 / 2000.0),
-                )));
-
-            let uniform_data = shaders::vs::ModelUniform {
-                model: model.into(),
-                normal: model.invert().unwrap().transpose().into(),
-            };
-
-            let subbuffer = self
-                .allocators
-                .subbuffer_allocator
-                .allocate_sized()
-                .unwrap();
-            *subbuffer.write().unwrap() = uniform_data;
-
-            subbuffer
-        };
+        let elapsed = frame_state.start.elapsed().as_millis() as f32 / 1000.0;
+        let radius = 4.0;
+        let light_z = radius * elapsed.sin();
+        let light_x = radius * elapsed.cos();
+        let light_position = [light_x, 0.5, light_z];
 
         let lights_uniform_subbuffer = {
             const MAX_LIGHTS: usize = 10;
             let mut lights = [shaders::fs::Light::default(); MAX_LIGHTS];
 
-            let elapsed = frame_state.start.elapsed().as_millis() as f32 / 1000.0;
-            let radius = 7.0;
-            let light_z = radius * elapsed.sin();
-            let light_x = radius * elapsed.cos();
-
             lights[0] = shaders::fs::Light {
-                position: [light_x, 0.5, light_z].into(),
+                position: light_position.into(),
                 // position: [7.0, 0.7, 7.0].into(),
                 color: [1.0, 1.0, 1.0],
                 intensity: 1.0,
@@ -254,18 +240,6 @@ impl App {
             [
                 WriteDescriptorSet::buffer(0, camera_uniform_subbuffer),
                 WriteDescriptorSet::buffer(1, lights_uniform_subbuffer),
-            ],
-            [],
-        )
-        .unwrap();
-
-        let per_primitive_descriptor_set = DescriptorSet::new(
-            self.allocators.descriptor_set_allocator.clone(),
-            self.rendering_context.pipeline.layout().set_layouts()[1].clone(),
-            [
-                WriteDescriptorSet::buffer(0, model_normal_uniform_subbuffer),
-                WriteDescriptorSet::sampler(1, self.texture.sampler.clone()),
-                WriteDescriptorSet::image_view(2, self.texture.image_view.clone()),
             ],
             [],
         )
@@ -329,30 +303,35 @@ impl App {
                 0,
                 per_frame_descriptor_set,
             )
-            .unwrap()
-            .bind_descriptor_sets(
-                PipelineBindPoint::Graphics,
-                self.rendering_context.pipeline.layout().clone(),
-                1,
-                per_primitive_descriptor_set,
-            )
-            .unwrap()
-            .bind_vertex_buffers(0, self.model.meshes[0].primitives[0].vertex_buffer.clone())
-            .unwrap()
-            .bind_index_buffer(self.model.meshes[0].primitives[0].index_buffer.clone())
             .unwrap();
 
-        unsafe {
-            builder
-                .draw_indexed(
-                    self.model.meshes[0].primitives[0].index_buffer.len() as u32,
-                    1,
-                    0,
-                    0,
-                    0,
-                )
-                .unwrap();
-        }
+        // Teapot
+        self.scene.models[0].render(
+            &mut builder,
+            &self.allocators,
+            self.rendering_context.pipeline.clone(),
+            &self.texture,
+        );
+
+        // Backdrop
+        self.scene.models[1].transform =
+            Matrix4::from_translation(Vector3::new(0.0, -2.0, 0.0)) * Matrix4::from_scale(10.0);
+        self.scene.models[1].render(
+            &mut builder,
+            &self.allocators,
+            self.rendering_context.pipeline.clone(),
+            &self.texture,
+        );
+
+        // Light cube
+        self.scene.models[2].transform =
+            Matrix4::from_translation(light_position.into()) * Matrix4::from_scale(0.2);
+        self.scene.models[2].render(
+            &mut builder,
+            &self.allocators,
+            self.rendering_context.pipeline.clone(),
+            &self.texture,
+        );
 
         builder.end_render_pass(Default::default()).unwrap();
 

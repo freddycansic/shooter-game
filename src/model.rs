@@ -1,5 +1,5 @@
-use crate::maths;
-use cgmath::{Matrix4, SquareMatrix};
+use crate::{maths, shaders};
+use cgmath::{Matrix, Matrix4, SquareMatrix};
 use color_eyre::Result;
 use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
@@ -11,15 +11,95 @@ use std::mem::offset_of;
 use std::ptr;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, Subbuffer};
+use vulkano::command_buffer::RecordingCommandBuffer;
+use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 use vulkano::memory::allocator::{MemoryTypeFilter, StandardMemoryAllocator};
+use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint};
 
 use crate::buffers;
+use crate::context::Allocators;
+use crate::texture::Texture;
 use crate::vertex::Vertex;
+
+pub struct ModelInstance {
+    pub model: Arc<Model>,
+    pub transform: Matrix4<f32>,
+}
+
+impl From<Arc<Model>> for ModelInstance {
+    fn from(model: Arc<Model>) -> Self {
+        Self {
+            model,
+            transform: Matrix4::identity(),
+        }
+    }
+}
+
+impl ModelInstance {
+    pub fn render(
+        &self,
+        builder: &mut RecordingCommandBuffer,
+        allocators: &Allocators,
+        pipeline: Arc<GraphicsPipeline>,
+        // TODO temporary
+        texture: &Texture,
+    ) {
+        let model_normal_uniform_subbuffer = {
+            let uniform_data = shaders::vs::ModelUniform {
+                model: self.transform.into(),
+                normal: self.transform.invert().unwrap().transpose().into(),
+            };
+
+            let subbuffer = allocators.subbuffer_allocator.allocate_sized().unwrap();
+            *subbuffer.write().unwrap() = uniform_data;
+
+            subbuffer
+        };
+
+        let per_primitive_descriptor_set = DescriptorSet::new(
+            allocators.descriptor_set_allocator.clone(),
+            pipeline.layout().set_layouts()[1].clone(),
+            [
+                WriteDescriptorSet::buffer(0, model_normal_uniform_subbuffer),
+                WriteDescriptorSet::image_view_sampler(
+                    1,
+                    texture.image_view.clone(),
+                    texture.sampler.clone(),
+                ),
+            ],
+            [],
+        )
+        .unwrap();
+
+        builder
+            .bind_descriptor_sets(
+                PipelineBindPoint::Graphics,
+                pipeline.layout().clone(),
+                1,
+                per_primitive_descriptor_set,
+            )
+            .unwrap()
+            .bind_vertex_buffers(0, self.model.meshes[0].primitives[0].vertex_buffer.clone())
+            .unwrap()
+            .bind_index_buffer(self.model.meshes[0].primitives[0].index_buffer.clone())
+            .unwrap();
+
+        unsafe {
+            builder
+                .draw_indexed(
+                    self.model.meshes[0].primitives[0].index_buffer.len() as u32,
+                    1,
+                    0,
+                    0,
+                    0,
+                )
+                .unwrap();
+        }
+    }
+}
 
 pub struct Model {
     pub meshes: Vec<Mesh>,
-    // TODO move this to Instance, cause each model will only be in memory once and this is a per instnace thing
-    pub model_matrix: Matrix4<f32>,
 }
 
 pub struct Primitive {
@@ -27,19 +107,20 @@ pub struct Primitive {
     pub index_buffer: Subbuffer<[u16]>,
 }
 
+// TODO could move all vertices / indices into one buffer and then have an offset into this for each primitive
 pub struct Mesh {
     pub name: Option<String>,
     pub primitives: Vec<Primitive>,
 }
 
 impl Model {
-    pub fn load(path: &str, memory_allocator: Arc<StandardMemoryAllocator>) -> Result<Self> {
+    pub fn load(path: &str, memory_allocator: Arc<StandardMemoryAllocator>) -> Result<Arc<Self>> {
         debug!("Loading model \"{path}\"...");
 
         // TODO parse materials
         let (document, file_buffers, _images) = gltf::import(path)?;
 
-        Ok(Model {
+        Ok(Arc::new(Model {
             meshes: document
                 .meshes()
                 .map(|mesh| Mesh {
@@ -53,8 +134,7 @@ impl Model {
                         .collect::<Vec<Primitive>>(),
                 })
                 .collect::<Vec<Mesh>>(),
-            model_matrix: Matrix4::identity(),
-        })
+        }))
     }
 
     pub fn render(&self) {

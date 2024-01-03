@@ -95,16 +95,7 @@ pub fn create_pipeline(
                                 DescriptorSetLayoutBinding {
                                     stages: ShaderStages::FRAGMENT,
                                     ..DescriptorSetLayoutBinding::descriptor_type(
-                                        DescriptorType::Sampler,
-                                    )
-                                },
-                            ),
-                            (
-                                2,
-                                DescriptorSetLayoutBinding {
-                                    stages: ShaderStages::FRAGMENT,
-                                    ..DescriptorSetLayoutBinding::descriptor_type(
-                                        DescriptorType::SampledImage,
+                                        DescriptorType::CombinedImageSampler,
                                     )
                                 },
                             ),

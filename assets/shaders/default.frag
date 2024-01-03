@@ -17,8 +17,7 @@ layout(set = 0, binding = 1) uniform LightsUniform {
     Light lights[10];
 } lights_uniform;
 
-layout(set = 1, binding = 1) uniform sampler texture_sampler;
-layout(set = 1, binding = 2) uniform texture2D tex;
+layout(set = 1, binding = 1) uniform sampler2D texture_sampler;
 
 void main() {
     Light light = lights_uniform.lights[0];
@@ -27,7 +26,7 @@ void main() {
     float ambient_strength = 0.1;
     vec3 ambient = ambient_strength * light.color;
 
-    vec4 color = texture(sampler2D(tex, texture_sampler), tex_coord);
+    vec4 color = texture(texture_sampler, tex_coord);
 
     // diffuse
     // how close is the angle of incidence to the normal?
