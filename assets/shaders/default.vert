@@ -9,16 +9,16 @@ layout(location = 1) out vec3 out_normal;
 layout(location = 2) out vec2 out_tex_coord;
 layout(location = 3) out vec3 out_camera_position;
 
-// TODO change these to use different sets, as they are updated at different frequencies
 // per frame
 layout(set = 0, binding = 0) uniform CameraUniform {
     mat4 view;
     mat4 projection;
+    // TODO if anything bad happens listen to this guy https://stackoverflow.com/questions/38172696/should-i-ever-use-a-vec3-inside-of-a-uniform-buffer-or-shader-storage-buffer-o
     vec3 camera_position;
 } camera_uniform;
 
-// per mesh
-layout(set = 0, binding = 1) uniform ModelUniform {
+// per primitive
+layout(set = 1, binding = 0) uniform ModelUniform {
     mat4 model;
     mat4 normal;
 } model_uniform;

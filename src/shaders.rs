@@ -17,7 +17,7 @@ impl Default for fs::Light {
     fn default() -> Self {
         Self {
             position: [0.0, 0.0, 0.0].into(),
-            color: [1.0, 1.0, 1.0].into(),
+            color: [1.0, 1.0, 1.0],
             intensity: 1.0,
         }
     }

@@ -13,12 +13,12 @@ struct Light {
     float intensity;
 };
 
-layout(set = 0, binding = 2) uniform LightsUniform {
+layout(set = 0, binding = 1) uniform LightsUniform {
     Light lights[10];
 } lights_uniform;
 
-layout(set = 0, binding = 3) uniform sampler texture_sampler;
-layout(set = 0, binding = 4) uniform texture2D tex;
+layout(set = 1, binding = 1) uniform sampler texture_sampler;
+layout(set = 1, binding = 2) uniform texture2D tex;
 
 void main() {
     Light light = lights_uniform.lights[0];

@@ -10,8 +10,8 @@ use std::fmt::Debug;
 use std::mem::offset_of;
 use std::ptr;
 use std::sync::Arc;
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage, Subbuffer};
-use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
+use vulkano::buffer::{BufferUsage, Subbuffer};
+use vulkano::memory::allocator::{MemoryTypeFilter, StandardMemoryAllocator};
 
 use crate::buffers;
 use crate::vertex::Vertex;
@@ -42,12 +42,10 @@ impl Model {
         Ok(Model {
             meshes: document
                 .meshes()
-                .into_iter()
                 .map(|mesh| Mesh {
                     name: mesh.name().map(str::to_owned),
                     primitives: mesh
                         .primitives()
-                        .into_iter()
                         .map(|primitive| {
                             Primitive::from(primitive, &file_buffers, memory_allocator.clone())
                                 .unwrap()
@@ -58,9 +56,29 @@ impl Model {
             model_matrix: Matrix4::identity(),
         })
     }
+
+    pub fn render(&self) {
+        for mesh in &self.meshes {
+            mesh.render();
+        }
+    }
+}
+
+impl Mesh {
+    pub fn render(&self) {
+        for primitive in &self.primitives {
+            primitive.render();
+        }
+    }
 }
 
 impl Primitive {
+    fn render(&self) {
+        // build uniforms
+
+        // render
+    }
+
     fn from(
         primitive: gltf::Primitive,
         file_buffers: &[Data],
@@ -117,14 +135,14 @@ impl Primitive {
             // No offset as indices are scalar
             0,
             &primitive.indices().unwrap(),
-            &file_buffers,
+            file_buffers,
         );
 
         indices
     }
 
     fn extract_vertices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<Vertex> {
-        let num_vertices = primitive.attributes().into_iter().next().unwrap().1.count();
+        let num_vertices = primitive.attributes().next().unwrap().1.count();
         let mut vertices = vec![Vertex::default(); num_vertices];
 
         for (semantic, accessor) in primitive.attributes() {
@@ -134,7 +152,7 @@ impl Primitive {
                         &mut vertices,
                         offset_of!(Vertex, position),
                         &accessor,
-                        &file_buffers,
+                        file_buffers,
                     );
                 }
                 Semantic::Normals => {
@@ -142,7 +160,7 @@ impl Primitive {
                         &mut vertices,
                         offset_of!(Vertex, normal),
                         &accessor,
-                        &file_buffers,
+                        file_buffers,
                     );
                 }
                 Semantic::TexCoords(0) => {
@@ -150,7 +168,7 @@ impl Primitive {
                         &mut vertices,
                         offset_of!(Vertex, tex_coord),
                         &accessor,
-                        &file_buffers,
+                        file_buffers,
                     );
                 }
                 _ => unimplemented!("{semantic:?}"),
@@ -176,7 +194,7 @@ fn map_accessor_data_to_buffer<T: Debug>(
 
     let byte_stride = buffer_view
         .stride()
-        .unwrap_or(calculate_bit_stride(&accessor))
+        .unwrap_or(calculate_bit_stride(accessor))
         / 8;
 
     let file_buffer_offset = buffer_view.offset();
@@ -204,7 +222,7 @@ fn map_accessor_data_to_buffer<T: Debug>(
     }
 }
 
-fn generate_tex_coords(mut vertices: &mut [Vertex]) {
+fn generate_tex_coords(vertices: &mut [Vertex]) {
     let mut x_min = f32::MAX;
     let mut x_max = f32::MIN;
     let mut z_min = f32::MAX;

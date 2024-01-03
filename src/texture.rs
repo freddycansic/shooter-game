@@ -1,19 +1,19 @@
 use crate::buffers;
 use color_eyre::Result;
-use image::io::Reader;
-use image::{DynamicImage, EncodableLayout, ImageFormat};
-use itertools::Itertools;
-use log::info;
+
+
+
+
 use std::sync::Arc;
-use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
-use vulkano::command_buffer::{CopyBufferToImageInfo, CopyImageInfo, RecordingCommandBuffer};
+use vulkano::buffer::{BufferUsage};
+use vulkano::command_buffer::{CopyBufferToImageInfo, RecordingCommandBuffer};
 use vulkano::device::Device;
 use vulkano::format::Format;
 use vulkano::image::sampler::{Filter, Sampler, SamplerAddressMode, SamplerCreateInfo};
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
-use vulkano::DeviceSize;
+
 
 pub struct Texture {
     pub image_view: Arc<ImageView>,
@@ -48,7 +48,7 @@ impl Texture {
     fn create_image_view(
         path: &str,
         memory_allocator: Arc<StandardMemoryAllocator>,
-        mut command_buffer: &mut RecordingCommandBuffer,
+        command_buffer: &mut RecordingCommandBuffer,
     ) -> Result<Arc<ImageView>> {
         let texture_file = image::open(path)?;
 

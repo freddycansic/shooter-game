@@ -1,10 +1,15 @@
+
+
 use color_eyre::eyre::Result;
+use itertools::Itertools;
 use std::sync::Arc;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageCreateInfo, ImageType, ImageUsage};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
+use vulkano::pipeline::graphics::viewport::Viewport;
+use vulkano::render_pass::{Framebuffer, FramebufferCreateInfo, RenderPass};
 
 pub fn create_depth_buffer(
     extent: [u32; 3],
@@ -48,4 +53,32 @@ where
         },
         iter,
     )?)
+}
+
+pub fn create_framebuffers(
+    images: &[Arc<Image>],
+    viewport: &mut Viewport,
+    memory_allocator: Arc<StandardMemoryAllocator>,
+    render_pass: Arc<RenderPass>,
+) -> Result<Vec<Arc<Framebuffer>>> {
+    let extent = images[0].extent();
+    // Make sure new framebuffers are the same size as the window
+    viewport.extent = [extent[0] as f32, extent[1] as f32];
+
+    let depth_buffer = create_depth_buffer(extent, memory_allocator)?;
+
+    Ok(images
+        .iter()
+        .map(|image| {
+            let view = ImageView::new_default(image.clone()).unwrap();
+            Framebuffer::new(
+                render_pass.clone(),
+                FramebufferCreateInfo {
+                    attachments: vec![view, depth_buffer.clone()],
+                    ..Default::default()
+                },
+            )
+            .unwrap()
+        })
+        .collect_vec())
 }
