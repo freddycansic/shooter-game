@@ -1,8 +1,10 @@
+use cgmath::Vector4;
+
 pub mod vs {
     vulkano_shaders::shader! {
         ty: "vertex",
         path: "assets/shaders/default.vert",
-        // TODO linalg_type: "cgmath"
+        linalg_type: "cgmath"
     }
 }
 
@@ -10,14 +12,15 @@ pub mod fs {
     vulkano_shaders::shader! {
         ty: "fragment",
         path: "assets/shaders/default.frag",
+        linalg_type: "cgmath"
     }
 }
 
 impl Default for fs::Light {
     fn default() -> Self {
         Self {
-            position: [0.0, 0.0, 0.0].into(),
-            color: [1.0, 1.0, 1.0],
+            position: Vector4::new(0.0, 0.0, 0.0, 1.0),
+            color: Vector4::new(1.0, 1.0, 1.0, 1.0),
             intensity: 1.0,
         }
     }

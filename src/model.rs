@@ -46,8 +46,8 @@ impl ModelInstance {
     ) {
         let model_normal_uniform_subbuffer = {
             let uniform_data = shaders::vs::ModelUniform {
-                model: self.transform.into(),
-                normal: self.transform.invert().unwrap().transpose().into(),
+                model: self.transform,
+                normal: self.transform.invert().unwrap().transpose(),
             };
 
             let subbuffer = allocators.subbuffer_allocator.allocate_sized().unwrap();

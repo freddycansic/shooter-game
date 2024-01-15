@@ -1,5 +1,7 @@
 use crate::{buffers, context, debug, model, scene, shaders, texture};
-use cgmath::{Euler, Matrix, Matrix4, Point3, Quaternion, Rad, SquareMatrix, Vector3};
+use cgmath::{
+    EuclideanSpace, Matrix4, Point3, Rad, Vector3, Vector4,
+};
 use color_eyre::Result;
 use itertools::Itertools;
 use std::time::Instant;
@@ -12,8 +14,9 @@ use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
-use crate::model::ModelInstance;
+
 use crate::scene::Scene;
+use vulkano::padded::Padded;
 use vulkano::swapchain::{acquire_next_image, SwapchainCreateInfo, SwapchainPresentInfo};
 use vulkano::sync::GpuFuture;
 use vulkano::{sync, Validated, VulkanError};
@@ -44,26 +47,16 @@ impl App {
             context::RenderingContext::new(&vulkan_context, &mut window_context, &allocators);
 
         // TODO move models, textures to resource manager / scene
-        let teapot = model::Model::load(
-            "assets/models/teapot.glb",
-            allocators.memory_allocator.clone(),
-        )
-        .expect("Could not load model.");
+        let load_model = |path| {
+            model::Model::load(path, allocators.memory_allocator.clone())
+                .expect("Could not load model.")
+        };
 
-        let backdrop = model::Model::load(
-            "assets/models/backdrop.glb",
-            allocators.memory_allocator.clone(),
-        )
-        .unwrap();
-
-        let cube = model::Model::load(
-            "assets/models/cube.glb",
-            allocators.memory_allocator.clone(),
-        )
-        .unwrap();
+        let teapot = load_model("assets/models/teapot.glb");
+        let backdrop = load_model("assets/models/backdrop.glb");
 
         let scene = Scene {
-            models: vec![teapot.into(), backdrop.into(), cube.into()],
+            models: vec![teapot.into(), backdrop.into()],
         };
 
         let _cube = model::Model::load(
@@ -94,11 +87,11 @@ impl App {
         };
 
         let _ferris = load_texture("assets/textures/ferris.png");
-        let _wojak = load_texture("assets/textures/wojak.jpg");
+        let wojak = load_texture("assets/textures/wojak.jpg");
         let _gmod = load_texture("assets/textures/gmod.jpg");
-        let white = load_texture("assets/textures/white.jpg");
+        let _white = load_texture("assets/textures/white.jpg");
 
-        let texture = white;
+        let texture = wojak;
 
         // Submit uploading textures
         let texture_uploads_end = Some(
@@ -178,7 +171,7 @@ impl App {
             let aspect_ratio = self.rendering_context.swapchain.image_extent()[0] as f32
                 / self.rendering_context.swapchain.image_extent()[1] as f32;
 
-            let proj =
+            let projection =
                 cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.01, 100.0);
 
             let camera_position = Point3::new(5.0, 2.0, 5.0);
@@ -190,9 +183,9 @@ impl App {
             );
 
             let uniform_data = shaders::vs::CameraUniform {
-                view: view.into(),
-                projection: proj.into(),
-                camera_position: camera_position.into(),
+                view,
+                projection,
+                camera_position: camera_position.to_vec(),
             };
 
             let subbuffer = self
@@ -205,22 +198,39 @@ impl App {
             subbuffer
         };
 
-        let elapsed = frame_state.start.elapsed().as_millis() as f32 / 1000.0;
-        let radius = 4.0;
-        let light_z = radius * elapsed.sin();
-        let light_x = radius * elapsed.cos();
-        let light_position = [light_x, 0.5, light_z];
-
         let lights_uniform_subbuffer = {
             const MAX_LIGHTS: usize = 10;
-            let mut lights = [shaders::fs::Light::default(); MAX_LIGHTS];
+            let mut lights: [Padded<shaders::fs::Light, 12>; 10] =
+                [shaders::fs::Light::default().into(); MAX_LIGHTS];
 
-            lights[0] = shaders::fs::Light {
-                position: light_position.into(),
-                // position: [7.0, 0.7, 7.0].into(),
-                color: [1.0, 1.0, 1.0],
-                intensity: 1.0,
+            let elapsed = frame_state.start.elapsed().as_millis() as f32 / 1000.0;
+            let radius = 4.0;
+            let light_z = radius * elapsed.sin();
+            let light_x = radius * elapsed.cos();
+            lights[0].position = Vector4::new(light_x, 0.5, light_z, 1.0);
+
+            const SATURATION: f32 = 1.0;
+            const VALUE: f32 = 1.0;
+
+            let hue = (frame_state.start.elapsed().as_millis() / 10 % 360) as f32 / 360.0;
+            let sector = (hue * 6.0).floor() as usize;
+            let fraction = hue * 6.0 - sector as f32;
+
+            let p = VALUE * (1.0 - SATURATION);
+            let q = VALUE * (1.0 - fraction * SATURATION);
+            let t = VALUE * (1.0 - (1.0 - fraction) * SATURATION);
+
+            let color = match sector % 6 {
+                0 => Vector3::new(VALUE, t, p),
+                1 => Vector3::new(q, VALUE, p),
+                2 => Vector3::new(p, VALUE, t),
+                3 => Vector3::new(p, q, VALUE),
+                4 => Vector3::new(t, p, VALUE),
+                5 => Vector3::new(VALUE, p, q),
+                _ => unreachable!(),
             };
+
+            lights[0].color = Vector4::new(color[0], color[1], color[2], 1.0);
 
             let lights_data = shaders::fs::LightsUniform { lights };
 
@@ -317,16 +327,6 @@ impl App {
         self.scene.models[1].transform =
             Matrix4::from_translation(Vector3::new(0.0, -2.0, 0.0)) * Matrix4::from_scale(10.0);
         self.scene.models[1].render(
-            &mut builder,
-            &self.allocators,
-            self.rendering_context.pipeline.clone(),
-            &self.texture,
-        );
-
-        // Light cube
-        self.scene.models[2].transform =
-            Matrix4::from_translation(light_position.into()) * Matrix4::from_scale(0.2);
-        self.scene.models[2].render(
             &mut builder,
             &self.allocators,
             self.rendering_context.pipeline.clone(),
