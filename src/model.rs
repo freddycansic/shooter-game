@@ -50,10 +50,7 @@ impl ModelInstance {
                 normal: self.transform.invert().unwrap().transpose(),
             };
 
-            let subbuffer = allocators.subbuffer_allocator.allocate_sized().unwrap();
-            *subbuffer.write().unwrap() = uniform_data;
-
-            subbuffer
+            buffers::create_subbuffer(&allocators.subbuffer_allocator, uniform_data)
         };
 
         let per_primitive_descriptor_set = DescriptorSet::new(

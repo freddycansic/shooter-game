@@ -1,7 +1,5 @@
 use crate::{buffers, context, debug, model, scene, shaders, texture};
-use cgmath::{
-    EuclideanSpace, Matrix4, Point3, Rad, Vector3, Vector4,
-};
+use cgmath::{EuclideanSpace, Matrix4, Point3, Rad, Vector3, Vector4};
 use color_eyre::Result;
 use itertools::Itertools;
 use std::time::Instant;
@@ -14,7 +12,6 @@ use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
-
 use crate::scene::Scene;
 use vulkano::padded::Padded;
 use vulkano::swapchain::{acquire_next_image, SwapchainCreateInfo, SwapchainPresentInfo};
@@ -23,6 +20,9 @@ use vulkano::{sync, Validated, VulkanError};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
+use egui_winit_vulkano::{Gui, GuiConfig};
+use vulkano::image::view::ImageView;
+
 pub struct App {
     scene: scene::Scene,
     texture: texture::Texture,
@@ -30,6 +30,7 @@ pub struct App {
     rendering_context: context::RenderingContext,
     window_context: context::WindowContext,
     allocators: context::Allocators,
+    gui: Gui,
     // TODO decide what to do with this
     previous_frame_end: Option<Box<dyn GpuFuture>>,
 }
@@ -103,6 +104,14 @@ impl App {
                 .boxed(),
         );
 
+        let gui = Gui::new(
+            event_loop,
+            vulkan_context.surface.clone(),
+            vulkan_context.queue.clone(),
+            rendering_context.swapchain.image_format(),
+            GuiConfig::default(),
+        );
+
         Self {
             window_context,
             rendering_context,
@@ -110,6 +119,7 @@ impl App {
             allocators,
             previous_frame_end: texture_uploads_end,
             scene,
+            gui,
             texture,
         }
     }
@@ -126,27 +136,28 @@ impl App {
 
                 match event {
                     Event::WindowEvent {
-                        event: WindowEvent::CloseRequested,
+                        event: window_event,
                         ..
-                    } => {
-                        event_loop_window_target.exit();
-                    }
-                    Event::WindowEvent {
-                        // Purposefully ignore new window size to retain 16:9 aspect ratio = no stretching
-                        event: WindowEvent::Resized(_new_size),
-                        ..
-                    } => {
-                        frame_state.recreate_swapchain = true;
-                    }
-                    Event::WindowEvent {
-                        event: WindowEvent::RedrawRequested,
-                        ..
-                    } => {
-                        self.render(&mut frame_state);
-                    }
+                    } => match window_event {
+                        WindowEvent::CloseRequested => event_loop_window_target.exit(),
+                        WindowEvent::Resized(_new_size) => frame_state.recreate_swapchain = true,
+
+                        WindowEvent::RedrawRequested => {
+                            self.gui.update(&window_event);
+
+                            self.gui.immediate_ui(|gui| {
+                                let ctx = gui.context();
+                                egui::CentralPanel::default().show(&ctx, |ui| {
+                                    ui.heading("My egui Application");
+                                });
+                            });
+                            self.render(&mut frame_state);
+                        }
+                        _ => (),
+                    },
                     Event::AboutToWait => self.window_context.window.request_redraw(),
                     _ => (),
-                };
+                }
             })
             .unwrap();
     }
@@ -182,20 +193,13 @@ impl App {
                 Vector3::new(0.0, -1.0, 0.0),
             );
 
-            let uniform_data = shaders::vs::CameraUniform {
+            let camera_uniform_data = shaders::vs::CameraUniform {
                 view,
                 projection,
                 camera_position: camera_position.to_vec(),
             };
 
-            let subbuffer = self
-                .allocators
-                .subbuffer_allocator
-                .allocate_sized()
-                .unwrap();
-            *subbuffer.write().unwrap() = uniform_data;
-
-            subbuffer
+            buffers::create_subbuffer(&self.allocators.subbuffer_allocator, camera_uniform_data)
         };
 
         let lights_uniform_subbuffer = {
@@ -234,14 +238,7 @@ impl App {
 
             let lights_data = shaders::fs::LightsUniform { lights };
 
-            let subbuffer = self
-                .allocators
-                .subbuffer_allocator
-                .allocate_sized()
-                .unwrap();
-            *subbuffer.write().unwrap() = lights_data;
-
-            subbuffer
+            buffers::create_subbuffer(&self.allocators.subbuffer_allocator, lights_data)
         };
 
         let per_frame_descriptor_set = DescriptorSet::new(
@@ -337,6 +334,12 @@ impl App {
 
         // Finish recording commands
         let command_buffer = builder.end().unwrap();
+
+        // let acquire_future = self.gui.draw_on_image(
+        //     acquire_future,
+        //     ImageView::new_default(self.rendering_context.images[image_index as usize].clone())
+        //         .unwrap(),
+        // );
 
         let future = self
             .previous_frame_end

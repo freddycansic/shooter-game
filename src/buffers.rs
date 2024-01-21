@@ -1,8 +1,7 @@
-
-
 use color_eyre::eyre::Result;
 use itertools::Itertools;
 use std::sync::Arc;
+use vulkano::buffer::allocator::SubbufferAllocator;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::format::Format;
 use vulkano::image::view::ImageView;
@@ -81,4 +80,15 @@ pub fn create_framebuffers(
             .unwrap()
         })
         .collect_vec())
+}
+
+pub fn create_subbuffer<T>(subbuffer_allocator: &SubbufferAllocator, data: T) -> Subbuffer<T>
+where
+    T: BufferContents,
+{
+    let subbuffer = subbuffer_allocator.allocate_sized().unwrap();
+
+    *subbuffer.write().unwrap() = data;
+
+    subbuffer
 }
