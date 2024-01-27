@@ -335,12 +335,6 @@ impl App {
         // Finish recording commands
         let command_buffer = builder.end().unwrap();
 
-        // let acquire_future = self.gui.draw_on_image(
-        //     acquire_future,
-        //     ImageView::new_default(self.rendering_context.images[image_index as usize].clone())
-        //         .unwrap(),
-        // );
-
         let future = self
             .previous_frame_end
             .take()
@@ -348,6 +342,15 @@ impl App {
             .join(acquire_future)
             .then_execute(self.vulkan_context.queue.clone(), command_buffer)
             .unwrap()
+            .then_signal_fence_and_flush()
+            .unwrap();
+
+        let gui_future = self.gui.draw_on_image(
+            future,
+            self.rendering_context.swapchain_image_views[image_index as usize].clone(),
+        );
+
+        let future = gui_future
             .then_swapchain_present(
                 self.vulkan_context.queue.clone(),
                 SwapchainPresentInfo::swapchain_image_index(

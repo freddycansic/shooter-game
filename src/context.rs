@@ -6,13 +6,14 @@ use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
 use vulkano::command_buffer::allocator::StandardCommandBufferAllocator;
-use vulkano::descriptor_set::allocator::{StandardDescriptorSetAllocator};
+use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
 use vulkano::device::physical::PhysicalDeviceType;
 use vulkano::device::{
     Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags,
 };
 use vulkano::format::Format;
 
+use vulkano::image::view::ImageView;
 use vulkano::image::{Image, ImageUsage};
 use vulkano::instance::debug::{
     DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
@@ -32,7 +33,7 @@ pub struct RenderingContext {
     pub framebuffers: Vec<Arc<Framebuffer>>,
     pub pipeline: Arc<GraphicsPipeline>,
     pub swapchain: Arc<Swapchain>,
-    pub images: Vec<Arc<Image>>,
+    pub swapchain_image_views: Vec<Arc<ImageView>>,
     pub render_pass: Arc<RenderPass>,
 }
 
@@ -110,10 +111,16 @@ impl RenderingContext {
         )
         .unwrap();
 
+        let swapchain_image_views = images
+            .into_iter()
+            .map(ImageView::new_default)
+            .map(Result::unwrap)
+            .collect_vec();
+
         Self {
             swapchain,
             framebuffers,
-            images,
+            swapchain_image_views,
             pipeline,
             render_pass,
         }
