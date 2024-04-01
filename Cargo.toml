@@ -24,4 +24,4 @@ fastrand = "2.0.1"
 memoffset = "0.9.0"
 png = "0.17.10"
 egui_winit_vulkano = { git = "https://github.com/Letronix624/egui_winit_vulkano" }
-egui = "0.25.0"
+egui = "0.26.0"

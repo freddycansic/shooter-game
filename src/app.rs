@@ -1,7 +1,6 @@
-use crate::{buffers, context, debug, model, scene, shaders, texture};
-use cgmath::{EuclideanSpace, Matrix4, Point3, Rad, Vector3, Vector4};
+use crate::{buffers, camera, context, debug, model, scene, shaders, texture};
+use cgmath::{Matrix4, Point3, Vector3, Vector4};
 use color_eyre::Result;
-use itertools::Itertools;
 use std::time::Instant;
 use vulkano::command_buffer::sys::CommandBufferBeginInfo;
 use vulkano::command_buffer::{CommandBufferLevel, CommandBufferUsage};
@@ -21,7 +20,6 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use egui_winit_vulkano::{Gui, GuiConfig};
-use vulkano::image::view::ImageView;
 
 pub struct App {
     scene: scene::Scene,
@@ -56,9 +54,11 @@ impl App {
         let teapot = load_model("assets/models/teapot.glb");
         let backdrop = load_model("assets/models/backdrop.glb");
 
-        let scene = Scene {
-            models: vec![teapot.into(), backdrop.into()],
-        };
+        let mut scene = Scene::new(camera::Camera::new(
+            Point3::new(5.0, 2.0, 5.0),
+            Point3::new(0.0, 0.0, 0.0),
+        ));
+        scene.models = vec![teapot.into(), backdrop.into()];
 
         let _cube = model::Model::load(
             "assets/models/cube.glb",
@@ -108,7 +108,7 @@ impl App {
             event_loop,
             vulkan_context.surface.clone(),
             vulkan_context.queue.clone(),
-            rendering_context.swapchain.image_format(),
+            rendering_context.gui_image_views[0].format(),
             GuiConfig::default(),
         );
 
@@ -128,6 +128,7 @@ impl App {
         let mut frame_state = FrameState {
             start: Instant::now(),
             recreate_swapchain: false,
+            frame_count: 0,
         };
 
         event_loop
@@ -149,9 +150,11 @@ impl App {
                                 let ctx = gui.context();
                                 egui::CentralPanel::default().show(&ctx, |ui| {
                                     ui.heading("My egui Application");
+                                    ui.label("Hello world");
                                 });
                             });
                             self.render(&mut frame_state);
+                            frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
                         }
                         _ => (),
                     },
@@ -178,29 +181,16 @@ impl App {
             frame_state.recreate_swapchain = false;
         }
 
-        let camera_uniform_subbuffer = {
-            let aspect_ratio = self.rendering_context.swapchain.image_extent()[0] as f32
-                / self.rendering_context.swapchain.image_extent()[1] as f32;
+        // Set current aspect ratio
+        self.scene.camera.set_aspect_ratio(
+            self.rendering_context.swapchain.image_extent()[0] as f32
+                / self.rendering_context.swapchain.image_extent()[1] as f32,
+        );
 
-            let projection =
-                cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.01, 100.0);
-
-            let camera_position = Point3::new(5.0, 2.0, 5.0);
-
-            let view = Matrix4::look_at_rh(
-                camera_position,
-                Point3::new(0.0, 0.0, 0.0),
-                Vector3::new(0.0, -1.0, 0.0),
-            );
-
-            let camera_uniform_data = shaders::vs::CameraUniform {
-                view,
-                projection,
-                camera_position: camera_position.to_vec(),
-            };
-
-            buffers::create_subbuffer(&self.allocators.subbuffer_allocator, camera_uniform_data)
-        };
+        let camera_uniform_subbuffer = self
+            .scene
+            .camera
+            .create_subbuffer(&self.allocators.subbuffer_allocator);
 
         let lights_uniform_subbuffer = {
             const MAX_LIGHTS: usize = 10;
@@ -347,8 +337,10 @@ impl App {
 
         let gui_future = self.gui.draw_on_image(
             future,
-            self.rendering_context.swapchain_image_views[image_index as usize].clone(),
+            self.rendering_context.gui_image_views[image_index as usize].clone(),
         );
+
+        println!("{}", frame_state.frame_count);
 
         let future = gui_future
             .then_swapchain_present(
@@ -399,4 +391,5 @@ impl App {
 struct FrameState {
     start: Instant,
     recreate_swapchain: bool,
+    frame_count: u128,
 }

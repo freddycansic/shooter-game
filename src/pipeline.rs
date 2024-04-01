@@ -38,7 +38,7 @@ pub fn create_pipeline(
 
     let vertex_input_state =
         <vertex::Vertex as vulkano::pipeline::graphics::vertex_input::Vertex>::per_vertex()
-            .definition(&vs.info().input_interface)
+            .definition(&vs)
             .unwrap();
 
     let stages = [

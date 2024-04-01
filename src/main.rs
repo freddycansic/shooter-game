@@ -1,7 +1,6 @@
-#![feature(offset_of)]
-
 mod app;
 mod buffers;
+mod camera;
 mod context;
 mod debug;
 mod maths;
@@ -16,6 +15,9 @@ use crate::app::App;
 use winit::event_loop::EventLoop;
 
 fn main() {
+    // Without this, hyprland crashes randomly
+    std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+
     // God level variable
     let event_loop = EventLoop::new().expect("Failed to create EventLoop");
 

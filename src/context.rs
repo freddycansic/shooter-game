@@ -1,7 +1,7 @@
 use crate::{buffers, debug, pipeline};
 
 use itertools::Itertools;
-use log::info;
+use log::{debug, info};
 use std::sync::Arc;
 use vulkano::buffer::allocator::{SubbufferAllocator, SubbufferAllocatorCreateInfo};
 use vulkano::buffer::BufferUsage;
@@ -13,8 +13,8 @@ use vulkano::device::{
 };
 use vulkano::format::Format;
 
-use vulkano::image::view::ImageView;
-use vulkano::image::{Image, ImageUsage};
+use vulkano::image::view::{ImageView, ImageViewCreateInfo};
+use vulkano::image::ImageUsage;
 use vulkano::instance::debug::{
     DebugUtilsMessageSeverity, DebugUtilsMessageType, DebugUtilsMessenger,
 };
@@ -23,7 +23,7 @@ use vulkano::memory::allocator::{MemoryTypeFilter, StandardMemoryAllocator};
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::pipeline::GraphicsPipeline;
 use vulkano::render_pass::{Framebuffer, RenderPass};
-use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateInfo};
+use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateFlags, SwapchainCreateInfo};
 
 use vulkano::VulkanLibrary;
 use winit::event_loop::EventLoop;
@@ -34,6 +34,7 @@ pub struct RenderingContext {
     pub pipeline: Arc<GraphicsPipeline>,
     pub swapchain: Arc<Swapchain>,
     pub swapchain_image_views: Vec<Arc<ImageView>>,
+    pub gui_image_views: Vec<Arc<ImageView>>,
     pub render_pass: Arc<RenderPass>,
 }
 
@@ -49,17 +50,20 @@ impl RenderingContext {
             .surface_capabilities(&vulkan_context.surface, Default::default())
             .unwrap();
 
+        let swapchain_format = vulkan_context
+            .device
+            .clone()
+            .physical_device()
+            .surface_formats(&vulkan_context.surface.clone(), Default::default())
+            .unwrap()[0]
+            .0;
+
         let (swapchain, images) = Swapchain::new(
             vulkan_context.device.clone(),
             vulkan_context.surface.clone(),
             SwapchainCreateInfo {
-                image_format: vulkan_context
-                    .device
-                    .clone()
-                    .physical_device()
-                    .surface_formats(&vulkan_context.surface.clone(), Default::default())
-                    .unwrap()[0]
-                    .0,
+                image_format: swapchain_format,
+                image_view_formats: vec![swapchain_format, Format::R8G8B8A8_UNORM],
                 // 2 images is needed for fullscreen capabilities
                 min_image_count: surface_capabilities.min_image_count.max(2),
                 image_extent: window_context.window.clone().inner_size().into(),
@@ -69,6 +73,7 @@ impl RenderingContext {
                     .into_iter()
                     .next()
                     .unwrap(),
+                flags: SwapchainCreateFlags::MUTABLE_FORMAT,
                 ..Default::default()
             },
         )
@@ -111,16 +116,33 @@ impl RenderingContext {
         )
         .unwrap();
 
+        let gui_image_views = images
+            .iter()
+            .map(|image| {
+                ImageView::new(
+                    image.clone(),
+                    ImageViewCreateInfo {
+                        format: Format::R8G8B8A8_UNORM,
+                        ..ImageViewCreateInfo::from_image(image)
+                    },
+                )
+            })
+            .map(Result::unwrap)
+            .collect_vec();
+
         let swapchain_image_views = images
             .into_iter()
             .map(ImageView::new_default)
             .map(Result::unwrap)
             .collect_vec();
 
+        assert_eq!(gui_image_views.len(), swapchain_image_views.len());
+
         Self {
             swapchain,
             framebuffers,
             swapchain_image_views,
+            gui_image_views,
             pipeline,
             render_pass,
         }
@@ -254,12 +276,25 @@ impl VulkanContext {
 
         let required_device_extensions = DeviceExtensions {
             khr_swapchain: true,
+            khr_swapchain_mutable_format: true, // For egui
             ..DeviceExtensions::empty()
         };
 
-        let (physical_device, queue_family_index) = instance
+        let physical_devices = instance
             .enumerate_physical_devices()
             .unwrap()
+            .collect_vec();
+
+        for physical_device in physical_devices.iter() {
+            debug!(
+                "Available device {:?} of type {:?}",
+                physical_device.properties().device_name,
+                physical_device.properties().device_type,
+            );
+        }
+
+        let (physical_device, queue_family_index) = physical_devices
+            .into_iter()
             .filter(|device| {
                 device
                     .supported_extensions()
