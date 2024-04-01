@@ -4,6 +4,7 @@ mod camera;
 mod colors;
 mod context;
 mod debug;
+mod input;
 mod maths;
 mod model;
 mod pipeline;

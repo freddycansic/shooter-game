@@ -1,7 +1,6 @@
-use crate::{buffers, camera, colors, context, debug, model, scene, shaders, texture};
+use crate::{buffers, camera, colors, context, debug, input, model, scene, shaders, texture};
 use cgmath::{Matrix4, Point3, Vector3, Vector4};
 use color_eyre::Result;
-use palette::FromColor;
 use std::time::Instant;
 use vulkano::command_buffer::sys::CommandBufferBeginInfo;
 use vulkano::command_buffer::{CommandBufferLevel, CommandBufferUsage};
@@ -9,6 +8,7 @@ use vulkano::command_buffer::{
     RecordingCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents,
 };
 use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use winit::keyboard::KeyCode;
 
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
@@ -21,9 +21,11 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 use egui_winit_vulkano::{Gui, GuiConfig};
 
+use input::Input;
 use scene::Scene;
 
 pub struct App {
+    input: input::Input,
     scene: scene::Scene,
     texture: texture::Texture,
     vulkan_context: context::VulkanContext,
@@ -117,6 +119,8 @@ impl App {
             },
         );
 
+        let input = Input::new();
+
         Self {
             window_context,
             rendering_context,
@@ -126,6 +130,7 @@ impl App {
             scene,
             gui,
             texture,
+            input,
         }
     }
 
@@ -146,9 +151,15 @@ impl App {
                         ..
                     } => match window_event {
                         WindowEvent::CloseRequested => event_loop_window_target.exit(),
+                        WindowEvent::KeyboardInput { event, .. } => {
+                            self.input.process_key_event(event)
+                        }
                         WindowEvent::Resized(_new_size) => frame_state.recreate_swapchain = true,
-
                         WindowEvent::RedrawRequested => {
+                            if self.input.key_pressed(KeyCode::Escape) {
+                                event_loop_window_target.exit();
+                            }
+
                             self.gui.update(&window_event);
 
                             self.gui.immediate_ui(|gui| {
@@ -160,6 +171,7 @@ impl App {
                             });
                             self.render(&mut frame_state);
                             frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
+                            self.input.reset_just_released();
                         }
                         _ => (),
                     },
