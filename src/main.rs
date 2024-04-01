@@ -1,6 +1,7 @@
 mod app;
 mod buffers;
 mod camera;
+mod colors;
 mod context;
 mod debug;
 mod maths;

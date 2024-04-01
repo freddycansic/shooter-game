@@ -1,6 +1,7 @@
-use crate::{buffers, camera, context, debug, model, scene, shaders, texture};
+use crate::{buffers, camera, colors, context, debug, model, scene, shaders, texture};
 use cgmath::{Matrix4, Point3, Vector3, Vector4};
 use color_eyre::Result;
+use palette::FromColor;
 use std::time::Instant;
 use vulkano::command_buffer::sys::CommandBufferBeginInfo;
 use vulkano::command_buffer::{CommandBufferLevel, CommandBufferUsage};
@@ -11,7 +12,6 @@ use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
 
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 
-use crate::scene::Scene;
 use vulkano::padded::Padded;
 use vulkano::swapchain::{acquire_next_image, SwapchainCreateInfo, SwapchainPresentInfo};
 use vulkano::sync::GpuFuture;
@@ -20,6 +20,8 @@ use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
 use egui_winit_vulkano::{Gui, GuiConfig};
+
+use scene::Scene;
 
 pub struct App {
     scene: scene::Scene,
@@ -109,7 +111,10 @@ impl App {
             vulkan_context.surface.clone(),
             vulkan_context.queue.clone(),
             rendering_context.gui_image_views[0].format(),
-            GuiConfig::default(),
+            GuiConfig {
+                is_overlay: true,
+                ..Default::default()
+            },
         );
 
         Self {
@@ -148,7 +153,7 @@ impl App {
 
                             self.gui.immediate_ui(|gui| {
                                 let ctx = gui.context();
-                                egui::CentralPanel::default().show(&ctx, |ui| {
+                                egui::SidePanel::left("left_panel").show(&ctx, |ui| {
                                     ui.heading("My egui Application");
                                     ui.label("Hello world");
                                 });
@@ -203,28 +208,8 @@ impl App {
             let light_x = radius * elapsed.cos();
             lights[0].position = Vector4::new(light_x, 0.5, light_z, 1.0);
 
-            const SATURATION: f32 = 1.0;
-            const VALUE: f32 = 1.0;
-
-            let hue = (frame_state.start.elapsed().as_millis() / 10 % 360) as f32 / 360.0;
-            let sector = (hue * 6.0).floor() as usize;
-            let fraction = hue * 6.0 - sector as f32;
-
-            let p = VALUE * (1.0 - SATURATION);
-            let q = VALUE * (1.0 - fraction * SATURATION);
-            let t = VALUE * (1.0 - (1.0 - fraction) * SATURATION);
-
-            let color = match sector % 6 {
-                0 => Vector3::new(VALUE, t, p),
-                1 => Vector3::new(q, VALUE, p),
-                2 => Vector3::new(p, VALUE, t),
-                3 => Vector3::new(p, q, VALUE),
-                4 => Vector3::new(t, p, VALUE),
-                5 => Vector3::new(VALUE, p, q),
-                _ => unreachable!(),
-            };
-
-            lights[0].color = Vector4::new(color[0], color[1], color[2], 1.0);
+            let color = colors::shift_hue_from_named(palette::named::RED, elapsed * 100.0);
+            lights[0].color = colors::to_vector4(color);
 
             let lights_data = shaders::fs::LightsUniform { lights };
 
@@ -339,8 +324,6 @@ impl App {
             future,
             self.rendering_context.gui_image_views[image_index as usize].clone(),
         );
-
-        println!("{}", frame_state.frame_count);
 
         let future = gui_future
             .then_swapchain_present(
