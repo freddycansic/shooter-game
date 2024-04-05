@@ -1,3 +1,7 @@
-/target
+target/
 Cargo.lock
-/.idea
+.idea/
+flamegraph.svg
+.vscode/
+perf.data
+

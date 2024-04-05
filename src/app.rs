@@ -143,38 +143,57 @@ impl App {
 
         event_loop
             .run(move |event, event_loop_window_target| {
+                println!("{:?}", event);
                 event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
                 match event {
                     Event::WindowEvent {
                         event: window_event,
-                        ..
-                    } => match window_event {
-                        WindowEvent::CloseRequested => event_loop_window_target.exit(),
-                        WindowEvent::KeyboardInput { event, .. } => {
-                            self.input.process_key_event(event)
-                        }
-                        WindowEvent::Resized(_new_size) => frame_state.recreate_swapchain = true,
-                        WindowEvent::RedrawRequested => {
-                            if self.input.key_pressed(KeyCode::Escape) {
-                                event_loop_window_target.exit();
+                        window_id,
+                    } if window_id == self.window_context.window.id() => {
+                        let pass_events_to_game = !self.gui.update(&window_event);
+
+                        match window_event {
+                            WindowEvent::CloseRequested => event_loop_window_target.exit(),
+                            WindowEvent::KeyboardInput { event, .. } if pass_events_to_game => {
+                                self.input.process_key_event(event)
                             }
+                            WindowEvent::Resized(_new_size) => {
+                                frame_state.recreate_swapchain = true
+                            }
+                            WindowEvent::ScaleFactorChanged { .. } => {
+                                frame_state.recreate_swapchain = true
+                            }
+                            WindowEvent::RedrawRequested => {
+                                if self.input.key_pressed(KeyCode::Escape) {
+                                    event_loop_window_target.exit();
+                                }
 
-                            self.gui.update(&window_event);
+                                println!("{}", frame_state.frame_count);
 
-                            self.gui.immediate_ui(|gui| {
-                                let ctx = gui.context();
-                                egui::SidePanel::left("left_panel").show(&ctx, |ui| {
-                                    ui.heading("My egui Application");
-                                    ui.label("Hello world");
+                                self.gui.immediate_ui(|gui| {
+                                    let ctx = gui.context();
+
+                                    egui::TopBottomPanel::top("top_panel").show(&ctx, |ui| {
+                                        ui.menu_button("File", |ui| {
+                                            if ui.add(egui::Button::new("Import model")).clicked() {
+                                                ui.close_menu();
+                                            }
+                                        });
+                                    });
+
+                                    egui::SidePanel::left("left_panel").show(&ctx, |ui| {
+                                        ui.heading("My egui Application");
+                                        ui.label("Hello world");
+                                    });
                                 });
-                            });
-                            self.render(&mut frame_state);
-                            frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
-                            self.input.reset_just_released();
+                                self.render(&mut frame_state);
+                                frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
+                                self.input.reset_just_released();
+                            }
+                            _ => (),
                         }
-                        _ => (),
-                    },
+                    }
                     Event::AboutToWait => self.window_context.window.request_redraw(),
                     _ => (),
                 }
