@@ -26,6 +26,3 @@ png = "0.17.10"
 egui_winit_vulkano = { git = "https://github.com/Letronix624/egui_winit_vulkano" }
 egui = "0.26.0"
 palette = { version = "0.7.5", default-features = false, features = ["named", "std"] }
-
-[profile.release]
-debug = true
