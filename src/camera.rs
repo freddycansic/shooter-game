@@ -1,9 +1,12 @@
+use egui::{Context, InputState};
 use vulkano::buffer::{allocator::SubbufferAllocator, Subbuffer};
 
 use cgmath::{EuclideanSpace, Matrix4, Point3, Rad, Vector3};
+use winit::keyboard::KeyCode;
 
-use crate::buffers;
+use crate::input::Input;
 use crate::shaders::vs;
+use crate::{buffers, input};
 
 pub struct Camera {
     pub position: Point3<f32>,
@@ -17,6 +20,20 @@ impl Camera {
             position,
             target,
             projection: Self::create_perspective_matrix(1920.0 / 1080.0),
+        }
+    }
+
+    pub fn update(&mut self, input: &Input) {
+        let speed = 0.1;
+
+        let forward_direction = self.target - self.position;
+
+        if input.key_down(KeyCode::KeyW) {
+            self.position += speed * forward_direction;
+        }
+
+        if input.key_down(KeyCode::KeyS) {
+            self.position -= speed * forward_direction;
         }
     }
 

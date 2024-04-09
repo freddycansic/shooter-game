@@ -1,7 +1,8 @@
 use crate::{buffers, camera, colors, context, debug, input, model, scene, shaders, texture};
 use cgmath::{Matrix4, Point3, Vector3, Vector4};
 use color_eyre::Result;
-use std::time::Instant;
+use rfd::FileDialog;
+use std::time::{Duration, Instant};
 use vulkano::command_buffer::sys::CommandBufferBeginInfo;
 use vulkano::command_buffer::{CommandBufferLevel, CommandBufferUsage};
 use vulkano::command_buffer::{
@@ -19,6 +20,7 @@ use vulkano::{sync, Validated, VulkanError};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
+use egui_modal::Modal;
 use egui_winit_vulkano::{Gui, GuiConfig};
 
 use input::Input;
@@ -49,26 +51,11 @@ impl App {
         let rendering_context =
             context::RenderingContext::new(&vulkan_context, &mut window_context, &allocators);
 
-        // TODO move models, textures to resource manager / scene
-        let load_model = |path| {
-            model::Model::load(path, allocators.memory_allocator.clone())
-                .expect("Could not load model.")
-        };
-
-        let teapot = load_model("assets/models/teapot.glb");
-        let backdrop = load_model("assets/models/backdrop.glb");
-
         let mut scene = Scene::new(camera::Camera::new(
             Point3::new(5.0, 2.0, 5.0),
             Point3::new(0.0, 0.0, 0.0),
         ));
-        scene.models = vec![teapot.into(), backdrop.into()];
-
-        let _cube = model::Model::load(
-            "assets/models/cube.glb",
-            allocators.memory_allocator.clone(),
-        )
-        .unwrap();
+        // scene.model_instances = vec![teapot.into(), backdrop.into()];
 
         let mut texture_uploads = RecordingCommandBuffer::new(
             allocators.command_buffer_allocator.clone(),
@@ -143,7 +130,7 @@ impl App {
 
         event_loop
             .run(move |event, event_loop_window_target| {
-                println!("{:?}", event);
+                // println!("{:?}", event);
                 event_loop_window_target.set_control_flow(ControlFlow::Poll);
 
                 match event {
@@ -169,10 +156,48 @@ impl App {
                                     event_loop_window_target.exit();
                                 }
 
-                                println!("{}", frame_state.frame_count);
+                                self.scene.camera.update(&self.input);
+                                // println!("{}", frame_state.frame_count);
 
                                 self.gui.immediate_ui(|gui| {
                                     let ctx = gui.context();
+
+                                    if self.input.key_pressed(KeyCode::KeyO) {
+                                        if let Some(files) = FileDialog::new()
+                                            .add_filter("gltf", &["glb", "gltf"])
+                                            .set_can_create_directories(true)
+                                            .set_directory("/")
+                                            .pick_files()
+                                        {
+                                            files.into_iter().for_each(|file| {
+                                                let mut reload = false;
+
+                                                if self.scene.model_is_loaded(file.to_str().unwrap()) {
+                                                    let modal = Modal::new(&ctx, "Confirmation");
+
+                                                    modal.show(|ui| {
+                                                        ui.label(format!("The model \"{}\" has already been imported into the scene.\nDo you want to reload it?", file.file_name().unwrap().to_str().unwrap()));
+
+                                                        if ui.button("No").clicked() {
+                                                            modal.close();
+                                                        }
+
+                                                        if ui.button("Yes").clicked() {
+                                                            reload = true;
+                                                            modal.close();
+                                                        }
+                                                    });
+
+                                                    modal.open();
+                                                }
+
+                                                self.scene.import_model(
+                                                    file.to_str().unwrap(),
+                                                    self.allocators.memory_allocator.clone(),
+                                                );
+                                            });
+                                        }
+                                    }
 
                                     egui::TopBottomPanel::top("top_panel").show(&ctx, |ui| {
                                         ui.menu_button("File", |ui| {
@@ -259,17 +284,19 @@ impl App {
         .unwrap();
 
         // Acquire next image to draw upon
-        let (image_index, suboptimal, acquire_future) =
-            match acquire_next_image(self.rendering_context.swapchain.clone(), None)
-                .map_err(Validated::unwrap)
-            {
-                Ok(next) => next,
-                Err(VulkanError::OutOfDate) => {
-                    frame_state.recreate_swapchain = true;
-                    return;
-                }
-                Err(error) => panic!("Failed to acquire next image: {error}"),
-            };
+        let (image_index, suboptimal, acquire_future) = match acquire_next_image(
+            self.rendering_context.swapchain.clone(),
+            Some(Duration::from_millis(10)),
+        )
+        .map_err(Validated::unwrap)
+        {
+            Ok(next) => next,
+            Err(VulkanError::OutOfDate) => {
+                frame_state.recreate_swapchain = true;
+                return;
+            }
+            Err(error) => panic!("Failed to acquire next image: {error}"),
+        };
 
         // Drawing on suboptimal images can produce graphical errors
         if suboptimal {
@@ -318,18 +345,7 @@ impl App {
             )
             .unwrap();
 
-        // Teapot
-        self.scene.models[0].render(
-            &mut builder,
-            &self.allocators,
-            self.rendering_context.pipeline.clone(),
-            &self.texture,
-        );
-
-        // Backdrop
-        self.scene.models[1].transform =
-            Matrix4::from_translation(Vector3::new(0.0, -2.0, 0.0)) * Matrix4::from_scale(10.0);
-        self.scene.models[1].render(
+        self.scene.render(
             &mut builder,
             &self.allocators,
             self.rendering_context.pipeline.clone(),
@@ -347,8 +363,6 @@ impl App {
             .unwrap()
             .join(acquire_future)
             .then_execute(self.vulkan_context.queue.clone(), command_buffer)
-            .unwrap()
-            .then_signal_fence_and_flush()
             .unwrap();
 
         let gui_future = self.gui.draw_on_image(
