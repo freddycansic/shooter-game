@@ -26,11 +26,5 @@ png = "0.17.10"
 egui_winit_vulkano = { git = "https://github.com/Letronix624/egui_winit_vulkano" }
 egui = "0.27.0"
 palette = { version = "0.7.5", default-features = false, features = ["named", "std"] }
-<<<<<<< HEAD
-=======
 rfd = "0.14.1"
 egui-modal = "0.3.6"
-
-[profile.release]
-debug = true
->>>>>>> 0675467 (Scene rendering, model importing)
