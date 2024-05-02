@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
-
-use vulkano::command_buffer::RecordingCommandBuffer;
-use vulkano::memory::allocator::StandardMemoryAllocator;
-use vulkano::pipeline::GraphicsPipeline;
+use cgmath::{Matrix, Matrix4, SquareMatrix};
+use glium::{Display, DrawParameters, implement_vertex, Program, Surface, uniform, VertexBuffer};
+use glium::glutin::surface::WindowSurface;
+use glium::uniforms::{AsUniformValue, EmptyUniforms, UniformsStorage};
+use itertools::Itertools;
 
 use crate::camera::Camera;
-use crate::context::Allocators;
+use crate::maths;
 use crate::model::{Model, ModelInstance};
-use crate::texture::Texture;
 
 pub struct Scene {
     pub model_instances: Vec<ModelInstance>,
@@ -27,8 +26,8 @@ impl Scene {
     }
 
     /// Load a model and create an instance of it in the scene
-    pub fn import_model(&mut self, path: &str, memory_allocator: Arc<StandardMemoryAllocator>) {
-        let model = self.load_model(path, memory_allocator);
+    pub fn import_model(&mut self, path: &str, display: &Display<WindowSurface>) {
+        let model = self.load_model(path, display);
 
         self.model_instances.push(ModelInstance::from(model));
     }
@@ -37,11 +36,11 @@ impl Scene {
     pub fn load_model(
         &mut self,
         path: &str,
-        memory_allocator: Arc<StandardMemoryAllocator>,
+        display: &Display<WindowSurface>
     ) -> Arc<Model> {
         self.models
             .entry(path.to_owned())
-            .or_insert(Model::load(path, memory_allocator).unwrap())
+            .or_insert(Model::load(path, &display).unwrap())
             .clone()
     }
 
@@ -51,20 +50,67 @@ impl Scene {
 
     pub fn render(
         &self,
-        builder: &mut RecordingCommandBuffer,
-        allocators: &Allocators,
-        pipeline: Arc<GraphicsPipeline>,
-        // TODO temporary
-        texture: &Texture,
+        program: &Program,
+        display: &Display<WindowSurface>,
     ) {
-        // build per-frame uniforms
+        let instance_buffers = self.build_instance_buffers(display);
 
-        // draw each primitive
-        self.model_instances.iter().for_each(|model_instance| {
-            model_instance.render(builder, allocators, pipeline.clone(), texture)
-        })
+        let mut target = display.draw();
+        {
+            target.clear_color(1.0, 0.0, 0.0, 1.0);
+
+            let uniforms = uniform! {
+                projection: maths::raw_matrix(self.camera.projection),
+                view: maths::raw_matrix(self.camera.view_matrix()),
+                camera_position: <[f32; 3]>::from(self.camera.position)
+            };
+
+            for (model, instance_buffer) in instance_buffers {
+                for mesh in model.meshes.iter() {
+                    for primitive in mesh.primitives.iter() {
+                        target.draw(
+                            (
+                                &primitive.vertex_buffer,
+                                instance_buffer.per_instance().unwrap()
+                            ),
+                            &primitive.index_buffer,
+                            program,
+                            &uniforms,
+                            &DrawParameters::default()
+                        ).unwrap();
+                    }
+                }
+            }
+        }
+
+        target.finish().unwrap();
+    }
+
+    fn build_instance_buffers(&self, display: &Display<WindowSurface>) -> Vec<(Arc<Model>, VertexBuffer<Instance>)>{
+        let mut instance_buffers = HashMap::<Arc<Model>, Vec<Instance>>::new();
+        for model_instance in self.model_instances.iter() {
+            let transform_matrix = Matrix4::from(model_instance.transform.clone());
+
+            let instance = Instance {
+                transform: <[[f32; 4]; 4]>::from(transform_matrix),
+                transform_normal: <[[f32; 4]; 4]>::from(transform_matrix.invert().unwrap().transpose())
+            };
+
+            instance_buffers.entry(model_instance.model.clone()).or_insert(vec![instance]).push(instance);
+        }
+
+        instance_buffers.into_iter().map(|(model, instances)| {
+            (model, VertexBuffer::new(display, &instances).unwrap())
+        }).collect_vec()
     }
 }
+
+#[derive(Copy, Clone)]
+struct Instance {
+    transform: [[f32; 4]; 4],
+    transform_normal: [[f32; 4]; 4]
+}
+implement_vertex!(Instance, transform, transform_normal);
 
 impl Default for Scene {
     fn default() -> Self {

@@ -1,42 +1,30 @@
-use crate::{buffers, camera, colors, context, debug, input, model, scene, shaders, texture};
-use cgmath::{Matrix4, Point3, Vector3, Vector4};
+use std::f32::consts::PI;
+use std::sync::Arc;
+use crate::{camera, colors, context, debug, input, maths, model, scene};
+use cgmath::{Deg, Matrix, Matrix4, Point3, Quaternion, Rad, Rotation3, SquareMatrix, Vector3, Vector4};
 use color_eyre::Result;
-use rfd::FileDialog;
 use std::time::{Duration, Instant};
-use vulkano::command_buffer::sys::CommandBufferBeginInfo;
-use vulkano::command_buffer::{CommandBufferLevel, CommandBufferUsage};
-use vulkano::command_buffer::{
-    RecordingCommandBuffer, RenderPassBeginInfo, SubpassBeginInfo, SubpassContents,
-};
-use vulkano::descriptor_set::{DescriptorSet, WriteDescriptorSet};
+use glium::{Surface, uniform};
+use glium::uniforms::UniformBuffer;
+use image::open;
+use log::{debug, info};
 use winit::keyboard::KeyCode;
 
-use vulkano::pipeline::{Pipeline, PipelineBindPoint};
-
-use vulkano::padded::Padded;
-use vulkano::swapchain::{acquire_next_image, SwapchainCreateInfo, SwapchainPresentInfo};
-use vulkano::sync::GpuFuture;
-use vulkano::{sync, Validated, VulkanError};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 
-use egui_modal::Modal;
-use egui_winit_vulkano::{Gui, GuiConfig};
-
 use input::Input;
 use scene::Scene;
+use context::{OpenGLContext, RenderingContext};
+use crate::model::{Model, ModelInstance, Transform};
+use crate::vertex::Vertex;
 
 pub struct App {
-    input: input::Input,
-    scene: scene::Scene,
-    texture: texture::Texture,
-    vulkan_context: context::VulkanContext,
-    rendering_context: context::RenderingContext,
-    window_context: context::WindowContext,
-    allocators: context::Allocators,
-    gui: Gui,
-    // TODO decide what to do with this
-    previous_frame_end: Option<Box<dyn GpuFuture>>,
+    input: Input,
+    scene: Scene,
+    opengl_context: OpenGLContext,
+    rendering_context: RenderingContext,
+    teapot: Arc<Model>
 }
 
 impl App {
@@ -45,79 +33,44 @@ impl App {
         debug::set_up_logging();
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
-        let mut window_context = context::WindowContext::new(event_loop);
-        let vulkan_context = context::VulkanContext::new(&window_context, event_loop);
-        let allocators = context::Allocators::new(vulkan_context.device.clone());
-        let rendering_context =
-            context::RenderingContext::new(&vulkan_context, &mut window_context, &allocators);
+        let opengl_context = OpenGLContext::new("We glutin teapot now", event_loop).unwrap();
+        let rendering_context = RenderingContext::new(
+            "assets/shaders/default.vert",
+            "assets/shaders/default.frag",
+            &opengl_context.display
+        ).unwrap();
 
-        let mut scene = Scene::new(camera::Camera::new(
+        let mut scene = Scene::new(camera::Camera::new_fps(
             Point3::new(5.0, 2.0, 5.0),
-            Point3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
         ));
-        // scene.model_instances = vec![teapot.into(), backdrop.into()];
 
-        let mut texture_uploads = RecordingCommandBuffer::new(
-            allocators.command_buffer_allocator.clone(),
-            vulkan_context.queue.queue_family_index(),
-            CommandBufferLevel::Primary,
-            CommandBufferBeginInfo {
-                usage: CommandBufferUsage::OneTimeSubmit,
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let teapot = Model::load("assets/models/teapot.glb", &opengl_context.display).unwrap();
 
-        let mut load_texture = |path| {
-            texture::Texture::load(
-                path,
-                allocators.memory_allocator.clone(),
-                vulkan_context.device.clone(),
-                &mut texture_uploads,
-            )
-            .unwrap()
-        };
+        scene.model_instances.reserve(100);
 
-        let _ferris = load_texture("assets/textures/ferris.png");
-        let wojak = load_texture("assets/textures/wojak.jpg");
-        let _gmod = load_texture("assets/textures/gmod.jpg");
-        let _white = load_texture("assets/textures/white.jpg");
+        let square_size = 10;
 
-        let texture = wojak;
-
-        // Submit uploading textures
-        let texture_uploads_end = Some(
-            texture_uploads
-                .end()
-                .unwrap()
-                .execute(vulkan_context.queue.clone())
-                .unwrap()
-                .boxed(),
-        );
-
-        let gui = Gui::new(
-            event_loop,
-            vulkan_context.surface.clone(),
-            vulkan_context.queue.clone(),
-            rendering_context.gui_image_views[0].format(),
-            GuiConfig {
-                is_overlay: true,
-                ..Default::default()
-            },
-        );
+        for x in 0..square_size {
+            for y in 0..square_size {
+                scene.model_instances.push(ModelInstance {
+                    model: teapot.clone(),
+                    transform: Transform {
+                        translation: Vector3::new(x as f32, y as f32, 0.0),
+                        ..Transform::default()
+                    },
+                })
+            }
+        }
 
         let input = Input::new();
 
         Self {
-            window_context,
+            opengl_context,
             rendering_context,
-            vulkan_context,
-            allocators,
-            previous_frame_end: texture_uploads_end,
             scene,
-            gui,
-            texture,
             input,
+            teapot
         }
     }
 
@@ -126,6 +79,8 @@ impl App {
             start: Instant::now(),
             recreate_swapchain: false,
             frame_count: 0,
+            deltatime: 0.0,
+            fps: 0.0
         };
 
         event_loop
@@ -137,89 +92,41 @@ impl App {
                     Event::WindowEvent {
                         event: window_event,
                         window_id,
-                    } if window_id == self.window_context.window.id() => {
-                        let pass_events_to_game = !self.gui.update(&window_event);
-
+                    } if window_id == self.opengl_context.window.id() => {
                         match window_event {
                             WindowEvent::CloseRequested => event_loop_window_target.exit(),
-                            WindowEvent::KeyboardInput { event, .. } if pass_events_to_game => {
+                            WindowEvent::KeyboardInput { event, .. } => {
                                 self.input.process_key_event(event)
                             }
-                            WindowEvent::Resized(_new_size) => {
-                                frame_state.recreate_swapchain = true
-                            }
-                            WindowEvent::ScaleFactorChanged { .. } => {
-                                frame_state.recreate_swapchain = true
+                            WindowEvent::Resized(new_size) => {
+                                self.opengl_context.display.resize((new_size.width, new_size.height));
+
+                                // Set current aspect ratio
+                                self.scene.camera.set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
                             }
                             WindowEvent::RedrawRequested => {
+                                let start = Instant::now();
+
                                 if self.input.key_pressed(KeyCode::Escape) {
                                     event_loop_window_target.exit();
                                 }
 
                                 self.scene.camera.update(&self.input);
-                                // println!("{}", frame_state.frame_count);
 
-                                self.gui.immediate_ui(|gui| {
-                                    let ctx = gui.context();
-
-                                    if self.input.key_pressed(KeyCode::KeyO) {
-                                        if let Some(files) = FileDialog::new()
-                                            .add_filter("gltf", &["glb", "gltf"])
-                                            .set_can_create_directories(true)
-                                            .set_directory("/")
-                                            .pick_files()
-                                        {
-                                            files.into_iter().for_each(|file| {
-                                                let mut reload = false;
-
-                                                if self.scene.model_is_loaded(file.to_str().unwrap()) {
-                                                    let modal = Modal::new(&ctx, "Confirmation");
-
-                                                    modal.show(|ui| {
-                                                        ui.label(format!("The model \"{}\" has already been imported into the scene.\nDo you want to reload it?", file.file_name().unwrap().to_str().unwrap()));
-
-                                                        if ui.button("No").clicked() {
-                                                            modal.close();
-                                                        }
-
-                                                        if ui.button("Yes").clicked() {
-                                                            reload = true;
-                                                            modal.close();
-                                                        }
-                                                    });
-
-                                                    modal.open();
-                                                }
-
-                                                self.scene.import_model(
-                                                    file.to_str().unwrap(),
-                                                    self.allocators.memory_allocator.clone(),
-                                                );
-                                            });
-                                        }
-                                    }
-
-                                    egui::TopBottomPanel::top("top_panel").show(&ctx, |ui| {
-                                        ui.menu_button("File", |ui| {
-                                            if ui.add(egui::Button::new("Import model")).clicked() {
-                                                ui.close_menu();
-                                            }
-                                        });
-                                    });
-
-                                    egui::SidePanel::left("left_panel").show(&ctx, |ui| {
-                                        ui.heading("My egui Application");
-                                        ui.label("Hello world");
-                                    });
-                                });
                                 self.render(&mut frame_state);
+
                                 frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
                                 self.input.reset_just_released();
+
+                                frame_state.deltatime = start.elapsed().as_secs_f64();
+                                frame_state.fps = (1.0 / frame_state.deltatime) as f32;
+
+                                debug!("{}", frame_state.fps);
                             }
                             _ => (),
                         }
                     }
-                    Event::AboutToWait => self.window_context.window.request_redraw(),
+                    Event::AboutToWait => self.opengl_context.window.request_redraw(),
                     _ => (),
                 }
             })
@@ -227,192 +134,19 @@ impl App {
     }
 
     fn render(&mut self, frame_state: &mut FrameState) {
-        let current_window_extent: [u32; 2] = self.window_context.window.inner_size().into();
-        if current_window_extent.contains(&0) {
+        let window_size = self.opengl_context.window.inner_size();
+        if window_size.width == 0 || window_size.height == 0 {
             return;
         }
 
-        // Clean up last frame's resources
-        self.previous_frame_end.as_mut().unwrap().cleanup_finished();
-
-        if frame_state.recreate_swapchain {
-            self.resize_swapchain_and_framebuffers(current_window_extent)
-                .unwrap();
-
-            frame_state.recreate_swapchain = false;
+        for model_instance in self.scene.model_instances.iter_mut() {
+            model_instance.transform.rotation = Quaternion::from_angle_y(Deg((frame_state.frame_count % 360) as f32));
         }
-
-        // Set current aspect ratio
-        self.scene.camera.set_aspect_ratio(
-            self.rendering_context.swapchain.image_extent()[0] as f32
-                / self.rendering_context.swapchain.image_extent()[1] as f32,
-        );
-
-        let camera_uniform_subbuffer = self
-            .scene
-            .camera
-            .create_subbuffer(&self.allocators.subbuffer_allocator);
-
-        let lights_uniform_subbuffer = {
-            const MAX_LIGHTS: usize = 10;
-            let mut lights: [Padded<shaders::fs::Light, 12>; 10] =
-                [shaders::fs::Light::default().into(); MAX_LIGHTS];
-
-            let elapsed = frame_state.start.elapsed().as_millis() as f32 / 1000.0;
-            let radius = 4.0;
-            let light_z = radius * elapsed.sin();
-            let light_x = radius * elapsed.cos();
-            lights[0].position = Vector4::new(light_x, 0.5, light_z, 1.0);
-
-            let color = colors::shift_hue_from_named(palette::named::RED, elapsed * 100.0);
-            lights[0].color = colors::to_vector4(color);
-
-            let lights_data = shaders::fs::LightsUniform { lights };
-
-            buffers::create_subbuffer(&self.allocators.subbuffer_allocator, lights_data)
-        };
-
-        let per_frame_descriptor_set = DescriptorSet::new(
-            self.allocators.descriptor_set_allocator.clone(),
-            self.rendering_context.pipeline.layout().set_layouts()[0].clone(),
-            [
-                WriteDescriptorSet::buffer(0, camera_uniform_subbuffer),
-                WriteDescriptorSet::buffer(1, lights_uniform_subbuffer),
-            ],
-            [],
-        )
-        .unwrap();
-
-        // Acquire next image to draw upon
-        let (image_index, suboptimal, acquire_future) = match acquire_next_image(
-            self.rendering_context.swapchain.clone(),
-            Some(Duration::from_millis(10)),
-        )
-        .map_err(Validated::unwrap)
-        {
-            Ok(next) => next,
-            Err(VulkanError::OutOfDate) => {
-                frame_state.recreate_swapchain = true;
-                return;
-            }
-            Err(error) => panic!("Failed to acquire next image: {error}"),
-        };
-
-        // Drawing on suboptimal images can produce graphical errors
-        if suboptimal {
-            return;
-        }
-
-        // Holds list of commands to be executed
-        let mut builder = RecordingCommandBuffer::new(
-            self.allocators.command_buffer_allocator.clone(),
-            self.vulkan_context.queue.queue_family_index(),
-            CommandBufferLevel::Primary,
-            CommandBufferBeginInfo {
-                usage: CommandBufferUsage::OneTimeSubmit,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        builder
-            .begin_render_pass(
-                RenderPassBeginInfo {
-                    // Clear values for each attachment
-                    clear_values: vec![Some([0.0, 0.0, 1.0, 1.0].into()), Some(1_f32.into())],
-                    ..RenderPassBeginInfo::framebuffer(
-                        self.rendering_context.framebuffers[image_index as usize].clone(),
-                    )
-                },
-                SubpassBeginInfo {
-                    contents: SubpassContents::Inline,
-                    ..Default::default()
-                },
-            )
-            .unwrap()
-            .set_viewport(
-                0,
-                [self.window_context.viewport.clone()].into_iter().collect(),
-            )
-            .unwrap()
-            .bind_pipeline_graphics(self.rendering_context.pipeline.clone())
-            .unwrap()
-            .bind_descriptor_sets(
-                PipelineBindPoint::Graphics,
-                self.rendering_context.pipeline.layout().clone(),
-                0,
-                per_frame_descriptor_set,
-            )
-            .unwrap();
 
         self.scene.render(
-            &mut builder,
-            &self.allocators,
-            self.rendering_context.pipeline.clone(),
-            &self.texture,
+            &self.rendering_context.program,
+            &self.opengl_context.display
         );
-
-        builder.end_render_pass(Default::default()).unwrap();
-
-        // Finish recording commands
-        let command_buffer = builder.end().unwrap();
-
-        let future = self
-            .previous_frame_end
-            .take()
-            .unwrap()
-            .join(acquire_future)
-            .then_execute(self.vulkan_context.queue.clone(), command_buffer)
-            .unwrap();
-
-        let gui_future = self.gui.draw_on_image(
-            future,
-            self.rendering_context.gui_image_views[image_index as usize].clone(),
-        );
-
-        let future = gui_future
-            .then_swapchain_present(
-                self.vulkan_context.queue.clone(),
-                SwapchainPresentInfo::swapchain_image_index(
-                    self.rendering_context.swapchain.clone(),
-                    image_index,
-                ),
-            )
-            .then_signal_fence_and_flush();
-
-        match future.map_err(Validated::unwrap) {
-            Ok(future) => self.previous_frame_end = Some(future.boxed()),
-            Err(VulkanError::OutOfDate) => {
-                frame_state.recreate_swapchain = true;
-                self.previous_frame_end =
-                    Some(sync::now(self.vulkan_context.device.clone()).boxed());
-            }
-            Err(error) => {
-                panic!("Failed to flush future: {error}");
-            }
-        };
-    }
-
-    fn resize_swapchain_and_framebuffers(&mut self, new_window_extent: [u32; 2]) -> Result<()> {
-        let (new_swapchain, new_images) =
-            self.rendering_context
-                .swapchain
-                .recreate(SwapchainCreateInfo {
-                    // New size of window
-                    image_extent: new_window_extent,
-                    ..self.rendering_context.swapchain.create_info()
-                })?;
-
-        self.rendering_context.swapchain = new_swapchain;
-
-        self.rendering_context.framebuffers = buffers::create_framebuffers(
-            &new_images,
-            &mut self.window_context.viewport,
-            self.allocators.memory_allocator.clone(),
-            self.rendering_context.render_pass.clone(),
-        )?;
-
-        Ok(())
     }
 }
 
@@ -420,4 +154,6 @@ struct FrameState {
     start: Instant,
     recreate_swapchain: bool,
     frame_count: u128,
+    deltatime: f64,
+    fps: f32,
 }

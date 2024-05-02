@@ -1,14 +1,20 @@
-use vulkano::buffer::BufferContents;
+use glium::implement_vertex;
 
-#[derive(
-    BufferContents, vulkano::pipeline::graphics::vertex_input::Vertex, Default, Clone, Debug,
-)]
-#[repr(C)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vertex {
-    #[format(R32G32B32_SFLOAT)]
     pub position: [f32; 3],
-    #[format(R32G32B32_SFLOAT)]
     pub normal: [f32; 3],
-    #[format(R32G32_SFLOAT)]
-    pub tex_coord: [f32; 2],
+    pub tex_coord: [f32; 2]
 }
+
+impl Default for Vertex {
+    fn default() -> Self {
+        Self {
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0]
+        }
+    }
+}
+
+implement_vertex!(Vertex, position, normal, tex_coord);

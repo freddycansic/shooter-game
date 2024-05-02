@@ -1,39 +1,42 @@
-use egui::{Context, InputState};
-use vulkano::buffer::{allocator::SubbufferAllocator, Subbuffer};
-
-use cgmath::{EuclideanSpace, Matrix4, Point3, Rad, Vector3};
+use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
 use winit::keyboard::KeyCode;
 
 use crate::input::Input;
-use crate::shaders::vs;
-use crate::{buffers, input};
+
+pub enum ViewMode {
+    FPS,
+    Orbit
+}
 
 pub struct Camera {
     pub position: Point3<f32>,
+    pub forward_direction: Vector3<f32>,
+    pub up_direction: Vector3<f32>,
     pub target: Point3<f32>,
     pub projection: Matrix4<f32>,
+    pub view_mode: ViewMode
 }
 
 impl Camera {
-    pub fn new(position: Point3<f32>, target: Point3<f32>) -> Self {
+    pub fn new_fps(position: Point3<f32>, forward_direction: Vector3<f32>) -> Self {
         Self {
             position,
-            target,
+            target: position + forward_direction,
+            forward_direction,
+            up_direction: forward_direction.cross(Vector3::unit_y()).cross(forward_direction),
             projection: Self::create_perspective_matrix(1920.0 / 1080.0),
+            view_mode: ViewMode::FPS
         }
     }
 
+    pub fn new_orbital(position: Point3<f32>, target: Point3<f32>) -> Self {
+        unimplemented!()
+    }
+
     pub fn update(&mut self, input: &Input) {
-        let speed = 0.1;
-
-        let forward_direction = self.target - self.position;
-
-        if input.key_down(KeyCode::KeyW) {
-            self.position += speed * forward_direction;
-        }
-
-        if input.key_down(KeyCode::KeyS) {
-            self.position -= speed * forward_direction;
+        match self.view_mode {
+            ViewMode::Orbit => unimplemented!(),
+            ViewMode::FPS => self.update_fps(input)
         }
     }
 
@@ -41,29 +44,43 @@ impl Camera {
         self.projection = Self::create_perspective_matrix(aspect_ratio);
     }
 
-    pub fn create_subbuffer(
-        &self,
-        subbuffer_allocator: &SubbufferAllocator,
-    ) -> Subbuffer<vs::CameraUniform> {
-        let view = Matrix4::look_at_rh(self.position, self.target, Vector3::new(0.0, -1.0, 0.0));
-
-        let camera_uniform_data = vs::CameraUniform {
-            view,
-            projection: self.projection,
-            camera_position: self.position.to_vec(),
-        };
-
-        buffers::create_subbuffer(subbuffer_allocator, camera_uniform_data)
+    pub fn view_matrix(&self) -> Matrix4<f32> {
+        Matrix4::look_at_rh(self.position, self.position + self.forward_direction, Vector3::new(0.0, -1.0, 0.0))
     }
 
     fn create_perspective_matrix(aspect_ratio: f32) -> Matrix4<f32> {
         cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.01, 100.0)
     }
+
+    fn update_fps(&mut self, input: &Input) {
+        let speed = 0.1;
+
+        self.forward_direction = Vector3::<f32>::new(0.0, 0.0, 1.0);
+
+        let right_direction = self.forward_direction.cross(Vector3::unit_y()).normalize();
+        self.up_direction = self.forward_direction.cross(right_direction);
+
+        if input.key_down(KeyCode::KeyW) {
+            self.position += speed * self.forward_direction;
+        }
+
+        if input.key_down(KeyCode::KeyS) {
+            self.position -= speed * self.forward_direction;
+        }
+
+        if input.key_down(KeyCode::KeyA) {
+            self.position += speed * right_direction;
+        }
+
+        if input.key_down(KeyCode::KeyD) {
+            self.position -= speed * right_direction;
+        }
+    }
 }
 
 impl Default for Camera {
     fn default() -> Self {
-        // Camera at (0, 0, 1), looking at the origin
-        Self::new(Point3::new(0.0, 0.0, 1.0), Point3::new(0.0, 0.0, 0.0))
+        // Camera at (0, 0, 0), looking down the z axis
+        Self::new_fps(Point3::new(0.0, 0.0, 0.0), Vector3::unit_z())
     }
 }
