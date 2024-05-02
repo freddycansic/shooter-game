@@ -1,2 +1,1 @@
-# vulkano-teapot
-Vulkano testing
+Native advanced spinning multicoloured teapot viewer
