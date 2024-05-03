@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use cgmath::{Matrix, Matrix4, SquareMatrix};
-use glium::{Display, DrawParameters, implement_vertex, Program, Surface, uniform, VertexBuffer};
+use glium::{Display, DrawParameters, Frame, implement_vertex, Program, Surface, uniform, VertexBuffer};
 use glium::glutin::surface::WindowSurface;
 use glium::uniforms::{AsUniformValue, EmptyUniforms, UniformsStorage};
 use itertools::Itertools;
@@ -52,11 +52,10 @@ impl Scene {
         &self,
         program: &Program,
         display: &Display<WindowSurface>,
+        target: &mut Frame
     ) {
         let instance_buffers = self.build_instance_buffers(display);
 
-        let mut target = display.draw();
-        {
             target.clear_color(1.0, 0.0, 0.0, 1.0);
 
             let uniforms = uniform! {
@@ -81,9 +80,6 @@ impl Scene {
                     }
                 }
             }
-        }
-
-        target.finish().unwrap();
     }
 
     fn build_instance_buffers(&self, display: &Display<WindowSurface>) -> Vec<(Arc<Model>, VertexBuffer<Instance>)>{

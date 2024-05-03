@@ -1,5 +1,6 @@
 use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
 use winit::keyboard::KeyCode;
+use winit::window::Window;
 
 use crate::input::Input;
 
@@ -14,7 +15,9 @@ pub struct Camera {
     pub up_direction: Vector3<f32>,
     pub target: Point3<f32>,
     pub projection: Matrix4<f32>,
-    pub view_mode: ViewMode
+    pub view_mode: ViewMode,
+    pub yaw: f32,
+    pub pitch: f32
 }
 
 impl Camera {
@@ -25,7 +28,9 @@ impl Camera {
             forward_direction,
             up_direction: forward_direction.cross(Vector3::unit_y()).cross(forward_direction),
             projection: Self::create_perspective_matrix(1920.0 / 1080.0),
-            view_mode: ViewMode::FPS
+            view_mode: ViewMode::FPS,
+            yaw: 0.0,
+            pitch: 0.0
         }
     }
 
@@ -55,7 +60,23 @@ impl Camera {
     fn update_fps(&mut self, input: &Input) {
         let speed = 0.1;
 
-        self.forward_direction = Vector3::<f32>::new(0.0, 0.0, 1.0);
+        let offset = input.device_offset();
+
+        self.yaw -= offset.x % (2.0 * std::f32::consts::PI);
+        self.pitch += offset.y;
+
+        let epsilon = 0.00001;
+
+        self.pitch = self.pitch.clamp(
+            -std::f32::consts::FRAC_PI_2 + epsilon,
+            std::f32::consts::FRAC_PI_2 - epsilon
+        );
+
+        self.forward_direction = Vector3::new(
+            self.yaw.cos() * self.pitch.cos(),
+            self.pitch.sin(),
+            self.yaw.sin() * self.pitch.cos()
+        ).normalize();
 
         let right_direction = self.forward_direction.cross(Vector3::unit_y()).normalize();
         self.up_direction = self.forward_direction.cross(right_direction);

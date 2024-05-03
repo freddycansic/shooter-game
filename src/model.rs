@@ -102,12 +102,6 @@ impl Model {
                 .collect::<Vec<Mesh>>(),
         }))
     }
-
-    pub fn render(&self) {
-        for mesh in &self.meshes {
-            mesh.render();
-        }
-    }
 }
 
 impl PartialEq<Self> for Model {
@@ -124,21 +118,7 @@ impl Hash for Model {
     }
 }
 
-impl Mesh {
-    pub fn render(&self) {
-        for primitive in &self.primitives {
-            primitive.render();
-        }
-    }
-}
-
 impl Primitive {
-    fn render(&self) {
-        // build uniforms
-
-        // render
-    }
-
     fn from(
         primitive: gltf::Primitive,
         file_buffers: &[Data],
@@ -156,7 +136,6 @@ impl Primitive {
             "No position data for primitive!"
         );
 
-        // TODO
         let mut vertices = Self::extract_vertices(&primitive, file_buffers);
         let indices = Self::extract_indices(&primitive, file_buffers);
 
