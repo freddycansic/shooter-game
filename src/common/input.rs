@@ -1,3 +1,4 @@
+use std::time::Instant;
 use cgmath::{Vector2, Zero};
 use log::{debug, error, warn};
 use winit::{
@@ -5,7 +6,8 @@ use winit::{
     keyboard::{KeyCode, NativeKeyCode, PhysicalKey},
 };
 use winit::dpi::PhysicalPosition;
-use winit::event::MouseButton;
+use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
+use winit::window::WindowId;
 
 const NUM_KEYS: usize = 194;
 const NUM_MOUSE_BUTTONS: usize = 6;
@@ -90,7 +92,35 @@ impl Input {
         self.device_offset = Vector2::zero();
     }
 
-    pub fn process_key_event(&mut self, key_event: KeyEvent) {
+    pub fn process_event(&mut self, window_id: WindowId, event: &Event<()>) {
+        match event {
+            Event::WindowEvent {
+                event: window_event,
+                window_id: event_window_id,
+            } if *event_window_id == window_id => {
+                match &window_event {
+                    WindowEvent::KeyboardInput { event, .. } => {
+                        self.process_key_event(event.clone());
+                    }
+                    WindowEvent::CursorMoved { position, .. } => {
+                        self.process_cursor_moved_window_event(position.clone());
+                    }
+                    WindowEvent::MouseInput { state, button, .. } => {
+                        self.process_mouse_button_event(*button, *state);
+                    }
+                    _ => (),
+                };
+            }
+            Event::DeviceEvent { event, .. } => {
+                if let DeviceEvent::MouseMotion { delta, .. } = event {
+                    self.process_cursor_moved_device_event(delta.clone());
+                }
+            },
+            _ => ()
+        };
+    }
+
+    fn process_key_event(&mut self, key_event: KeyEvent) {
         match key_event.physical_key {
             PhysicalKey::Code(key_code) => {
                 Self::update_key_state(&mut self.key_states, key_code as usize, key_event.state);
@@ -111,7 +141,7 @@ impl Input {
         }
     }
 
-    pub fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
+    fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
         match button {
             MouseButton::Other(code) => warn!("Unidentified mouse button event received with code {}", code),
             // Offsets into the key_states member
@@ -121,7 +151,7 @@ impl Input {
 
     const CURSOR_SENSITIVITY: f64 = 0.002;
 
-    pub fn process_cursor_moved_window_event(&mut self, position: PhysicalPosition<f64>) {
+    fn process_cursor_moved_window_event(&mut self, position: PhysicalPosition<f64>) {
 
         self.window_offset = Vector2::new(
             ((position.x - self.last_cursor_position.x) * Self::CURSOR_SENSITIVITY) as f32,
@@ -131,7 +161,7 @@ impl Input {
         self.last_cursor_position = position;
     }
 
-    pub fn process_cursor_moved_device_event(&mut self, offset: (f64, f64)) {
+    fn process_cursor_moved_device_event(&mut self, offset: (f64, f64)) {
         self.device_offset = Vector2::new(
             (offset.0 * Self::CURSOR_SENSITIVITY) as f32,
             (offset.1 * Self::CURSOR_SENSITIVITY) as f32

@@ -1,6 +1,5 @@
 use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
 use winit::keyboard::KeyCode;
-use winit::window::Window;
 
 use crate::input::Input;
 

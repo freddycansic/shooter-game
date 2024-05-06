@@ -1,5 +1,5 @@
 [package]
-name = "vulkano-teapot"
+name = "shooter-game"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,6 +8,18 @@ edition = "2021"
 [profile.release-with-debug]
 inherits = "release"
 debug = true
+
+[lib]
+name = "common"
+path = "src/common/lib.rs"
+
+[[bin]]
+name = "editor"
+path = "src/editor/main.rs"
+
+[[bin]]
+name = "game"
+path = "src/game/main.rs"
 
 [dependencies]
 bytemuck = "1.14.0"
@@ -26,5 +38,5 @@ memoffset = "0.9.0"
 palette = { version = "0.7.5", default-features = false, features = ["named", "std"] }
 glium = "0.34"
 once_cell = "1.19.0"
-egui_glium = "0.26.2"
+egui_glium = "0.26.3"
 winit = "0.29.0"
