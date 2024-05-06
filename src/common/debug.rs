@@ -1,7 +1,4 @@
-use color_eyre::Result;
 use fern::colors::{Color, ColoredLevelConfig};
-use log::{error, info, trace, warn};
-use std::sync::Arc;
 
 pub fn set_up_logging() {
     // configure colors for the whole line

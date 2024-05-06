@@ -1,22 +1,24 @@
 use std::f32::consts::PI;
-use crate::{maths, vertex, uuid};
-use cgmath::{Matrix, Matrix4, Quaternion, Rad, SquareMatrix, Vector3, Zero};
-use color_eyre::Result;
-use gltf::buffer::{Data, Target};
-use gltf::json::accessor::ComponentType;
-use gltf::{Accessor, Semantic};
-use itertools::Itertools;
-use log::{debug, warn};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
 use std::ptr;
 use std::sync::Arc;
+
+use cgmath::{Matrix, Matrix4, Quaternion, Rad, SquareMatrix, Vector3, Zero};
+use color_eyre::Result;
 use glium::{Display, Frame, IndexBuffer, Program, uniform, VertexBuffer};
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
+use gltf::{Accessor, Semantic};
+use gltf::buffer::{Data, Target};
+use gltf::json::accessor::ComponentType;
+use itertools::Itertools;
+use log::{debug, warn};
 
 use vertex::Vertex;
+
+use crate::{maths, uuid, vertex};
 use crate::uuid::UUID;
 
 #[derive(Clone)]
@@ -28,13 +30,9 @@ pub struct Transform {
 
 impl From<Transform> for Matrix4<f32> {
     fn from(value: Transform) -> Self {
-        Matrix4::from_translation(value.translation) *
-        Matrix4::from(value.rotation) *
-        Matrix4::from_nonuniform_scale(
-            value.scale.x,
-            value.scale.y,
-            value.scale.z,
-        )
+        Matrix4::from_translation(value.translation)
+            * Matrix4::from(value.rotation)
+            * Matrix4::from_nonuniform_scale(value.scale.x, value.scale.y, value.scale.z)
     }
 }
 
@@ -43,7 +41,7 @@ impl Default for Transform {
         Self {
             translation: Vector3::zero(),
             rotation: Quaternion::zero(),
-            scale: Vector3::new(1.0, 1.0, 1.0)
+            scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
 }
@@ -57,14 +55,9 @@ impl From<Arc<Model>> for ModelInstance {
     fn from(model: Arc<Model>) -> Self {
         Self {
             model,
-            transform: Transform::default()
+            transform: Transform::default(),
         }
     }
-}
-
-pub struct Model {
-    pub uuid: UUID,
-    pub meshes: Vec<Mesh>,
 }
 
 pub struct Primitive {
@@ -78,6 +71,12 @@ pub struct Mesh {
     pub primitives: Vec<Primitive>,
 }
 
+pub struct Model {
+    pub uuid: UUID,
+    pub meshes: Vec<Mesh>,
+    pub path: String,
+}
+
 impl Model {
     pub fn load(path: &str, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
         debug!("Loading model \"{path}\"...");
@@ -87,6 +86,7 @@ impl Model {
 
         Ok(Arc::new(Model {
             uuid: UUID::new(),
+            path: path.to_owned(),
             meshes: document
                 .meshes()
                 .map(|mesh| Mesh {
@@ -94,8 +94,7 @@ impl Model {
                     primitives: mesh
                         .primitives()
                         .map(|primitive| {
-                            Primitive::from(primitive, &file_buffers, display)
-                                .unwrap()
+                            Primitive::from(primitive, &file_buffers, display).unwrap()
                         })
                         .collect::<Vec<Primitive>>(),
                 })

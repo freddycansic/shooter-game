@@ -1,13 +1,12 @@
 use std::fs;
-use glium::backend::glutin::SimpleWindowBuilder;
-use glium::{Display, Program};
-use glium::glutin::surface::WindowSurface;
-use winit::event_loop::{EventLoop, EventLoopBuilder};
-use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use color_eyre::Result;
+use glium::{Display, Program};
+use glium::backend::glutin::SimpleWindowBuilder;
+use glium::glutin::surface::WindowSurface;
 use winit::dpi::LogicalPosition;
-use winit::platform::windows::WindowExtWindows;
+use winit::event_loop::EventLoop;
+use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 pub struct OpenGLContext {
     pub window: Window,
@@ -24,17 +23,18 @@ impl OpenGLContext {
             window_builder = window_builder.with_maximized(true);
         }
 
-        let (window, display) = SimpleWindowBuilder::new().set_window_builder(window_builder).build(event_loop);
+        let (window, display) = SimpleWindowBuilder::new()
+            .set_window_builder(window_builder)
+            .build(event_loop);
 
-        Self {
-            window,
-            display,
-        }
+        Self { window, display }
     }
 
     pub fn capture_cursor(&mut self) {
-        self.window.set_cursor_grab(CursorGrabMode::Confined)
-            .or_else(|_| self.window.set_cursor_grab(CursorGrabMode::Locked)).unwrap();
+        self.window
+            .set_cursor_grab(CursorGrabMode::Confined)
+            .or_else(|_| self.window.set_cursor_grab(CursorGrabMode::Locked))
+            .unwrap();
     }
 
     pub fn release_cursor(&mut self) {
@@ -49,18 +49,25 @@ impl OpenGLContext {
     }
 }
 pub struct RenderingContext {
-    pub program: Program
+    pub program: Program,
 }
 
 impl RenderingContext {
-    pub fn new(vertex_source_path: &str, fragment_source_path: &str, display: &Display<WindowSurface>) -> Result<Self> {
+    pub fn new(
+        vertex_source_path: &str,
+        fragment_source_path: &str,
+        display: &Display<WindowSurface>,
+    ) -> Result<Self> {
         let vertex_source = fs::read_to_string(vertex_source_path)?;
         let fragment_source = fs::read_to_string(fragment_source_path)?;
 
-        let program = Program::from_source(display, vertex_source.as_str(), fragment_source.as_str(), None)?;
+        let program = Program::from_source(
+            display,
+            vertex_source.as_str(),
+            fragment_source.as_str(),
+            None,
+        )?;
 
-        Ok(Self {
-            program
-        })
+        Ok(Self { program })
     }
 }

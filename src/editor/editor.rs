@@ -1,28 +1,29 @@
-use cgmath::{Deg, Matrix, Matrix4, Point3, Quaternion, Rad, Rotation3, SquareMatrix, Vector3, Vector4};
-use std::time::{Duration, Instant};
+use std::time::Instant;
+
+use cgmath::{Deg, Point3, Quaternion, Rotation3, Vector3};
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
-use glium::{Frame, Surface, uniform};
-use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
+use glium::Surface;
+use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
-use common::*;
-use input::Input;
-use scene::Scene;
-use context::{OpenGLContext, RenderingContext};
-use model::{Model, ModelInstance, Transform};
 use app::Application;
+use common::*;
+use context::{OpenGLContext, RenderingContext};
 use debug;
+use input::Input;
+use model::{Model, ModelInstance, Transform};
+use scene::Scene;
 
 struct FrameState {
     pub start: Instant,
     pub frame_count: u128,
     pub deltatime: f64,
     pub fps: f32,
-    pub using_viewport: bool
+    pub using_viewport: bool,
 }
 
 impl FrameState {
@@ -53,8 +54,9 @@ impl Editor {
         let rendering_context = RenderingContext::new(
             "assets/shaders/default.vert",
             "assets/shaders/default.frag",
-            &opengl_context.display
-        ).unwrap();
+            &opengl_context.display,
+        )
+        .unwrap();
 
         let mut scene = Scene::new(camera::Camera::new_fps(
             Point3::new(5.0, 2.0, 5.0),
@@ -80,7 +82,12 @@ impl Editor {
 
         let input = Input::new();
 
-        let gui = EguiGlium::new(ViewportId::ROOT, &opengl_context.display, &opengl_context.window, event_loop);
+        let gui = EguiGlium::new(
+            ViewportId::ROOT,
+            &opengl_context.display,
+            &opengl_context.window,
+            event_loop,
+        );
 
         let state = FrameState {
             start: Instant::now(),
@@ -106,7 +113,8 @@ impl Application for Editor {
         event_loop
             .run(move |event, event_loop_window_target| {
                 event_loop_window_target.set_control_flow(ControlFlow::Poll);
-                self.input.process_event(self.opengl_context.window.id(), &event);
+                self.input
+                    .process_event(self.opengl_context.window.id(), &event);
 
                 match event {
                     Event::WindowEvent {
@@ -116,8 +124,12 @@ impl Application for Editor {
                         match &window_event {
                             WindowEvent::CloseRequested => event_loop_window_target.exit(),
                             WindowEvent::Resized(new_size) => {
-                                self.opengl_context.display.resize((new_size.width, new_size.height));
-                                self.scene.camera.set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+                                self.opengl_context
+                                    .display
+                                    .resize((new_size.width, new_size.height));
+                                self.scene.camera.set_aspect_ratio(
+                                    new_size.width as f32 / new_size.height as f32,
+                                );
                             }
                             WindowEvent::RedrawRequested => {
                                 self.state.start = Instant::now();
@@ -134,14 +146,16 @@ impl Application for Editor {
                             _ => (),
                         };
 
-                        let event_response = self.gui.on_event(&self.opengl_context.window, &window_event);
+                        let event_response = self
+                            .gui
+                            .on_event(&self.opengl_context.window, &window_event);
 
                         if event_response.repaint {
                             self.opengl_context.window.request_redraw();
                         }
                     }
                     Event::AboutToWait => self.opengl_context.window.request_redraw(),
-                    _ => ()
+                    _ => (),
                 }
             })
             .unwrap();
@@ -149,8 +163,7 @@ impl Application for Editor {
 
     fn update(&mut self) {
         self.state.using_viewport =
-            self.input.mouse_button_down(MouseButton::Middle) ||
-            self.input.key_down(KeyCode::KeyD);
+            self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::KeyD);
 
         if self.state.using_viewport {
             self.scene.camera.update(&self.input);
@@ -164,7 +177,9 @@ impl Application for Editor {
 
         self.input.reset_internal_state();
 
-        self.opengl_context.window.set_title(format!("{:.1} FPS", self.state.fps).as_str());
+        self.opengl_context
+            .window
+            .set_title(format!("{:.1} FPS", self.state.fps).as_str());
     }
 
     fn render(&mut self) {
@@ -174,7 +189,8 @@ impl Application for Editor {
         }
 
         for model_instance in self.scene.model_instances.iter_mut() {
-            model_instance.transform.rotation = Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+            model_instance.transform.rotation =
+                Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
         }
 
         let mut target = self.opengl_context.display.draw();
@@ -182,7 +198,7 @@ impl Application for Editor {
             self.scene.render(
                 &self.rendering_context.program,
                 &self.opengl_context.display,
-                &mut target
+                &mut target,
             );
 
             self.render_gui();
@@ -222,8 +238,7 @@ impl Application for Editor {
                 });
             });
 
-            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {
-            });
+            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {});
         });
     }
 }

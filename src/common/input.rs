@@ -1,4 +1,5 @@
 use std::time::Instant;
+
 use cgmath::{Vector2, Zero};
 use log::{debug, error, warn};
 use winit::{
@@ -17,7 +18,7 @@ pub struct Input {
     mouse_button_states: [KeyState; NUM_MOUSE_BUTTONS],
     last_cursor_position: PhysicalPosition<f64>,
     window_offset: Vector2<f32>,
-    device_offset: Vector2<f32>
+    device_offset: Vector2<f32>,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -35,7 +36,7 @@ impl Input {
             mouse_button_states: [KeyState::Released; NUM_MOUSE_BUTTONS],
             last_cursor_position: PhysicalPosition::new(0.0, 0.0),
             window_offset: Vector2::zero(),
-            device_offset: Vector2::zero()
+            device_offset: Vector2::zero(),
         }
     }
 
@@ -70,7 +71,8 @@ impl Input {
     }
 
     pub fn mouse_button_just_released(&self, mouse_button: MouseButton) -> bool {
-        self.mouse_button_states[Self::mouse_button_to_index(mouse_button)] == KeyState::JustReleased
+        self.mouse_button_states[Self::mouse_button_to_index(mouse_button)]
+            == KeyState::JustReleased
     }
 
     pub fn window_offset(&self) -> Vector2<f32> {
@@ -115,8 +117,8 @@ impl Input {
                 if let DeviceEvent::MouseMotion { delta, .. } = event {
                     self.process_cursor_moved_device_event(delta.clone());
                 }
-            },
-            _ => ()
+            }
+            _ => (),
         };
     }
 
@@ -131,9 +133,7 @@ impl Input {
                     NativeKeyCode::MacOS(code) => ("MacOS", code as u32),
                     NativeKeyCode::Android(code) => ("Android", code),
                     NativeKeyCode::Xkb(code) => ("XKB", code),
-                    NativeKeyCode::Unidentified => {
-                        return warn!("Unidentified key event received")
-                    }
+                    NativeKeyCode::Unidentified => return warn!("Unidentified key event received"),
                 };
 
                 warn!("Unidentified {} key event {}", platform, code)
@@ -143,19 +143,25 @@ impl Input {
 
     fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
         match button {
-            MouseButton::Other(code) => warn!("Unidentified mouse button event received with code {}", code),
+            MouseButton::Other(code) => warn!(
+                "Unidentified mouse button event received with code {}",
+                code
+            ),
             // Offsets into the key_states member
-            _ => Self::update_key_state(&mut self.mouse_button_states, Self::mouse_button_to_index(button), state)
+            _ => Self::update_key_state(
+                &mut self.mouse_button_states,
+                Self::mouse_button_to_index(button),
+                state,
+            ),
         };
     }
 
     const CURSOR_SENSITIVITY: f64 = 0.002;
 
     fn process_cursor_moved_window_event(&mut self, position: PhysicalPosition<f64>) {
-
         self.window_offset = Vector2::new(
             ((position.x - self.last_cursor_position.x) * Self::CURSOR_SENSITIVITY) as f32,
-            ((position.y - self.last_cursor_position.y) * Self::CURSOR_SENSITIVITY) as f32
+            ((position.y - self.last_cursor_position.y) * Self::CURSOR_SENSITIVITY) as f32,
         );
 
         self.last_cursor_position = position;
@@ -164,7 +170,7 @@ impl Input {
     fn process_cursor_moved_device_event(&mut self, offset: (f64, f64)) {
         self.device_offset = Vector2::new(
             (offset.0 * Self::CURSOR_SENSITIVITY) as f32,
-            (offset.1 * Self::CURSOR_SENSITIVITY) as f32
+            (offset.1 * Self::CURSOR_SENSITIVITY) as f32,
         );
     }
 
@@ -198,7 +204,10 @@ impl Input {
             MouseButton::Middle => 2,
             MouseButton::Back => 3,
             MouseButton::Forward => 4,
-            MouseButton::Other(code) => panic!("Cannot query for unidentified mouse button with code {}", code)
+            MouseButton::Other(code) => panic!(
+                "Cannot query for unidentified mouse button with code {}",
+                code
+            ),
         }
     }
 }

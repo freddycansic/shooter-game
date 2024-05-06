@@ -4,7 +4,7 @@ use glium::implement_vertex;
 pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
-    pub tex_coord: [f32; 2]
+    pub tex_coord: [f32; 2],
 }
 
 impl Default for Vertex {
@@ -12,7 +12,7 @@ impl Default for Vertex {
         Self {
             position: [0.0, 0.0, 0.0],
             normal: [0.0, 0.0, 0.0],
-            tex_coord: [0.0, 0.0]
+            tex_coord: [0.0, 0.0],
         }
     }
 }

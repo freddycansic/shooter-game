@@ -5,7 +5,7 @@ use crate::input::Input;
 
 pub enum ViewMode {
     FPS,
-    Orbit
+    Orbit,
 }
 
 pub struct Camera {
@@ -16,7 +16,7 @@ pub struct Camera {
     pub projection: Matrix4<f32>,
     pub view_mode: ViewMode,
     pub yaw: f32,
-    pub pitch: f32
+    pub pitch: f32,
 }
 
 impl Camera {
@@ -25,11 +25,13 @@ impl Camera {
             position,
             target: position + forward_direction,
             forward_direction,
-            up_direction: forward_direction.cross(Vector3::unit_y()).cross(forward_direction),
+            up_direction: forward_direction
+                .cross(Vector3::unit_y())
+                .cross(forward_direction),
             projection: Self::create_perspective_matrix(1920.0 / 1080.0),
             view_mode: ViewMode::FPS,
             yaw: 0.0,
-            pitch: 0.0
+            pitch: 0.0,
         }
     }
 
@@ -40,7 +42,7 @@ impl Camera {
     pub fn update(&mut self, input: &Input) {
         match self.view_mode {
             ViewMode::Orbit => unimplemented!(),
-            ViewMode::FPS => self.update_fps(input)
+            ViewMode::FPS => self.update_fps(input),
         }
     }
 
@@ -49,7 +51,11 @@ impl Camera {
     }
 
     pub fn view_matrix(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(self.position, self.position + self.forward_direction, Vector3::new(0.0, -1.0, 0.0))
+        Matrix4::look_at_rh(
+            self.position,
+            self.position + self.forward_direction,
+            Vector3::new(0.0, -1.0, 0.0),
+        )
     }
 
     fn create_perspective_matrix(aspect_ratio: f32) -> Matrix4<f32> {
@@ -68,14 +74,15 @@ impl Camera {
 
         self.pitch = self.pitch.clamp(
             -std::f32::consts::FRAC_PI_2 + epsilon,
-            std::f32::consts::FRAC_PI_2 - epsilon
+            std::f32::consts::FRAC_PI_2 - epsilon,
         );
 
         self.forward_direction = Vector3::new(
             self.yaw.cos() * self.pitch.cos(),
             self.pitch.sin(),
-            self.yaw.sin() * self.pitch.cos()
-        ).normalize();
+            self.yaw.sin() * self.pitch.cos(),
+        )
+        .normalize();
 
         let right_direction = self.forward_direction.cross(Vector3::unit_y()).normalize();
         self.up_direction = self.forward_direction.cross(right_direction);

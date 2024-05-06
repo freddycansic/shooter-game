@@ -1,7 +1,9 @@
-mod editor;
 use winit::event_loop::EventLoop;
+
 use common::app::Application;
 use editor::Editor;
+
+mod editor;
 
 fn main() {
     // Winit is dodgey on Wayland, prefer to use Xwayland
