@@ -1,27 +1,27 @@
-use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
 use std::ptr;
 use std::sync::Arc;
 
-use cgmath::{Matrix, Matrix4, Quaternion, Rad, SquareMatrix, Vector3, Zero};
+use cgmath::{Matrix4, Quaternion, Vector3, Zero};
 use color_eyre::Result;
-use glium::{Display, Frame, IndexBuffer, Program, uniform, VertexBuffer};
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
-use gltf::{Accessor, Semantic};
-use gltf::buffer::{Data, Target};
+use glium::{Display, IndexBuffer, VertexBuffer};
+use gltf::buffer::{Data};
 use gltf::json::accessor::ComponentType;
+use gltf::{Accessor, Semantic};
 use itertools::Itertools;
 use log::{debug, warn};
+use serde::{Deserialize, Serialize};
 
 use vertex::Vertex;
 
-use crate::{maths, uuid, vertex};
 use crate::uuid::UUID;
+use crate::{maths, vertex};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Transform {
     pub translation: Vector3<f32>,
     pub rotation: Quaternion<f32>,

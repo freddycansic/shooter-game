@@ -1,14 +1,13 @@
-use std::time::Instant;
 
 use cgmath::{Vector2, Zero};
-use log::{debug, error, warn};
+use log::{warn};
+use winit::dpi::PhysicalPosition;
+use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
+use winit::window::WindowId;
 use winit::{
     event::{ElementState, KeyEvent},
     keyboard::{KeyCode, NativeKeyCode, PhysicalKey},
 };
-use winit::dpi::PhysicalPosition;
-use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
-use winit::window::WindowId;
 
 const NUM_KEYS: usize = 194;
 const NUM_MOUSE_BUTTONS: usize = 6;
@@ -27,6 +26,12 @@ enum KeyState {
     Pressed,
     Repeat,
     JustReleased,
+}
+
+impl Default for Input {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Input {
@@ -105,7 +110,7 @@ impl Input {
                         self.process_key_event(event.clone());
                     }
                     WindowEvent::CursorMoved { position, .. } => {
-                        self.process_cursor_moved_window_event(position.clone());
+                        self.process_cursor_moved_window_event(*position);
                     }
                     WindowEvent::MouseInput { state, button, .. } => {
                         self.process_mouse_button_event(*button, *state);
@@ -115,7 +120,7 @@ impl Input {
             }
             Event::DeviceEvent { event, .. } => {
                 if let DeviceEvent::MouseMotion { delta, .. } = event {
-                    self.process_cursor_moved_device_event(delta.clone());
+                    self.process_cursor_moved_device_event(*delta);
                 }
             }
             _ => (),

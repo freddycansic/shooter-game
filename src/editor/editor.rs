@@ -13,7 +13,6 @@ use winit::keyboard::KeyCode;
 use app::Application;
 use common::*;
 use context::{OpenGLContext, RenderingContext};
-use debug;
 use input::Input;
 use model::{Model, ModelInstance, Transform};
 use scene::Scene;
@@ -98,8 +97,8 @@ impl Editor {
         };
 
         Self {
-            opengl_context,
             rendering_context,
+            opengl_context,
             scene,
             input,
             gui,
@@ -210,7 +209,7 @@ impl Application for Editor {
 
     fn render_gui(&mut self) {
         self.gui.run(&self.opengl_context.window, |ctx| {
-            egui::TopBottomPanel::top("top_panel").show(&ctx, |ui| {
+            egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {

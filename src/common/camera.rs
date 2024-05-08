@@ -1,13 +1,16 @@
 use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
+use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
 use crate::input::Input;
 
+#[derive(Serialize, Deserialize)]
 pub enum ViewMode {
     FPS,
     Orbit,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Camera {
     pub position: Point3<f32>,
     pub forward_direction: Vector3<f32>,

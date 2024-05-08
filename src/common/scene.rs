@@ -1,16 +1,21 @@
 use std::collections::HashMap;
+use std::fmt::Formatter;
 use std::sync::Arc;
 
 use cgmath::{Matrix, Matrix4, SquareMatrix};
-use glium::{
-    Display, DrawParameters, Frame, implement_vertex, Program, Surface, uniform, VertexBuffer,
-};
+use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
+use glium::{
+    implement_vertex, uniform, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+};
 use itertools::Itertools;
+use serde::de::{MapAccess, Visitor};
+use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::camera::Camera;
 use crate::maths;
-use crate::model::{Model, ModelInstance};
+use crate::model::{Model, ModelInstance, Transform};
 
 pub struct Scene {
     pub model_instances: Vec<ModelInstance>,
@@ -27,19 +32,44 @@ impl Scene {
         }
     }
 
+    pub fn deserialize(serialised: &str, display: &Display<WindowSurface>) -> Result<Self> {
+        let unloaded_scene = serde_json::from_str::<UnloadedScene>(serialised)?;
+
+        let mut scene = Scene::new(unloaded_scene.camera);
+
+        for (path, transforms) in unloaded_scene.model_paths_to_transforms.iter() {
+            let model = scene.load_model(path, display)?;
+            for transform in transforms {
+                scene.model_instances.push(ModelInstance {
+                    model: model.clone(),
+                    transform: transform.clone(),
+                });
+            }
+        }
+
+        Ok(scene)
+    }
+
     /// Load a model and create an instance of it in the scene
-    pub fn import_model(&mut self, path: &str, display: &Display<WindowSurface>) {
-        let model = self.load_model(path, display);
+    pub fn import_model(&mut self, path: &str, display: &Display<WindowSurface>) -> Result<()> {
+        let model = self.load_model(path, display)?;
 
         self.model_instances.push(ModelInstance::from(model));
+
+        Ok(())
     }
 
     /// Load a model into the cache
-    pub fn load_model(&mut self, path: &str, display: &Display<WindowSurface>) -> Arc<Model> {
-        self.models
+    pub fn load_model(
+        &mut self,
+        path: &str,
+        display: &Display<WindowSurface>,
+    ) -> Result<Arc<Model>> {
+        Ok(self
+            .models
             .entry(path.to_owned())
-            .or_insert(Model::load(path, &display).unwrap())
-            .clone()
+            .or_insert(Model::load(path, display)?)
+            .clone())
     }
 
     pub fn model_is_loaded(&self, path: &str) -> bool {
@@ -77,11 +107,9 @@ impl Scene {
         }
     }
 
-    fn build_instance_buffers(
-        &self,
-        display: &Display<WindowSurface>,
-    ) -> Vec<(Arc<Model>, VertexBuffer<Instance>)> {
-        let mut instance_buffers = HashMap::<Arc<Model>, Vec<Instance>>::new();
+    fn build_instance_map(&self) -> HashMap<Arc<Model>, Vec<Instance>> {
+        let mut instance_map = HashMap::<Arc<Model>, Vec<Instance>>::new();
+
         for model_instance in self.model_instances.iter() {
             let transform_matrix = Matrix4::from(model_instance.transform.clone());
 
@@ -92,16 +120,103 @@ impl Scene {
                 ),
             };
 
-            instance_buffers
+            instance_map
                 .entry(model_instance.model.clone())
                 .or_insert(vec![instance])
                 .push(instance);
         }
 
-        instance_buffers
+        instance_map
+    }
+
+    fn build_instance_buffers(
+        &self,
+        display: &Display<WindowSurface>,
+    ) -> Vec<(Arc<Model>, VertexBuffer<Instance>)> {
+        let instance_map = self.build_instance_map();
+
+        instance_map
             .into_iter()
             .map(|(model, instances)| (model, VertexBuffer::new(display, &instances).unwrap()))
             .collect_vec()
+    }
+}
+
+impl Serialize for Scene {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut instance_map = HashMap::<String, Vec<Transform>>::new();
+
+        for model_instance in self.model_instances.iter() {
+            instance_map
+                .entry(model_instance.model.path.clone())
+                .or_insert(vec![model_instance.transform.clone()])
+                .push(model_instance.transform.clone());
+        }
+
+        let mut s = serializer.serialize_struct("Scene", 2)?;
+        s.serialize_field("model_instances", &instance_map)?;
+        s.serialize_field("camera", &self.camera)?;
+
+        s.end()
+    }
+}
+
+struct UnloadedScene {
+    pub camera: Camera,
+    pub model_paths_to_transforms: HashMap<String, Vec<Transform>>,
+}
+
+impl<'de> Deserialize<'de> for UnloadedScene {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_struct(
+            "UnloadedScene",
+            &["model_paths_to_transforms", "camera"],
+            UnloadedSceneVisitor,
+        )
+    }
+}
+
+struct UnloadedSceneVisitor;
+
+impl<'de> Visitor<'de> for UnloadedSceneVisitor {
+    type Value = UnloadedScene;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("a valid Scene")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut unloaded_scene = UnloadedScene {
+            camera: Camera::default(),
+            model_paths_to_transforms: HashMap::new(),
+        };
+
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "model_instances" => {
+                    unloaded_scene.model_paths_to_transforms =
+                        map.next_value::<HashMap<String, Vec<Transform>>>()?
+                }
+                "camera" => unloaded_scene.camera = map.next_value::<Camera>()?,
+                _ => {
+                    return Err(de::Error::unknown_field(
+                        key.as_str(),
+                        &["model_paths_to_transforms", "camera"],
+                    ))
+                }
+            };
+        }
+
+        Ok(unloaded_scene)
     }
 }
 

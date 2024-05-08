@@ -1,13 +1,14 @@
 use std::fs;
 
 use color_eyre::Result;
-use glium::{Display, Program};
 use glium::backend::glutin::SimpleWindowBuilder;
 use glium::glutin::surface::WindowSurface;
+use glium::{Display, Program};
 use winit::dpi::LogicalPosition;
 use winit::event_loop::EventLoop;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
+#[derive(Debug)]
 pub struct OpenGLContext {
     pub window: Window,
     pub display: Display<WindowSurface>,
@@ -48,6 +49,7 @@ impl OpenGLContext {
         self.window.set_cursor_position(center).unwrap();
     }
 }
+
 pub struct RenderingContext {
     pub program: Program,
 }
