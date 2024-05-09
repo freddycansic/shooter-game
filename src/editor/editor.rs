@@ -5,7 +5,7 @@ use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
-use glium::Surface;
+use rfd::FileDialog;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
@@ -161,16 +161,16 @@ impl Application for Editor {
     }
 
     fn update(&mut self) {
-        self.state.using_viewport =
-            self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::KeyD);
+        self.state.using_viewport = self.input.mouse_button_down(MouseButton::Middle)
+            || self.input.key_down(KeyCode::Space);
 
         if self.state.using_viewport {
             self.scene.camera.update(&self.input);
-            self.opengl_context.capture_cursor();
+            // self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();
         } else {
-            self.opengl_context.release_cursor();
+            // self.opengl_context.release_cursor();
             self.opengl_context.window.set_cursor_visible(true);
         }
 
@@ -213,6 +213,26 @@ impl Application for Editor {
                 egui::menu::bar(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
+                            if ui.add(egui::Button::new("Open scene")).clicked() {
+                                if let Some(file) = FileDialog::new()
+                                    .add_filter("json", &["json"])
+                                    .set_can_create_directories(true)
+                                    .set_directory("/")
+                                    .pick_file()
+                                {
+                                    let scene_string = std::fs::read_to_string(file).unwrap();
+                                    self.scene = Scene::deserialize(
+                                        &scene_string,
+                                        &self.opengl_context.display,
+                                    )
+                                    .unwrap();
+                                }
+
+                                ui.close_menu();
+                            }
+                        });
+
+                        ui.menu_button("Scene", |ui| {
                             if ui.add(egui::Button::new("Import model")).clicked() {
                                 // Scene::import_model()
                                 ui.close_menu();
