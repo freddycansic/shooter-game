@@ -1,16 +1,25 @@
+use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread::Thread;
 use std::time::Instant;
 
 use cgmath::{Deg, Point3, Quaternion, Rotation3, Vector3};
 use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, ViewportId};
+use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
+use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use rfd::FileDialog;
+use serde::Serialize;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
+use common::camera::Camera;
 use common::*;
 use context::{OpenGLContext, RenderingContext};
 use input::Input;
@@ -34,6 +43,10 @@ impl FrameState {
     }
 }
 
+enum EngineEvent {
+    LoadScene(String),
+}
+
 pub struct Editor {
     input: Input,
     scene: Scene,
@@ -41,6 +54,8 @@ pub struct Editor {
     rendering_context: RenderingContext,
     gui: EguiGlium,
     state: FrameState,
+    sender: Sender<EngineEvent>,
+    receiver: Receiver<EngineEvent>,
 }
 
 impl Editor {
@@ -57,27 +72,7 @@ impl Editor {
         )
         .unwrap();
 
-        let mut scene = Scene::new(camera::Camera::new_fps(
-            Point3::new(5.0, 2.0, 5.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ));
-
-        let teapot = Model::load("assets/models/teapot.glb", &opengl_context.display).unwrap();
-
-        let square_size = 10_u32;
-        scene.model_instances.reserve(square_size.pow(2) as usize);
-
-        for x in 0..square_size {
-            for y in 0..square_size {
-                scene.model_instances.push(ModelInstance {
-                    model: teapot.clone(),
-                    transform: Transform {
-                        translation: Vector3::new(x as f32 * 6.0, y as f32 * 4.0, 0.0),
-                        ..Transform::default()
-                    },
-                })
-            }
-        }
+        let scene = Scene::default();
 
         let input = Input::new();
 
@@ -96,6 +91,8 @@ impl Editor {
             using_viewport: false,
         };
 
+        let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
+
         Self {
             rendering_context,
             opengl_context,
@@ -103,6 +100,8 @@ impl Editor {
             input,
             gui,
             state,
+            sender,
+            receiver,
         }
     }
 }
@@ -161,24 +160,35 @@ impl Application for Editor {
     }
 
     fn update(&mut self) {
+        if let Ok(engine_event) = self.receiver.try_recv() {
+            match engine_event {
+                EngineEvent::LoadScene(scene_string) => {
+                    self.scene =
+                        Scene::deserialize(&scene_string, &self.opengl_context.display).unwrap()
+                }
+            }
+        }
+
         self.state.using_viewport = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
         if self.state.using_viewport {
             self.scene.camera.update(&self.input);
-            // self.opengl_context.capture_cursor();
+            self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();
         } else {
-            // self.opengl_context.release_cursor();
+            self.opengl_context.release_cursor();
             self.opengl_context.window.set_cursor_visible(true);
         }
 
         self.input.reset_internal_state();
 
-        self.opengl_context
-            .window
-            .set_title(format!("{:.1} FPS", self.state.fps).as_str());
+        if self.state.frame_count % 5 == 0 {
+            self.opengl_context.window.set_title(
+                format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
+            );
+        }
     }
 
     fn render(&mut self) {
@@ -213,34 +223,47 @@ impl Application for Editor {
                 egui::menu::bar(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
-                            if ui.add(egui::Button::new("Open scene")).clicked() {
-                                if let Some(file) = FileDialog::new()
-                                    .add_filter("json", &["json"])
-                                    .set_can_create_directories(true)
-                                    .set_directory("/")
-                                    .pick_file()
-                                {
-                                    let scene_string = std::fs::read_to_string(file).unwrap();
-                                    self.scene = Scene::deserialize(
-                                        &scene_string,
-                                        &self.opengl_context.display,
-                                    )
-                                    .unwrap();
-                                }
+                            if ui.add(Button::new("Open scene")).clicked() {
+                                let sender = self.sender.clone();
+
+                                std::thread::spawn(move || {
+                                    if let Some(file) = FileDialog::new()
+                                        .add_filter("json", &["json"])
+                                        .set_can_create_directories(true)
+                                        .set_directory("/")
+                                        .pick_file()
+                                    {
+                                        let scene_string = std::fs::read_to_string(file).unwrap();
+
+                                        sender.send(EngineEvent::LoadScene(scene_string)).unwrap();
+                                    }
+                                });
+
+                                ui.close_menu();
+                            }
+
+                            if ui.add(Button::new("Save as")).clicked() {
+                                let serialized = serde_json::to_string(&self.scene).unwrap();
+
+                                std::thread::spawn(move || {
+                                    if let Some(save_path) = FileDialog::new().save_file() {
+                                        std::fs::write(save_path, serialized).unwrap();
+                                    }
+                                });
 
                                 ui.close_menu();
                             }
                         });
 
                         ui.menu_button("Scene", |ui| {
-                            if ui.add(egui::Button::new("Import model")).clicked() {
+                            if ui.add(Button::new("Import model")).clicked() {
                                 // Scene::import_model()
                                 ui.close_menu();
                             }
                         });
 
                         ui.menu_button("Run", |ui| {
-                            if ui.add(egui::Button::new("Run game")).clicked() {
+                            if ui.add(Button::new("Run game")).clicked() {
                                 std::process::Command::new("cargo")
                                     .arg("run")
                                     .arg("--package")

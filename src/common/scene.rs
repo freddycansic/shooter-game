@@ -20,14 +20,16 @@ use crate::model::{Model, ModelInstance, Transform};
 pub struct Scene {
     pub model_instances: Vec<ModelInstance>,
     pub camera: Camera,
+    pub title: String,
     models: HashMap<String, Arc<Model>>,
 }
 
 impl Scene {
-    pub fn new(camera: Camera) -> Self {
+    pub fn new(title: String, camera: Camera) -> Self {
         Self {
             model_instances: vec![],
             models: HashMap::new(),
+            title,
             camera,
         }
     }
@@ -35,7 +37,7 @@ impl Scene {
     pub fn deserialize(serialised: &str, display: &Display<WindowSurface>) -> Result<Self> {
         let unloaded_scene = serde_json::from_str::<UnloadedScene>(serialised)?;
 
-        let mut scene = Scene::new(unloaded_scene.camera);
+        let mut scene = Scene::new(unloaded_scene.title, unloaded_scene.camera);
 
         for (path, transforms) in unloaded_scene.model_paths_to_transforms.iter() {
             let model = scene.load_model(path, display)?;
@@ -166,6 +168,7 @@ impl Serialize for Scene {
 
 struct UnloadedScene {
     pub camera: Camera,
+    pub title: String,
     pub model_paths_to_transforms: HashMap<String, Vec<Transform>>,
 }
 
@@ -176,7 +179,7 @@ impl<'de> Deserialize<'de> for UnloadedScene {
     {
         deserializer.deserialize_struct(
             "UnloadedScene",
-            &["model_paths_to_transforms", "camera"],
+            &["model_paths_to_transforms", "camera", "title"],
             UnloadedSceneVisitor,
         )
     }
@@ -197,6 +200,7 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
     {
         let mut unloaded_scene = UnloadedScene {
             camera: Camera::default(),
+            title: String::new(),
             model_paths_to_transforms: HashMap::new(),
         };
 
@@ -207,10 +211,11 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
                         map.next_value::<HashMap<String, Vec<Transform>>>()?
                 }
                 "camera" => unloaded_scene.camera = map.next_value::<Camera>()?,
+                "title" => unloaded_scene.title = map.next_value::<String>()?,
                 _ => {
                     return Err(de::Error::unknown_field(
                         key.as_str(),
-                        &["model_paths_to_transforms", "camera"],
+                        &["model_paths_to_transforms", "camera", "title"],
                     ))
                 }
             };
@@ -229,6 +234,6 @@ implement_vertex!(Instance, transform, transform_normal);
 
 impl Default for Scene {
     fn default() -> Self {
-        Self::new(Camera::default())
+        Self::new("Untitled".to_owned(), Camera::default())
     }
 }
