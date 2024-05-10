@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
+use std::path::{Path, PathBuf};
 use std::ptr;
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
-use gltf::buffer::{Data};
+use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
 use gltf::{Accessor, Semantic};
 use itertools::Itertools;
@@ -74,12 +75,12 @@ pub struct Mesh {
 pub struct Model {
     pub uuid: UUID,
     pub meshes: Vec<Mesh>,
-    pub path: String,
+    pub path: PathBuf,
 }
 
 impl Model {
-    pub fn load(path: &str, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
-        debug!("Loading model \"{path}\"...");
+    pub fn load(path: &Path, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+        debug!("Loading model \"{:?}\"...", path);
 
         // TODO parse materials
         let (document, file_buffers, _images) = gltf::import(path)?;

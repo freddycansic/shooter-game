@@ -45,6 +45,7 @@ impl FrameState {
 
 enum EngineEvent {
     LoadScene(String),
+    ImportModel(PathBuf),
 }
 
 pub struct Editor {
@@ -160,12 +161,16 @@ impl Application for Editor {
     }
 
     fn update(&mut self) {
-        if let Ok(engine_event) = self.receiver.try_recv() {
+        for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(scene_string) => {
                     self.scene =
                         Scene::deserialize(&scene_string, &self.opengl_context.display).unwrap()
                 }
+                EngineEvent::ImportModel(model_path) => self
+                    .scene
+                    .import_model(model_path.as_path(), &self.opengl_context.display)
+                    .unwrap(),
             }
         }
 
@@ -243,21 +248,28 @@ impl Application for Editor {
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
-                                let serialized = serde_json::to_string(&self.scene).unwrap();
-
-                                std::thread::spawn(move || {
-                                    if let Some(save_path) = FileDialog::new().save_file() {
-                                        std::fs::write(save_path, serialized).unwrap();
-                                    }
-                                });
-
+                                self.scene.save_as();
                                 ui.close_menu();
                             }
                         });
 
                         ui.menu_button("Scene", |ui| {
-                            if ui.add(Button::new("Import model")).clicked() {
-                                // Scene::import_model()
+                            if ui.add(Button::new("Import models")).clicked() {
+                                let sender = self.sender.clone();
+
+                                std::thread::spawn(move || {
+                                    if let Some(paths) = FileDialog::new()
+                                        .add_filter("gltf", &["gltf", "glb"])
+                                        .set_can_create_directories(true)
+                                        .set_directory("/")
+                                        .pick_files()
+                                    {
+                                        for path in paths {
+                                            sender.send(EngineEvent::ImportModel(path)).unwrap();
+                                        }
+                                    }
+                                });
+
                                 ui.close_menu();
                             }
                         });

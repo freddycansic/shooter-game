@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use cgmath::{Matrix, Matrix4, SquareMatrix};
@@ -9,6 +10,7 @@ use glium::{
     implement_vertex, uniform, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
 };
 use itertools::Itertools;
+use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
@@ -21,14 +23,14 @@ pub struct Scene {
     pub model_instances: Vec<ModelInstance>,
     pub camera: Camera,
     pub title: String,
-    models: HashMap<String, Arc<Model>>,
+    loaded_models: HashMap<PathBuf, Arc<Model>>,
 }
 
 impl Scene {
     pub fn new(title: String, camera: Camera) -> Self {
         Self {
             model_instances: vec![],
-            models: HashMap::new(),
+            loaded_models: HashMap::new(),
             title,
             camera,
         }
@@ -52,8 +54,18 @@ impl Scene {
         Ok(scene)
     }
 
+    pub fn save_as(&self) {
+        let serialized = serde_json::to_string(self).unwrap();
+
+        std::thread::spawn(move || {
+            if let Some(save_path) = FileDialog::new().save_file() {
+                std::fs::write(save_path, serialized).unwrap();
+            }
+        });
+    }
+
     /// Load a model and create an instance of it in the scene
-    pub fn import_model(&mut self, path: &str, display: &Display<WindowSurface>) -> Result<()> {
+    pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
         let model = self.load_model(path, display)?;
 
         self.model_instances.push(ModelInstance::from(model));
@@ -64,18 +76,18 @@ impl Scene {
     /// Load a model into the cache
     pub fn load_model(
         &mut self,
-        path: &str,
+        path: &Path,
         display: &Display<WindowSurface>,
     ) -> Result<Arc<Model>> {
         Ok(self
-            .models
+            .loaded_models
             .entry(path.to_owned())
             .or_insert(Model::load(path, display)?)
             .clone())
     }
 
-    pub fn model_is_loaded(&self, path: &str) -> bool {
-        self.models.contains_key(path)
+    pub fn model_is_loaded(&self, path: &Path) -> bool {
+        self.loaded_models.contains_key(&path.to_path_buf())
     }
 
     pub fn render(&self, program: &Program, display: &Display<WindowSurface>, target: &mut Frame) {
@@ -144,12 +156,18 @@ impl Scene {
     }
 }
 
+impl Default for Scene {
+    fn default() -> Self {
+        Self::new("Untitled".to_owned(), Camera::default())
+    }
+}
+
 impl Serialize for Scene {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut instance_map = HashMap::<String, Vec<Transform>>::new();
+        let mut instance_map = HashMap::<PathBuf, Vec<Transform>>::new();
 
         for model_instance in self.model_instances.iter() {
             instance_map
@@ -169,7 +187,7 @@ impl Serialize for Scene {
 struct UnloadedScene {
     pub camera: Camera,
     pub title: String,
-    pub model_paths_to_transforms: HashMap<String, Vec<Transform>>,
+    pub model_paths_to_transforms: HashMap<PathBuf, Vec<Transform>>,
 }
 
 impl<'de> Deserialize<'de> for UnloadedScene {
@@ -208,7 +226,7 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
             match key.as_str() {
                 "model_instances" => {
                     unloaded_scene.model_paths_to_transforms =
-                        map.next_value::<HashMap<String, Vec<Transform>>>()?
+                        map.next_value::<HashMap<PathBuf, Vec<Transform>>>()?
                 }
                 "camera" => unloaded_scene.camera = map.next_value::<Camera>()?,
                 "title" => unloaded_scene.title = map.next_value::<String>()?,
@@ -231,9 +249,3 @@ struct Instance {
     transform_normal: [[f32; 4]; 4],
 }
 implement_vertex!(Instance, transform, transform_normal);
-
-impl Default for Scene {
-    fn default() -> Self {
-        Self::new("Untitled".to_owned(), Camera::default())
-    }
-}
