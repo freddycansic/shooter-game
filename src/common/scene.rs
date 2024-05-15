@@ -3,43 +3,80 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use cgmath::{Matrix, Matrix4, SquareMatrix};
+use cgmath::{Matrix, Matrix4, Point3, SquareMatrix, Vector3, Zero};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
+use glium::index::{NoIndices, PrimitiveType};
 use glium::{
-    implement_vertex, uniform, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+    implement_vertex, uniform, Display, DrawParameters, Frame, IndexBuffer, Program, Surface,
+    VertexBuffer,
 };
 use itertools::Itertools;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use winit::dpi::PhysicalSize;
 
 use crate::camera::Camera;
-use crate::maths;
+use crate::line::{Line, LinePoint};
 use crate::model::{Model, ModelInstance, Transform};
+use crate::{context, maths};
 
 pub struct Scene {
-    pub model_instances: Vec<ModelInstance>,
     pub camera: Camera,
     pub title: String,
+
+    pub model_instances: Vec<ModelInstance>,
+    pub lines: Vec<Line>,
+
+    model_program: Program,
+    lines_program: Program,
+
+    line_vertex_buffers: Option<Vec<(u8, VertexBuffer<LinePoint>)>>,
     loaded_models: HashMap<PathBuf, Arc<Model>>,
 }
 
 impl Scene {
-    pub fn new(title: String, camera: Camera) -> Self {
-        Self {
+    pub fn new(title: &str, camera: Camera, display: &Display<WindowSurface>) -> Result<Self> {
+        let model_program = context::new_program(
+            "assets/shaders/default/default.vert",
+            "assets/shaders/default/default.frag",
+            None,
+            display,
+        )?;
+
+        let lines_program = context::new_program(
+            "assets/shaders/line/line.vert",
+            "assets/shaders/line/line.frag",
+            None,
+            display,
+        )?;
+
+        Ok(Self {
             model_instances: vec![],
+            lines: vec![],
             loaded_models: HashMap::new(),
-            title,
+            model_program,
+            lines_program,
+            title: title.to_owned(),
             camera,
-        }
+            line_vertex_buffers: None,
+        })
     }
 
-    pub fn deserialize(serialised: &str, display: &Display<WindowSurface>) -> Result<Self> {
-        let unloaded_scene = serde_json::from_str::<UnloadedScene>(serialised)?;
+    pub fn deserialize(
+        serialised: &str,
+        display: &Display<WindowSurface>,
+        inner_size: PhysicalSize<u32>,
+    ) -> Result<Self> {
+        let mut unloaded_scene = serde_json::from_str::<UnloadedScene>(serialised)?;
 
-        let mut scene = Scene::new(unloaded_scene.title, unloaded_scene.camera);
+        unloaded_scene
+            .camera
+            .set_aspect_ratio(inner_size.width as f32 / inner_size.height as f32);
+
+        let mut scene = Scene::new(&unloaded_scene.title, unloaded_scene.camera, display)?;
 
         for (path, transforms) in unloaded_scene.model_paths_to_transforms.iter() {
             let model = scene.load_model(path, display)?;
@@ -90,14 +127,18 @@ impl Scene {
         self.loaded_models.contains_key(&path.to_path_buf())
     }
 
-    pub fn render(&self, program: &Program, display: &Display<WindowSurface>, target: &mut Frame) {
+    pub fn render(&mut self, display: &Display<WindowSurface>, target: &mut Frame) {
+        self.render_models(display, target);
+        self.render_lines(display, target);
+    }
+
+    fn render_models(&self, display: &Display<WindowSurface>, target: &mut Frame) {
         let instance_buffers = self.build_instance_buffers(display);
 
-        target.clear_color(1.0, 0.0, 0.0, 1.0);
+        target.clear_color(0.0, 0.0, 0.0, 1.0);
 
         let uniforms = uniform! {
-            projection: maths::raw_matrix(self.camera.projection),
-            view: maths::raw_matrix(self.camera.view_matrix()),
+            vp: maths::raw_matrix(self.camera.view_projection),
             camera_position: <[f32; 3]>::from(self.camera.position)
         };
 
@@ -111,7 +152,7 @@ impl Scene {
                                 instance_buffer.per_instance().unwrap(),
                             ),
                             &primitive.index_buffer,
-                            program,
+                            &self.model_program,
                             &uniforms,
                             &DrawParameters::default(),
                         )
@@ -119,6 +160,60 @@ impl Scene {
                 }
             }
         }
+    }
+
+    fn render_lines(&mut self, display: &Display<WindowSurface>, target: &mut Frame) {
+        self.line_vertex_buffers
+            .get_or_insert(self.build_line_vertex_buffers(display));
+
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(self.camera.view_projection),
+        };
+
+        for (width, line_points) in self.line_vertex_buffers.iter().flatten() {
+            target
+                .draw(
+                    line_points,
+                    &NoIndices(PrimitiveType::LinesList),
+                    &self.lines_program,
+                    &uniforms,
+                    &DrawParameters {
+                        line_width: Some(*width as f32),
+                        ..DrawParameters::default()
+                    },
+                )
+                .unwrap();
+        }
+    }
+
+    fn build_line_vertex_buffers(
+        &self,
+        display: &Display<WindowSurface>,
+    ) -> Vec<(u8, VertexBuffer<LinePoint>)> {
+        let mut lines_map = HashMap::<u8, Vec<LinePoint>>::new();
+
+        for line in self.lines.clone().into_iter() {
+            let line_points = vec![
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p1),
+                    color: *line.color.as_ref(),
+                },
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p2),
+                    color: *line.color.as_ref(),
+                },
+            ];
+
+            lines_map
+                .entry(line.width)
+                .and_modify(|lines| lines.extend(&line_points))
+                .or_insert(line_points);
+        }
+
+        lines_map
+            .into_iter()
+            .map(|(width, lines)| (width, VertexBuffer::new(display, &lines).unwrap()))
+            .collect_vec()
     }
 
     fn build_instance_map(&self) -> HashMap<Arc<Model>, Vec<Instance>> {
@@ -153,12 +248,6 @@ impl Scene {
             .into_iter()
             .map(|(model, instances)| (model, VertexBuffer::new(display, &instances).unwrap()))
             .collect_vec()
-    }
-}
-
-impl Default for Scene {
-    fn default() -> Self {
-        Self::new("Untitled".to_owned(), Camera::default())
     }
 }
 

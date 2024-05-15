@@ -4,6 +4,7 @@ pub mod colors;
 pub mod context;
 pub mod debug;
 pub mod input;
+pub mod line;
 pub mod maths;
 pub mod model;
 pub mod scene;

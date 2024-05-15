@@ -1,40 +1,57 @@
-use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
+use cgmath::num_traits::Pow;
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector3, Zero};
+use log::info;
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
 use crate::input::Input;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub enum ViewMode {
     FPS,
     Orbit,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Camera {
     pub position: Point3<f32>,
     pub forward_direction: Vector3<f32>,
     pub up_direction: Vector3<f32>,
     pub target: Point3<f32>,
     pub projection: Matrix4<f32>,
+    pub view: Matrix4<f32>,
+    pub view_projection: Matrix4<f32>,
     pub view_mode: ViewMode,
     pub yaw: f32,
     pub pitch: f32,
 }
 
 impl Camera {
-    pub fn new_fps(position: Point3<f32>, forward_direction: Vector3<f32>) -> Self {
+    pub fn new_fps(
+        position: Point3<f32>,
+        forward_direction: Vector3<f32>,
+        aspect_ratio: f32,
+    ) -> Self {
+        let projection = Self::create_perspective_matrix(aspect_ratio);
+        let view = Self::create_view_matrix(position, forward_direction);
+
+        let yaw = forward_direction.z.atan2(forward_direction.x);
+        let pitch = forward_direction.y.asin();
+
+        let right_direction = forward_direction.cross(Vector3::unit_y()).normalize();
+        let up_direction = forward_direction.cross(right_direction);
+
         Self {
             position,
             target: position + forward_direction,
             forward_direction,
-            up_direction: forward_direction
-                .cross(Vector3::unit_y())
-                .cross(forward_direction),
-            projection: Self::create_perspective_matrix(1920.0 / 1080.0),
+            up_direction,
+            projection,
+            view,
+            view_projection: projection * view,
             view_mode: ViewMode::FPS,
-            yaw: 0.0,
-            pitch: 0.0,
+            yaw,
+            pitch,
         }
     }
 
@@ -47,17 +64,20 @@ impl Camera {
             ViewMode::Orbit => unimplemented!(),
             ViewMode::FPS => self.update_fps(input),
         }
+
+        self.view = Self::create_view_matrix(self.position, self.forward_direction);
+        self.view_projection = self.projection * self.view;
     }
 
     pub fn set_aspect_ratio(&mut self, aspect_ratio: f32) {
         self.projection = Self::create_perspective_matrix(aspect_ratio);
     }
 
-    pub fn view_matrix(&self) -> Matrix4<f32> {
+    fn create_view_matrix(position: Point3<f32>, forward_direction: Vector3<f32>) -> Matrix4<f32> {
         Matrix4::look_at_rh(
-            self.position,
-            self.position + self.forward_direction,
-            Vector3::new(0.0, -1.0, 0.0),
+            position,
+            position + forward_direction,
+            Vector3::new(0.0, 1.0, 0.0),
         )
     }
 
@@ -70,8 +90,8 @@ impl Camera {
 
         let offset = input.device_offset();
 
-        self.yaw -= offset.x % (2.0 * std::f32::consts::PI);
-        self.pitch += offset.y;
+        self.yaw += offset.x % (2.0 * std::f32::consts::PI);
+        self.pitch -= offset.y;
 
         let epsilon = 0.00001;
 
@@ -99,18 +119,19 @@ impl Camera {
         }
 
         if input.key_down(KeyCode::KeyA) {
-            self.position += speed * right_direction;
+            self.position -= speed * right_direction;
         }
 
         if input.key_down(KeyCode::KeyD) {
-            self.position -= speed * right_direction;
+            self.position += speed * right_direction;
         }
     }
 }
 
 impl Default for Camera {
     fn default() -> Self {
-        // Camera at (0, 0, 0), looking down the z axis
-        Self::new_fps(Point3::new(0.0, 0.0, 0.0), Vector3::unit_z())
+        let position = Point3::new(5.0, 2.0, 5.0);
+
+        Self::new_fps(position, -position.to_vec().normalize(), 1920.0 / 1009.0)
     }
 }

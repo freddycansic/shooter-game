@@ -1,6 +1,5 @@
-
 use cgmath::{Vector2, Zero};
-use log::{warn};
+use log::warn;
 use winit::dpi::PhysicalPosition;
 use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
 use winit::window::WindowId;
@@ -15,7 +14,7 @@ const NUM_MOUSE_BUTTONS: usize = 6;
 pub struct Input {
     key_states: [KeyState; NUM_KEYS],
     mouse_button_states: [KeyState; NUM_MOUSE_BUTTONS],
-    last_cursor_position: PhysicalPosition<f64>,
+    last_cursor_position: Option<PhysicalPosition<f64>>,
     window_offset: Vector2<f32>,
     device_offset: Vector2<f32>,
 }
@@ -39,7 +38,7 @@ impl Input {
         Self {
             key_states: [KeyState::Released; NUM_KEYS],
             mouse_button_states: [KeyState::Released; NUM_MOUSE_BUTTONS],
-            last_cursor_position: PhysicalPosition::new(0.0, 0.0),
+            last_cursor_position: None,
             window_offset: Vector2::zero(),
             device_offset: Vector2::zero(),
         }
@@ -164,15 +163,22 @@ impl Input {
     const CURSOR_SENSITIVITY: f64 = 0.002;
 
     fn process_cursor_moved_window_event(&mut self, position: PhysicalPosition<f64>) {
+        if self.last_cursor_position.is_none() {
+            self.last_cursor_position = Some(position);
+            return;
+        }
+
         self.window_offset = Vector2::new(
-            ((position.x - self.last_cursor_position.x) * Self::CURSOR_SENSITIVITY) as f32,
-            ((position.y - self.last_cursor_position.y) * Self::CURSOR_SENSITIVITY) as f32,
+            ((position.x - self.last_cursor_position.unwrap().x) * Self::CURSOR_SENSITIVITY) as f32,
+            ((position.y - self.last_cursor_position.unwrap().y) * Self::CURSOR_SENSITIVITY) as f32,
         );
 
-        self.last_cursor_position = position;
+        self.last_cursor_position = Some(position);
     }
 
     fn process_cursor_moved_device_event(&mut self, offset: (f64, f64)) {
+        // println!("{:?}", offset);
+
         self.device_offset = Vector2::new(
             (offset.0 * Self::CURSOR_SENSITIVITY) as f32,
             (offset.1 * Self::CURSOR_SENSITIVITY) as f32,

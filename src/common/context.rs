@@ -50,26 +50,20 @@ impl OpenGLContext {
     }
 }
 
-pub struct RenderingContext {
-    pub program: Program,
-}
-
-impl RenderingContext {
-    pub fn new(
+    pub fn new_program(
         vertex_source_path: &str,
         fragment_source_path: &str,
+        geometry_source_path: Option<&str>,
         display: &Display<WindowSurface>,
-    ) -> Result<Self> {
+    ) -> Result<Program> {
         let vertex_source = fs::read_to_string(vertex_source_path)?;
         let fragment_source = fs::read_to_string(fragment_source_path)?;
+        let geometry_source = geometry_source_path.map(|path| fs::read_to_string(path).unwrap());
 
-        let program = Program::from_source(
+        Ok(Program::from_source(
             display,
             vertex_source.as_str(),
             fragment_source.as_str(),
-            None,
-        )?;
-
-        Ok(Self { program })
+            geometry_source.as_deref(),
+        )?)
     }
-}

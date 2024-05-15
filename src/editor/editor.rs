@@ -12,6 +12,8 @@ use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use image::open;
+use palette::Srgb;
 use rfd::FileDialog;
 use serde::Serialize;
 use winit::event::{Event, MouseButton, WindowEvent};
@@ -21,8 +23,9 @@ use winit::keyboard::KeyCode;
 use app::Application;
 use common::camera::Camera;
 use common::*;
-use context::{OpenGLContext, RenderingContext};
+use context::OpenGLContext;
 use input::Input;
+use line::Line;
 use model::{Model, ModelInstance, Transform};
 use scene::Scene;
 
@@ -52,7 +55,6 @@ pub struct Editor {
     input: Input,
     scene: Scene,
     opengl_context: OpenGLContext,
-    rendering_context: RenderingContext,
     gui: EguiGlium,
     state: FrameState,
     sender: Sender<EngineEvent>,
@@ -66,14 +68,29 @@ impl Editor {
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glutin teapot now", false, event_loop);
-        let rendering_context = RenderingContext::new(
-            "assets/shaders/default.vert",
-            "assets/shaders/default.frag",
-            &opengl_context.display,
-        )
-        .unwrap();
 
-        let scene = Scene::default();
+        let mut scene = Scene::new("Untitled", Camera::default(), &opengl_context.display).unwrap();
+
+        scene.lines = vec![
+            Line::new(
+                Point3::new(-1000.0, 0.0, 0.0),
+                Point3::new(1000.0, 0.0, 0.0),
+                Srgb::from(palette::named::RED),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, -1000.0, 0.0),
+                Point3::new(0.0, 1000.0, 0.0),
+                Srgb::from(palette::named::GREEN),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, 0.0, -1000.0),
+                Point3::new(0.0, 0.0, 1000.0),
+                Srgb::from(palette::named::BLUE),
+                2,
+            ),
+        ];
 
         let input = Input::new();
 
@@ -95,7 +112,6 @@ impl Editor {
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
         Self {
-            rendering_context,
             opengl_context,
             scene,
             input,
@@ -164,8 +180,12 @@ impl Application for Editor {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(scene_string) => {
-                    self.scene =
-                        Scene::deserialize(&scene_string, &self.opengl_context.display).unwrap()
+                    self.scene = Scene::deserialize(
+                        &scene_string,
+                        &self.opengl_context.display,
+                        self.opengl_context.window.inner_size(),
+                    )
+                    .unwrap()
                 }
                 EngineEvent::ImportModel(model_path) => self
                     .scene
@@ -209,11 +229,7 @@ impl Application for Editor {
 
         let mut target = self.opengl_context.display.draw();
         {
-            self.scene.render(
-                &self.rendering_context.program,
-                &self.opengl_context.display,
-                &mut target,
-            );
+            self.scene.render(&self.opengl_context.display, &mut target);
 
             self.render_gui();
 
