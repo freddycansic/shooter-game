@@ -1,7 +1,7 @@
 fn main() {
-    #[cfg(target_os = "linux")]
-    println!(
-        "cargo:rustc-link-search={}",
-        std::env::var("NIX_LD_LIBRARY_PATH").unwrap_or_default()
-    );
+    let nix_ld_library_path = std::env::var("NIX_LD_LIBRARY_PATH");
+    if let path = Some(nix_ld_library_path) {
+        #[cfg(target_os = "linux")]
+        println!("cargo:rustc-link-search={}", path);
+    }
 }
