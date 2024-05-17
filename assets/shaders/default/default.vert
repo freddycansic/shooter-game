@@ -1,12 +1,18 @@
 #version 450
 
+// Model
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
 layout (location = 2) in vec2 tex_coord;
+
+// Instance
 layout (location = 3) in mat4 transform;
 layout (location = 4) in mat4 transform_normal;
 
-layout (location = 0) out vec3 out_position;
+out VS_OUT {
+    vec3 position;
+    vec2 tex_coord;
+} vs_out;
 //layout(location = 1) out vec3 out_normal;
 //layout(location = 2) out vec2 out_tex_coord;
 //layout(location = 3) out vec3 out_camera_position;
@@ -18,7 +24,8 @@ uniform mat4 vp;
 uniform vec3 camera_position;
 
 void main() {
-    out_position = position;
+    vs_out.position = position;
+    vs_out.position = position;
     //    // Fix non-uniform scalings
     //    out_normal = vec3(model_uniform.normal * vec4(normalize(normal), 1.0));
     //    out_tex_coord = tex_coord;
