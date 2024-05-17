@@ -8,5 +8,5 @@ pub mod line;
 pub mod maths;
 pub mod model;
 pub mod scene;
-pub mod uuid;
+pub mod texture;
 pub mod vertex;

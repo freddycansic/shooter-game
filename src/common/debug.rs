@@ -1,4 +1,5 @@
 use fern::colors::{Color, ColoredLevelConfig};
+use log::LevelFilter;
 
 pub fn set_up_logging() {
     // configure colors for the whole line
@@ -28,9 +29,10 @@ pub fn set_up_logging() {
             ));
         })
         // Sets log level across entire crate to remove verbose dependency information
-        .level(log::LevelFilter::Warn)
-        // TODO change name
-        .level_for("vulkano_teapot", log::LevelFilter::Trace)
+        .level(log::LevelFilter::Trace)
+        .level_for("egui_winit", LevelFilter::Off)
+        .level_for("egui", LevelFilter::Off)
+        .level_for("egui_glium", LevelFilter::Off)
         .chain(std::io::stdout())
         .apply()
         .unwrap();

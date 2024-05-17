@@ -5,7 +5,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread::Thread;
 use std::time::Instant;
 
-use cgmath::{Deg, Point3, Quaternion, Rotation3, Vector3};
+use cgmath::{Deg, Matrix4, Point3, Quaternion, Rotation3, Vector3, Zero};
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
@@ -13,6 +13,7 @@ use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
 use image::open;
+use log::info;
 use palette::Srgb;
 use rfd::FileDialog;
 use serde::Serialize;
@@ -22,6 +23,7 @@ use winit::keyboard::KeyCode;
 
 use app::Application;
 use common::camera::Camera;
+use common::texture::Texture;
 use common::*;
 use context::OpenGLContext;
 use input::Input;
@@ -67,9 +69,26 @@ impl Editor {
         debug::set_up_logging();
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
-        let opengl_context = OpenGLContext::new("We glutin teapot now", false, event_loop);
+        let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
         let mut scene = Scene::new("Untitled", Camera::default(), &opengl_context.display).unwrap();
+
+        let size = 10;
+        let model =
+            model::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
+
+        for x in -(size / 2)..(size / 2) {
+            for y in -(size / 2)..(size / 2) {
+                scene.model_instances.push(ModelInstance {
+                    model: model.clone(),
+                    texture: None,
+                    transform: Transform {
+                        translation: Vector3::new(x as f32 * 3.0, y as f32 * 3.0, 0.0),
+                        ..Transform::default()
+                    },
+                });
+            }
+        }
 
         scene.lines = vec![
             Line::new(

@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
 use std::path::{Path, PathBuf};
-use std::ptr;
 use std::sync::Arc;
+use std::{fmt, ptr};
 
 use cgmath::{Matrix4, Quaternion, Vector3, Zero};
 use color_eyre::Result;
@@ -14,12 +14,14 @@ use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
 use gltf::{Accessor, Semantic};
 use itertools::Itertools;
-use log::{debug, warn};
+use log::{debug, info, warn};
+use memoize::memoize;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use vertex::Vertex;
 
-use crate::uuid::UUID;
+use crate::texture::Texture;
 use crate::{maths, vertex};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -49,6 +51,7 @@ impl Default for Transform {
 
 pub struct ModelInstance {
     pub model: Arc<Model>,
+    pub texture: Option<Arc<Texture>>,
     pub transform: Transform,
 }
 
@@ -56,6 +59,7 @@ impl From<Arc<Model>> for ModelInstance {
     fn from(model: Arc<Model>) -> Self {
         Self {
             model,
+            texture: None,
             transform: Transform::default(),
         }
     }
@@ -72,36 +76,62 @@ pub struct Mesh {
     pub primitives: Vec<Primitive>,
 }
 
+#[derive(Debug, Clone)]
+pub enum ModelLoadError {
+    ModelDoesNotExist(PathBuf),
+    CreateBufferError(PathBuf),
+}
+
+impl std::error::Error for ModelLoadError {}
+
+impl fmt::Display for ModelLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::ModelDoesNotExist(path) => {
+                write!(f, "The model \"{:?}\" does not exist", path)
+            }
+            Self::CreateBufferError(path) => {
+                write!(f, "Could not create buffers for the model \"{:?}\"", path)
+            }
+        }
+    }
+}
+
 pub struct Model {
-    pub uuid: UUID,
+    pub uuid: Uuid,
     pub meshes: Vec<Mesh>,
     pub path: PathBuf,
 }
 
-impl Model {
-    pub fn load(path: &Path, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
-        debug!("Loading model \"{:?}\"...", path);
+#[memoize(Ignore: display)]
+pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
+    info!("Loading model \"{:?}\"...", path);
 
-        // TODO parse materials
-        let (document, file_buffers, _images) = gltf::import(path)?;
+    // TODO parse materials
+    let (document, file_buffers, _images) =
+        gltf::import(path.clone()).map_err(|_| ModelLoadError::ModelDoesNotExist(path.clone()))?;
 
-        Ok(Arc::new(Model {
-            uuid: UUID::new(),
-            path: path.to_owned(),
-            meshes: document
-                .meshes()
-                .map(|mesh| Mesh {
-                    name: mesh.name().map(str::to_owned),
-                    primitives: mesh
-                        .primitives()
-                        .map(|primitive| {
-                            Primitive::from(primitive, &file_buffers, display).unwrap()
-                        })
-                        .collect::<Vec<Primitive>>(),
-                })
-                .collect::<Vec<Mesh>>(),
-        }))
+    let mut meshes = Vec::new();
+    for mesh in document.meshes() {
+        let mut primitives = Vec::new();
+        for primitive in mesh.primitives() {
+            primitives.push(
+                Primitive::from(primitive, &file_buffers, display)
+                    .map_err(|_| ModelLoadError::CreateBufferError(path.clone()))?,
+            );
+        }
+
+        meshes.push(Mesh {
+            name: mesh.name().map(str::to_owned),
+            primitives,
+        });
     }
+
+    Ok(Arc::new(Model {
+        uuid: Uuid::new_v4(),
+        path: path.clone(),
+        meshes,
+    }))
 }
 
 impl PartialEq<Self> for Model {
@@ -136,6 +166,7 @@ impl Primitive {
             "No position data for primitive!"
         );
 
+        // TODO look into gltf::Reader::read_indices, vertices etc
         let mut vertices = Self::extract_vertices(&primitive, file_buffers);
         let indices = Self::extract_indices(&primitive, file_buffers);
 
@@ -203,10 +234,6 @@ impl Primitive {
                 }
                 _ => unimplemented!("{semantic:?}"),
             }
-        }
-
-        for vertex in vertices.iter_mut() {
-            vertex.position[1] *= -1.0;
         }
 
         vertices
