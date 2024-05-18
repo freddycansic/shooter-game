@@ -7,9 +7,9 @@ use cgmath::{Matrix, Matrix4, SquareMatrix};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
-use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter};
+use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Display, DrawParameters, Frame, IndexBuffer, Program, Surface,
+    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
     VertexBuffer,
 };
 use itertools::Itertools;
@@ -120,6 +120,8 @@ impl Scene {
     }
 
     pub fn render(&mut self, display: &Display<WindowSurface>, target: &mut Frame) {
+        target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
+
         self.render_models(display, target);
         self.render_lines(display, target);
     }
@@ -127,16 +129,20 @@ impl Scene {
     fn render_models(&self, display: &Display<WindowSurface>, target: &mut Frame) {
         let instance_buffers = self.build_instance_buffers(display);
 
-        target.clear_color(0.0, 0.0, 0.0, 1.0);
-
         let vp = maths::raw_matrix(self.camera.view_projection);
         let camera_position = <[f32; 3]>::from(self.camera.position);
+
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
 
         for ((model, texture), instance_buffer) in instance_buffers {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
-                tex: texture.inner_texture.sampled().magnify_filter(MagnifySamplerFilter::Linear).minify_filter(MinifySamplerFilter::Linear)
+                tex: Sampler(&texture.inner_texture, sample_behaviour).0
             };
 
             for mesh in model.meshes.iter() {
@@ -150,7 +156,14 @@ impl Scene {
                             &primitive.index_buffer,
                             &self.model_program,
                             &uniforms,
-                            &DrawParameters::default(),
+                            &DrawParameters {
+                                depth: Depth {
+                                    test: DepthTest::IfLess,
+                                    write: true,
+                                    ..Default::default()
+                                },
+                                ..DrawParameters::default()
+                            },
                         )
                         .unwrap();
                 }
