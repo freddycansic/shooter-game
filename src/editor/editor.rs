@@ -13,7 +13,7 @@ use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
 use image::open;
-use log::info;
+use log::{debug, info};
 use palette::Srgb;
 use rfd::FileDialog;
 use serde::Serialize;
@@ -73,43 +73,22 @@ impl Editor {
 
         let mut scene = Scene::new("Untitled", Camera::default(), &opengl_context.display).unwrap();
 
-        let size = 10;
-        let model =
-            model::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
-
-        for x in -(size / 2)..(size / 2) {
-            for y in -(size / 2)..(size / 2) {
-                scene.model_instances.push(ModelInstance {
-                    model: model.clone(),
-                    texture: None,
-                    transform: Transform {
-                        translation: Vector3::new(x as f32 * 3.0, y as f32 * 3.0, 0.0),
-                        ..Transform::default()
-                    },
-                });
-            }
-        }
-
-        scene.lines = vec![
-            Line::new(
-                Point3::new(-1000.0, 0.0, 0.0),
-                Point3::new(1000.0, 0.0, 0.0),
-                Srgb::from(palette::named::RED),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, -1000.0, 0.0),
-                Point3::new(0.0, 1000.0, 0.0),
-                Srgb::from(palette::named::GREEN),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, 0.0, -1000.0),
-                Point3::new(0.0, 0.0, 1000.0),
-                Srgb::from(palette::named::BLUE),
-                2,
-            ),
-        ];
+        // let size = 10;
+        // let model =
+        //     model::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
+        //
+        // for x in -(size / 2)..(size / 2) {
+        //     for y in -(size / 2)..(size / 2) {
+        //         scene.model_instances.push(ModelInstance {
+        //             model: model.clone(),
+        //             texture: None,
+        //             transform: Transform {
+        //                 translation: Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0),
+        //                 ..Transform::default()
+        //             },
+        //         });
+        //     }
+        // }
 
         let input = Input::new();
 
@@ -263,6 +242,17 @@ impl Application for Editor {
                 egui::menu::bar(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
+                            if ui.add(Button::new("New")).clicked() {
+                                self.scene = Scene::new(
+                                    "Untitled",
+                                    Camera::default(),
+                                    &self.opengl_context.display,
+                                )
+                                .unwrap();
+
+                                ui.close_menu();
+                            }
+
                             if ui.add(Button::new("Open scene")).clicked() {
                                 let sender = self.sender.clone();
 
@@ -283,7 +273,9 @@ impl Application for Editor {
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
+                                debug!("Saving scene...");
                                 self.scene.save_as();
+                                info!("Scene saved");
                                 ui.close_menu();
                             }
                         });

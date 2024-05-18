@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use cgmath::{Matrix, Matrix4, SquareMatrix};
+use cgmath::{Matrix, Matrix4, Point3, SquareMatrix};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
@@ -13,6 +13,7 @@ use glium::{
     VertexBuffer,
 };
 use itertools::Itertools;
+use palette::Srgb;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
@@ -54,9 +55,30 @@ impl Scene {
             display,
         )?;
 
+        let lines = vec![
+            Line::new(
+                Point3::new(-1000.0, 0.0, 0.0),
+                Point3::new(1000.0, 0.0, 0.0),
+                Srgb::from(palette::named::RED),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, -1000.0, 0.0),
+                Point3::new(0.0, 1000.0, 0.0),
+                Srgb::from(palette::named::GREEN),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, 0.0, -1000.0),
+                Point3::new(0.0, 0.0, 1000.0),
+                Srgb::from(palette::named::BLUE),
+                2,
+            ),
+        ];
+
         Ok(Self {
             model_instances: vec![],
-            lines: vec![],
+            lines,
             model_program,
             lines_program,
             title: title.to_owned(),
@@ -78,22 +100,28 @@ impl Scene {
 
         let mut scene = Scene::new(&unloaded_scene.title, unloaded_scene.camera, display)?;
 
-        for ((model_path, texture_path), transforms) in
-            unloaded_scene.models_to_transforms.into_iter()
+        for (model_path, textures_to_transforms) in unloaded_scene.models_to_transforms.into_iter()
         {
-            let model = model::load(model_path.clone(), display)?;
-            let texture = texture_path.map(|path| {
-                texture::load(path, display).expect(
-                    "Could not load a texture path from the scene //TODO make this a normal error",
-                )
-            });
+            let model = model::load(PathBuf::from(model_path.clone()), display)?;
 
-            for transform in transforms {
-                scene.model_instances.push(ModelInstance {
-                    model: model.clone(),
-                    texture: texture.clone(),
-                    transform: transform.clone(),
-                });
+            for (texture_path, transforms) in textures_to_transforms.iter() {
+                dbg!(transforms.len());
+
+                let texture = if !texture_path.is_empty() {
+                    Some(texture::load(PathBuf::from(texture_path), display).expect(
+                        "Could not load a texture path from the scene //TODO make this a normal error",
+                    ))
+                } else {
+                    None
+                };
+
+                for transform in transforms {
+                    scene.model_instances.push(ModelInstance {
+                        model: model.clone(),
+                        texture: texture.clone(),
+                        transform: transform.clone(),
+                    });
+                }
             }
         }
 
@@ -284,16 +312,29 @@ impl Serialize for Scene {
     where
         S: Serializer,
     {
-        let mut instance_map = HashMap::<(PathBuf, Option<PathBuf>), Vec<Transform>>::new();
+        let mut instance_map = HashMap::<String, HashMap<String, Vec<Transform>>>::new();
 
         for model_instance in self.model_instances.iter() {
             let texture_path = model_instance
                 .texture
                 .as_ref()
-                .map(|texture| texture.path.clone());
+                .map(|texture| texture.path.clone().to_string_lossy().to_string())
+                .unwrap_or(String::new());
 
             instance_map
-                .entry((model_instance.model.path.clone(), texture_path))
+                .entry(
+                    model_instance
+                        .model
+                        .path
+                        .clone()
+                        .to_string_lossy()
+                        .to_string(),
+                )
+                .or_insert(HashMap::from([(
+                    texture_path.clone(),
+                    vec![model_instance.transform.clone()],
+                )]))
+                .entry(texture_path.to_string())
                 .or_insert(vec![model_instance.transform.clone()])
                 .push(model_instance.transform.clone());
         }
@@ -301,6 +342,7 @@ impl Serialize for Scene {
         let mut s = serializer.serialize_struct("Scene", 2)?;
         s.serialize_field("model_instances", &instance_map)?;
         s.serialize_field("camera", &self.camera)?;
+        s.serialize_field("title", &self.title)?;
 
         s.end()
     }
@@ -309,7 +351,7 @@ impl Serialize for Scene {
 struct UnloadedScene {
     pub camera: Camera,
     pub title: String,
-    pub models_to_transforms: HashMap<(PathBuf, Option<PathBuf>), Vec<Transform>>,
+    pub models_to_transforms: HashMap<String, HashMap<String, Vec<Transform>>>,
 }
 
 impl<'de> Deserialize<'de> for UnloadedScene {
@@ -348,7 +390,7 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
             match key.as_str() {
                 "model_instances" => {
                     unloaded_scene.models_to_transforms =
-                        map.next_value::<HashMap<(PathBuf, Option<PathBuf>), Vec<Transform>>>()?
+                        map.next_value::<HashMap<String, HashMap<String, Vec<Transform>>>>()?
                 }
                 "camera" => unloaded_scene.camera = map.next_value::<Camera>()?,
                 "title" => unloaded_scene.title = map.next_value::<String>()?,
