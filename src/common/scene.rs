@@ -1,18 +1,13 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
-use cgmath::{Matrix, Matrix4, Point3, SquareMatrix, Vector3};
+use cgmath::{Point3, Vector3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
-use glium::index::{NoIndices, PrimitiveType};
-use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    VertexBuffer,
+    Display, Frame, Surface,
 };
-use itertools::Itertools;
 use palette::Srgb;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
@@ -21,8 +16,8 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use winit::dpi::PhysicalSize;
 
 use crate::camera::Camera;
-use crate::line::{Line, LinePoint};
-use crate::model::{Model, ModelInstance, Transform};
+use crate::line::{Line};
+use crate::model::{ModelInstance, Transform};
 use crate::renderer::Renderer;
 use crate::{model, texture};
 

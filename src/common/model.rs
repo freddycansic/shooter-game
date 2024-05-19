@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::sync::Arc;
 use std::{fmt, ptr};
 
