@@ -32,7 +32,7 @@ use model::{Model, ModelInstance, Transform};
 use scene::Scene;
 
 struct FrameState {
-    pub start: Instant,
+    pub last_frame_end: Instant,
     pub frame_count: u128,
     pub deltatime: f64,
     pub fps: f32,
@@ -43,8 +43,10 @@ impl FrameState {
     pub fn update_statistics(&mut self) {
         self.frame_count = (self.frame_count + 1) % u128::MAX;
 
-        self.deltatime = self.start.elapsed().as_secs_f64();
+        self.deltatime = self.last_frame_end.elapsed().as_secs_f64();
         self.fps = (1.0 / self.deltatime) as f32;
+
+        self.last_frame_end = Instant::now();
     }
 }
 
@@ -71,7 +73,7 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let mut scene = Scene::new("Untitled", Camera::default(), &opengl_context.display).unwrap();
+        let mut scene = Scene::new_untitled(&opengl_context.display).unwrap();
 
         // let size = 10;
         // let model =
@@ -100,7 +102,7 @@ impl Editor {
         );
 
         let state = FrameState {
-            start: Instant::now(),
+            last_frame_end: Instant::now(),
             frame_count: 0,
             deltatime: 0.0,
             fps: 0.0,
@@ -145,8 +147,6 @@ impl Application for Editor {
                                 );
                             }
                             WindowEvent::RedrawRequested => {
-                                self.state.start = Instant::now();
-
                                 if self.input.key_pressed(KeyCode::Escape) {
                                     event_loop_window_target.exit();
                                 }
@@ -220,10 +220,10 @@ impl Application for Editor {
             return;
         }
 
-        for model_instance in self.scene.model_instances.iter_mut() {
-            model_instance.transform.rotation =
-                Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
-        }
+        // for model_instance in self.scene.model_instances.iter_mut() {
+        //     model_instance.transform.rotation =
+        //         Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+        // }
 
         let mut target = self.opengl_context.display.draw();
         {
@@ -243,12 +243,8 @@ impl Application for Editor {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.scene = Scene::new(
-                                    "Untitled",
-                                    Camera::default(),
-                                    &self.opengl_context.display,
-                                )
-                                .unwrap();
+                                self.scene =
+                                    Scene::new_untitled(&self.opengl_context.display).unwrap();
 
                                 ui.close_menu();
                             }
