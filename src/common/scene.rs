@@ -23,8 +23,8 @@ use winit::dpi::PhysicalSize;
 use crate::camera::Camera;
 use crate::line::{Line, LinePoint};
 use crate::model::{Model, ModelInstance, Transform};
-use crate::texture::Texture;
-use crate::{context, maths, model, texture};
+use crate::renderer::Renderer;
+use crate::{model, texture};
 
 pub struct Scene {
     pub camera: Camera, // the last camera state when editing the scene
@@ -33,29 +33,10 @@ pub struct Scene {
 
     pub model_instances: Vec<ModelInstance>,
     pub lines: Vec<Line>,
-
-    model_program: Program,
-    lines_program: Program,
-
-    line_vertex_buffers: Option<Vec<(u8, VertexBuffer<LinePoint>)>>,
 }
 
 impl Scene {
-    pub fn new(title: &str, camera: Camera, display: &Display<WindowSurface>) -> Result<Self> {
-        let model_program = context::new_program(
-            "assets/shaders/default/default.vert",
-            "assets/shaders/default/default.frag",
-            None,
-            display,
-        )?;
-
-        let lines_program = context::new_program(
-            "assets/shaders/line/line.vert",
-            "assets/shaders/line/line.frag",
-            None,
-            display,
-        )?;
-
+    pub fn new(title: &str, camera: Camera) -> Self {
         let lines = vec![
             Line::new(
                 Point3::new(-1000.0, 0.0, 0.0),
@@ -77,11 +58,9 @@ impl Scene {
             ),
         ];
 
-        Ok(Self {
+        Self {
             model_instances: vec![],
             lines,
-            model_program,
-            lines_program,
             title: title.to_owned(),
             starting_camera: Camera::new_fps(
                 Point3::new(0.0, 0.0, 0.0),
@@ -89,12 +68,7 @@ impl Scene {
                 1920.0 / 1008.0,
             ),
             camera,
-            line_vertex_buffers: None,
-        })
-    }
-
-    pub fn new_untitled(display: &Display<WindowSurface>) -> Result<Self> {
-        Self::new("Untitled", Camera::default(), display)
+        }
     }
 
     pub fn deserialize(
@@ -108,19 +82,15 @@ impl Scene {
             .camera
             .set_aspect_ratio(inner_size.width as f32 / inner_size.height as f32);
 
-        let mut scene = Scene::new(&unloaded_scene.title, unloaded_scene.camera, display)?;
+        let mut scene = Scene::new(&unloaded_scene.title, unloaded_scene.camera);
 
         for (model_path, textures_to_transforms) in unloaded_scene.models_to_transforms.into_iter()
         {
             let model = model::load(PathBuf::from(model_path.clone()), display)?;
 
             for (texture_path, transforms) in textures_to_transforms.iter() {
-                dbg!(transforms.len());
-
                 let texture = if !texture_path.is_empty() {
-                    Some(texture::load(PathBuf::from(texture_path), display).expect(
-                        "Could not load a texture path from the scene //TODO make this a normal error",
-                    ))
+                    Some(texture::load(PathBuf::from(texture_path), display)?)
                 } else {
                     None
                 };
@@ -157,163 +127,22 @@ impl Scene {
         Ok(())
     }
 
-    pub fn render(&mut self, display: &Display<WindowSurface>, target: &mut Frame) {
+    pub fn render(
+        &mut self,
+        renderer: &mut Renderer,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
-        self.render_models(display, target);
-        self.render_lines(display, target);
+        renderer.render_model_instances(&self.model_instances, &self.camera, display, target);
+        renderer.render_lines(&self.lines, &self.camera, display, target);
     }
+}
 
-    fn render_models(&self, display: &Display<WindowSurface>, target: &mut Frame) {
-        let instance_buffers = self.build_instance_buffers(display);
-
-        let vp = maths::raw_matrix(self.camera.view_projection);
-        let camera_position = <[f32; 3]>::from(self.camera.position);
-
-        let sample_behaviour = SamplerBehavior {
-            minify_filter: MinifySamplerFilter::Nearest,
-            magnify_filter: MagnifySamplerFilter::Nearest,
-            ..SamplerBehavior::default()
-        };
-
-        for ((model, texture), instance_buffer) in instance_buffers {
-            let uniforms = uniform! {
-                vp: vp,
-                camera_position: camera_position,
-                tex: Sampler(&texture.inner_texture, sample_behaviour).0
-            };
-
-            for mesh in model.meshes.iter() {
-                for primitive in mesh.primitives.iter() {
-                    target
-                        .draw(
-                            (
-                                &primitive.vertex_buffer,
-                                instance_buffer.per_instance().unwrap(),
-                            ),
-                            &primitive.index_buffer,
-                            &self.model_program,
-                            &uniforms,
-                            &DrawParameters {
-                                depth: Depth {
-                                    test: DepthTest::IfLess,
-                                    write: true,
-                                    ..Default::default()
-                                },
-                                ..DrawParameters::default()
-                            },
-                        )
-                        .unwrap();
-                }
-            }
-        }
-    }
-
-    fn render_lines(&mut self, display: &Display<WindowSurface>, target: &mut Frame) {
-        self.line_vertex_buffers
-            .get_or_insert(self.build_line_vertex_buffers(display));
-
-        let uniforms = uniform! {
-            vp: maths::raw_matrix(self.camera.view_projection),
-        };
-
-        for (width, line_points) in self.line_vertex_buffers.iter().flatten() {
-            target
-                .draw(
-                    line_points,
-                    &NoIndices(PrimitiveType::LinesList),
-                    &self.lines_program,
-                    &uniforms,
-                    &DrawParameters {
-                        line_width: Some(*width as f32),
-                        ..DrawParameters::default()
-                    },
-                )
-                .unwrap();
-        }
-    }
-
-    fn build_line_vertex_buffers(
-        &self,
-        display: &Display<WindowSurface>,
-    ) -> Vec<(u8, VertexBuffer<LinePoint>)> {
-        let mut lines_map = HashMap::<u8, Vec<LinePoint>>::new();
-
-        for line in self.lines.clone().into_iter() {
-            let line_points = vec![
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p1),
-                    color: *line.color.as_ref(),
-                },
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p2),
-                    color: *line.color.as_ref(),
-                },
-            ];
-
-            lines_map
-                .entry(line.width)
-                .and_modify(|lines| lines.extend(&line_points))
-                .or_insert(line_points);
-        }
-
-        lines_map
-            .into_iter()
-            .map(|(width, lines)| (width, VertexBuffer::new(display, &lines).unwrap()))
-            .collect_vec()
-    }
-
-    fn build_instance_map(
-        &self,
-        display: &Display<WindowSurface>,
-    ) -> HashMap<(Arc<Model>, Arc<Texture>), Vec<Instance>> {
-        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
-
-        for model_instance in self.model_instances.iter() {
-            let transform_matrix = Matrix4::from(model_instance.transform.clone());
-
-            let instance = Instance {
-                transform: <[[f32; 4]; 4]>::from(transform_matrix),
-                transform_normal: <[[f32; 4]; 4]>::from(
-                    transform_matrix.invert().unwrap().transpose(),
-                ),
-            };
-
-            let entry = (
-                model_instance.model.clone(),
-                model_instance
-                    .texture
-                    .as_ref()
-                    .unwrap_or(
-                        &texture::load("assets/textures/uv-test.jpg".into(), display).unwrap(),
-                    )
-                    .clone(),
-            );
-
-            instance_map
-                .entry(entry)
-                .or_insert(vec![instance])
-                .push(instance);
-        }
-
-        instance_map
-    }
-
-    fn build_instance_buffers(
-        &self,
-        display: &Display<WindowSurface>,
-    ) -> Vec<((Arc<Model>, Arc<Texture>), VertexBuffer<Instance>)> {
-        let instance_map = self.build_instance_map(display);
-
-        instance_map
-            .into_iter()
-            .map(|((model, texture), instances)| {
-                (
-                    (model, texture),
-                    VertexBuffer::new(display, &instances).unwrap(),
-                )
-            })
-            .collect_vec()
+impl Default for Scene {
+    fn default() -> Self {
+        Self::new("Untitled", Camera::default())
     }
 }
 
@@ -331,6 +160,7 @@ impl Serialize for Scene {
                 .map(|texture| texture.path.clone().to_string_lossy().to_string())
                 .unwrap_or(String::new());
 
+            // Code is perfectly readable
             instance_map
                 .entry(
                     model_instance
@@ -352,14 +182,17 @@ impl Serialize for Scene {
         let mut s = serializer.serialize_struct("Scene", 2)?;
         s.serialize_field("model_instances", &instance_map)?;
         s.serialize_field("camera", &self.camera)?;
+        s.serialize_field("starting_camera", &self.starting_camera)?;
         s.serialize_field("title", &self.title)?;
 
         s.end()
     }
 }
 
+/// A Scene where the models are represented as Strings instead of Models
 struct UnloadedScene {
     pub camera: Camera,
+    pub starting_camera: Camera,
     pub title: String,
     pub models_to_transforms: HashMap<String, HashMap<String, Vec<Transform>>>,
 }
@@ -371,7 +204,7 @@ impl<'de> Deserialize<'de> for UnloadedScene {
     {
         deserializer.deserialize_struct(
             "UnloadedScene",
-            &["models_to_transforms", "camera", "title"],
+            &["models_to_transforms", "camera", "starting_camera", "title"],
             UnloadedSceneVisitor,
         )
     }
@@ -392,6 +225,7 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
     {
         let mut unloaded_scene = UnloadedScene {
             camera: Camera::default(),
+            starting_camera: Camera::default(),
             title: String::new(),
             models_to_transforms: HashMap::new(),
         };
@@ -403,6 +237,7 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
                         map.next_value::<HashMap<String, HashMap<String, Vec<Transform>>>>()?
                 }
                 "camera" => unloaded_scene.camera = map.next_value::<Camera>()?,
+                "starting_camera" => unloaded_scene.starting_camera = map.next_value::<Camera>()?,
                 "title" => unloaded_scene.title = map.next_value::<String>()?,
                 _ => {
                     return Err(de::Error::unknown_field(
@@ -416,10 +251,3 @@ impl<'de> Visitor<'de> for UnloadedSceneVisitor {
         Ok(unloaded_scene)
     }
 }
-
-#[derive(Copy, Clone)]
-struct Instance {
-    transform: [[f32; 4]; 4],
-    transform_normal: [[f32; 4]; 4],
-}
-implement_vertex!(Instance, transform, transform_normal);

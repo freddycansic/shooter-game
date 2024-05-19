@@ -23,6 +23,7 @@ use winit::keyboard::KeyCode;
 
 use app::Application;
 use common::camera::Camera;
+use common::renderer::Renderer;
 use common::texture::Texture;
 use common::*;
 use context::OpenGLContext;
@@ -58,6 +59,7 @@ enum EngineEvent {
 pub struct Editor {
     input: Input,
     scene: Scene,
+    renderer: Renderer,
     opengl_context: OpenGLContext,
     gui: EguiGlium,
     state: FrameState,
@@ -73,7 +75,8 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let mut scene = Scene::new_untitled(&opengl_context.display).unwrap();
+        let mut scene = Scene::default();
+        let renderer = Renderer::new(&opengl_context.display).unwrap();
 
         // let size = 10;
         // let model =
@@ -114,6 +117,7 @@ impl Editor {
         Self {
             opengl_context,
             scene,
+            renderer,
             input,
             gui,
             state,
@@ -227,10 +231,13 @@ impl Application for Editor {
 
         let mut target = self.opengl_context.display.draw();
         {
-            self.scene.render(&self.opengl_context.display, &mut target);
+            self.scene.render(
+                &mut self.renderer,
+                &self.opengl_context.display,
+                &mut target,
+            );
 
             self.render_gui();
-
             self.gui.paint(&self.opengl_context.display, &mut target);
         }
         target.finish().unwrap();
@@ -243,8 +250,7 @@ impl Application for Editor {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.scene =
-                                    Scene::new_untitled(&self.opengl_context.display).unwrap();
+                                self.scene = Scene::default();
 
                                 ui.close_menu();
                             }
@@ -269,9 +275,8 @@ impl Application for Editor {
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
-                                debug!("Saving scene...");
+                                info!("Saving scene...");
                                 self.scene.save_as();
-                                info!("Scene saved");
                                 ui.close_menu();
                             }
                         });
