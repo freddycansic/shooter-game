@@ -1,12 +1,10 @@
-use crate::model::Model;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::{CompressedTexture2d, RawImage2d};
 use glium::Display;
 use image::io::Reader;
 use image::GenericImageView;
-use log::{debug, info};
+use log::{info};
 use memoize::memoize;
-use std::cell::OnceCell;
 use std::fmt;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};

@@ -1,4 +1,4 @@
-use cgmath::{Point3, Vector3};
+use cgmath::{InnerSpace, Point3, Vector3};
 use common::app::Application;
 use common::camera::Camera;
 use common::context::OpenGLContext;
@@ -56,13 +56,13 @@ impl Game {
         let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
-        let mut scene = Scene::new_untitled();
+        let mut scene = Scene::default();
         // scene.camera = scene.starting_camera.clone();
 
         let inner_size = opengl_context.window.inner_size();
         scene.camera = Camera::new_fps(
-            Point3::new(1.0, 0.2, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
+            Point3::new(3.0, 0.2, 3.0),
+            -Vector3::new(3.0, 0.2, 3.0).normalize(),
             inner_size.width as f32 / inner_size.height as f32,
         );
 

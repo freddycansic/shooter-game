@@ -10,7 +10,6 @@ use std::sync::Arc;
 use crate::camera::Camera;
 use crate::line::{Line, LinePoint};
 use crate::model::{Model, ModelInstance};
-use crate::scene::Scene;
 use crate::texture::Texture;
 use crate::{context, maths, texture};
 use color_eyre::Result;

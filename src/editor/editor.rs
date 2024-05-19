@@ -1,35 +1,23 @@
-use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::thread::Thread;
 use std::time::Instant;
 
-use cgmath::{Deg, Matrix4, Point3, Quaternion, Rotation3, Vector3, Zero};
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
-use glium::Display;
-use image::open;
-use log::{debug, info};
-use palette::Srgb;
+use log::{info};
 use rfd::FileDialog;
-use serde::Serialize;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
-use common::camera::Camera;
 use common::renderer::Renderer;
-use common::texture::Texture;
 use common::*;
 use context::OpenGLContext;
 use input::Input;
-use line::Line;
-use model::{Model, ModelInstance, Transform};
 use scene::Scene;
 
 struct FrameState {
@@ -75,7 +63,7 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let mut scene = Scene::default();
+        let scene = Scene::default();
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
         // let size = 10;

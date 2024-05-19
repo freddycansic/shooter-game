@@ -1,4 +1,3 @@
-use bytemuck::{Pod, Zeroable};
 use cgmath::Point3;
 use glium::implement_vertex;
 use log::warn;

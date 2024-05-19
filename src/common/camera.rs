@@ -1,6 +1,4 @@
-use cgmath::num_traits::Pow;
-use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector2, Vector3, Zero};
-use log::info;
+use cgmath::{EuclideanSpace, InnerSpace, Matrix4, Point3, Rad, Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
