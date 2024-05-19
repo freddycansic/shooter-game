@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use cgmath::{Matrix, Matrix4, Point3, SquareMatrix};
+use cgmath::{Matrix, Matrix4, Point3, SquareMatrix, Vector3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
@@ -27,8 +27,9 @@ use crate::texture::Texture;
 use crate::{context, maths, model, texture};
 
 pub struct Scene {
-    pub camera: Camera,
+    pub camera: Camera, // the last camera state when editing the scene
     pub title: String,
+    pub starting_camera: Camera, // the camera state to be used when starting the game
 
     pub model_instances: Vec<ModelInstance>,
     pub lines: Vec<Line>,
@@ -82,9 +83,18 @@ impl Scene {
             model_program,
             lines_program,
             title: title.to_owned(),
+            starting_camera: Camera::new_fps(
+                Point3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 1.0),
+                1920.0 / 1008.0,
+            ),
             camera,
             line_vertex_buffers: None,
         })
+    }
+
+    pub fn new_untitled(display: &Display<WindowSurface>) -> Result<Self> {
+        Self::new("Untitled", Camera::default(), display)
     }
 
     pub fn deserialize(
