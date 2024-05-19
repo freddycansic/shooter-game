@@ -7,6 +7,7 @@ pub mod input;
 pub mod line;
 pub mod maths;
 pub mod model;
+pub mod renderer;
 pub mod scene;
 pub mod texture;
 pub mod vertex;

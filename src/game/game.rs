@@ -4,6 +4,7 @@ use common::camera::Camera;
 use common::context::OpenGLContext;
 use common::debug;
 use common::input::Input;
+use common::renderer::Renderer;
 use common::scene::Scene;
 use egui_glium::EguiGlium;
 use std::sync::mpsc::{Receiver, Sender};
@@ -42,6 +43,7 @@ impl Default for FrameState {
 pub struct Game {
     input: Input,
     scene: Scene,
+    renderer: Renderer,
     opengl_context: OpenGLContext,
     state: FrameState,
 }
@@ -53,7 +55,8 @@ impl Game {
 
         let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
 
-        let mut scene = Scene::new_untitled(&opengl_context.display).unwrap();
+        let renderer = Renderer::new(&opengl_context.display).unwrap();
+        let mut scene = Scene::new_untitled();
         // scene.camera = scene.starting_camera.clone();
 
         let inner_size = opengl_context.window.inner_size();
@@ -68,6 +71,7 @@ impl Game {
 
         Self {
             opengl_context,
+            renderer,
             scene,
             state,
             input,
@@ -138,7 +142,11 @@ impl Application for Game {
     fn render(&mut self) {
         let mut target = self.opengl_context.display.draw();
         {
-            self.scene.render(&self.opengl_context.display, &mut target);
+            self.scene.render(
+                &mut self.renderer,
+                &self.opengl_context.display,
+                &mut target,
+            );
         }
         target.finish().unwrap();
     }
