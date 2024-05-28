@@ -70,11 +70,11 @@ impl Camera {
         unimplemented!()
     }
 
-    pub fn update(&mut self, input: &Input) {
+    pub fn update(&mut self, input: &Input, deltatime: f32) {
         match self.view_mode {
             ViewMode::Orbit => unimplemented!(),
-            ViewMode::FPS => self.update_fps(input),
-            ViewMode::Fly => self.update_fly(input),
+            ViewMode::FPS => self.update_fps(input, deltatime),
+            ViewMode::Fly => self.update_fly(input, deltatime),
         }
 
         self.view = Self::create_view_matrix(self.position, self.forward_direction);
@@ -97,8 +97,8 @@ impl Camera {
         cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.01, 100.0)
     }
 
-    fn update_fps(&mut self, input: &Input) {
-        let speed = 0.1;
+    fn update_fps(&mut self, input: &Input, deltatime: f32) {
+        let speed = 7.0 * deltatime;
 
         let offset = input.device_offset();
         self.update_yaw_pitch_direction(offset);
@@ -126,8 +126,8 @@ impl Camera {
         }
     }
 
-    fn update_fly(&mut self, input: &Input) {
-        let speed = 0.1;
+    fn update_fly(&mut self, input: &Input, deltatime: f32) {
+        let speed = 7.0 * deltatime;
 
         let offset = input.device_offset();
         self.update_yaw_pitch_direction(offset);

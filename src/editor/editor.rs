@@ -1,3 +1,4 @@
+use cgmath::Point3;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -7,13 +8,15 @@ use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
-use log::{info};
+use log::info;
+use palette::Srgb;
 use rfd::FileDialog;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
+use common::line::Line;
 use common::renderer::Renderer;
 use common::*;
 use context::OpenGLContext;
@@ -63,7 +66,28 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let scene = Scene::default();
+        let mut scene = Scene::default();
+        scene.lines = vec![
+            Line::new(
+                Point3::new(-1000.0, 0.0, 0.0),
+                Point3::new(1000.0, 0.0, 0.0),
+                Srgb::from(palette::named::RED),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, -1000.0, 0.0),
+                Point3::new(0.0, 1000.0, 0.0),
+                Srgb::from(palette::named::GREEN),
+                2,
+            ),
+            Line::new(
+                Point3::new(0.0, 0.0, -1000.0),
+                Point3::new(0.0, 0.0, 1000.0),
+                Srgb::from(palette::named::BLUE),
+                2,
+            ),
+        ];
+
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
         // let size = 10;
@@ -188,7 +212,9 @@ impl Application for Editor {
             || self.input.key_down(KeyCode::Space);
 
         if self.state.using_viewport {
-            self.scene.camera.update(&self.input);
+            self.scene
+                .camera
+                .update(&self.input, self.state.deltatime as f32);
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();

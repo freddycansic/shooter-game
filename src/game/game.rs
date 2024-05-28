@@ -1,3 +1,4 @@
+use crate::player::Player;
 use cgmath::{InnerSpace, Point3, Vector3};
 use common::app::Application;
 use common::camera::Camera;
@@ -6,8 +7,7 @@ use common::debug;
 use common::input::Input;
 use common::renderer::Renderer;
 use common::scene::Scene;
-use egui_glium::EguiGlium;
-use std::sync::mpsc::{Receiver, Sender};
+use std::fs;
 use std::time::Instant;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -43,6 +43,7 @@ impl Default for FrameState {
 pub struct Game {
     input: Input,
     scene: Scene,
+    player: Player,
     renderer: Renderer,
     opengl_context: OpenGLContext,
     state: FrameState,
@@ -56,7 +57,12 @@ impl Game {
         let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
-        let mut scene = Scene::default();
+        let mut scene = Scene::deserialize(
+            &fs::read_to_string("assets/game_scenes/map.json").unwrap(),
+            &opengl_context.display,
+            opengl_context.window.inner_size(),
+        )
+        .unwrap();
         // scene.camera = scene.starting_camera.clone();
 
         let inner_size = opengl_context.window.inner_size();
@@ -69,12 +75,15 @@ impl Game {
         let state = FrameState::default();
         let input = Input::new();
 
+        let player = Player::new();
+
         Self {
             opengl_context,
             renderer,
             scene,
             state,
             input,
+            player,
         }
     }
 }
@@ -127,7 +136,11 @@ impl Application for Game {
         self.state.using_viewport = true;
 
         if self.state.using_viewport {
-            self.scene.camera.update(&self.input);
+            self.scene
+                .camera
+                .update(&self.input, self.state.deltatime as f32);
+            self.player.update(self.state.deltatime as f32);
+
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();

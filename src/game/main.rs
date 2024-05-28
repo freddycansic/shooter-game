@@ -1,4 +1,5 @@
 mod game;
+mod player;
 
 use common::app::Application;
 use game::Game;

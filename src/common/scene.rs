@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use cgmath::{Point3, Vector3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
-use glium::{
-    Display, Frame, Surface,
-};
+use glium::{Display, Frame, Surface};
 use palette::Srgb;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
@@ -16,7 +15,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use winit::dpi::PhysicalSize;
 
 use crate::camera::Camera;
-use crate::line::{Line};
+use crate::line::Line;
 use crate::model::{ModelInstance, Transform};
 use crate::renderer::Renderer;
 use crate::{model, texture};
@@ -32,30 +31,9 @@ pub struct Scene {
 
 impl Scene {
     pub fn new(title: &str, camera: Camera) -> Self {
-        let lines = vec![
-            Line::new(
-                Point3::new(-1000.0, 0.0, 0.0),
-                Point3::new(1000.0, 0.0, 0.0),
-                Srgb::from(palette::named::RED),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, -1000.0, 0.0),
-                Point3::new(0.0, 1000.0, 0.0),
-                Srgb::from(palette::named::GREEN),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, 0.0, -1000.0),
-                Point3::new(0.0, 0.0, 1000.0),
-                Srgb::from(palette::named::BLUE),
-                2,
-            ),
-        ];
-
         Self {
             model_instances: vec![],
-            lines,
+            lines: vec![],
             title: title.to_owned(),
             starting_camera: Camera::new_fps(
                 Point3::new(0.0, 0.0, 0.0),
