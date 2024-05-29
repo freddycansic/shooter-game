@@ -5,11 +5,12 @@ use glium::{
     VertexBuffer,
 };
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::camera::Camera;
 use crate::line::{Line, LinePoint};
-use crate::model::{Model, ModelInstance};
+use crate::model::Model;
+use crate::model_instance::ModelInstance;
 use crate::texture::Texture;
 use crate::{context, maths, texture};
 use color_eyre::Result;
@@ -57,30 +58,32 @@ impl Renderer {
         let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
 
         for model_instance in model_instances.iter() {
-            let transform_matrix = Matrix4::from(model_instance.transform.clone());
+            if model_instance.model.meshes.lock().unwrap().is_some() {
+                let transform_matrix = Matrix4::from(model_instance.transform.clone());
 
-            let instance = Instance {
-                transform: <[[f32; 4]; 4]>::from(transform_matrix),
-                transform_normal: <[[f32; 4]; 4]>::from(
-                    transform_matrix.invert().unwrap().transpose(),
-                ),
-            };
+                let instance = Instance {
+                    transform: <[[f32; 4]; 4]>::from(transform_matrix),
+                    transform_normal: <[[f32; 4]; 4]>::from(
+                        transform_matrix.invert().unwrap().transpose(),
+                    ),
+                };
 
-            let entry = (
-                model_instance.model.clone(),
-                model_instance
-                    .texture
-                    .as_ref()
-                    .unwrap_or(
-                        &texture::load("assets/textures/uv-test.jpg".into(), display).unwrap(),
-                    )
-                    .clone(),
-            );
+                let texture = match &model_instance.texture {
+                    Some(texture) => {
+                        if texture.inner_texture.is_some() {
+                            texture.clone()
+                        } else {
+                            Texture::default(display).unwrap().clone()
+                        }
+                    }
+                    None => Texture::default(display).unwrap().clone(),
+                };
 
-            instance_map
-                .entry(entry)
-                .or_insert(vec![instance])
-                .push(instance);
+                instance_map
+                    .entry((model_instance.model.clone(), texture))
+                    .or_insert(vec![instance])
+                    .push(instance);
+            }
         }
 
         let instance_buffers = instance_map
@@ -106,10 +109,10 @@ impl Renderer {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
-                tex: Sampler(&texture.inner_texture, sample_behaviour).0
+                tex: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0
             };
 
-            for mesh in model.meshes.iter() {
+            for mesh in model.meshes.lock().unwrap().iter().flatten() {
                 for primitive in mesh.primitives.iter() {
                     target
                         .draw(

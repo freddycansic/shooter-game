@@ -1,4 +1,5 @@
 use cgmath::Point3;
+use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -194,12 +195,8 @@ impl Application for Editor {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(scene_string) => {
-                    self.scene = Scene::deserialize(
-                        &scene_string,
-                        &self.opengl_context.display,
-                        self.opengl_context.window.inner_size(),
-                    )
-                    .unwrap()
+                    self.scene =
+                        Scene::from_string(&scene_string, &self.opengl_context.display).unwrap()
                 }
                 EngineEvent::ImportModel(model_path) => self
                     .scene

@@ -1,10 +1,12 @@
+use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::{CompressedTexture2d, RawImage2d};
 use glium::Display;
 use image::io::Reader;
 use image::GenericImageView;
-use log::{info};
+use log::info;
 use memoize::memoize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
@@ -12,18 +14,27 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Texture {
-    pub inner_texture: CompressedTexture2d,
-    pub path: PathBuf,
+    #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,
+    pub path: PathBuf,
+    #[serde(skip)]
+    pub inner_texture: Option<CompressedTexture2d>,
+}
+
+impl Texture {
+    pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+        Ok(load(path, display)?)
+    }
+
+    pub fn default(display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+        Self::load(PathBuf::from("assets/textures/uv-test.jpg"), display)
+    }
 }
 
 #[memoize(Ignore: display)]
-pub fn load(
-    path: PathBuf,
-    display: &Display<WindowSurface>,
-) -> Result<Arc<Texture>, TextureLoadError> {
+fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Texture>, TextureLoadError> {
     info!("Loading texture {:?}...", path);
 
     let image =
@@ -40,7 +51,7 @@ pub fn load(
     let opengl_texture = CompressedTexture2d::new(display, raw_image).unwrap();
 
     Ok(Arc::new(Texture {
-        inner_texture: opengl_texture,
+        inner_texture: Some(opengl_texture),
         path: path.clone(),
         uuid: Uuid::new_v4(),
     }))

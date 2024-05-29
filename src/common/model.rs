@@ -1,8 +1,8 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
-use std::path::{PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::{fmt, ptr};
 
 use cgmath::{Matrix4, Quaternion, Vector3, Zero};
@@ -16,54 +16,16 @@ use gltf::{Accessor, Semantic};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use memoize::memoize;
-use serde::{Deserialize, Serialize};
+use serde::de::{Error, Visitor};
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
 
 use vertex::Vertex;
 
 use crate::texture::Texture;
+use crate::transform::Transform;
 use crate::{maths, vertex};
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Transform {
-    pub translation: Vector3<f32>,
-    pub rotation: Quaternion<f32>,
-    pub scale: Vector3<f32>,
-}
-
-impl From<Transform> for Matrix4<f32> {
-    fn from(value: Transform) -> Self {
-        Matrix4::from_translation(value.translation)
-            * Matrix4::from(value.rotation)
-            * Matrix4::from_nonuniform_scale(value.scale.x, value.scale.y, value.scale.z)
-    }
-}
-
-impl Default for Transform {
-    fn default() -> Self {
-        Self {
-            translation: Vector3::zero(),
-            rotation: Quaternion::zero(),
-            scale: Vector3::new(1.0, 1.0, 1.0),
-        }
-    }
-}
-
-pub struct ModelInstance {
-    pub model: Arc<Model>,
-    pub texture: Option<Arc<Texture>>,
-    pub transform: Transform,
-}
-
-impl From<Arc<Model>> for ModelInstance {
-    fn from(model: Arc<Model>) -> Self {
-        Self {
-            model,
-            texture: None,
-            transform: Transform::default(),
-        }
-    }
-}
 
 pub struct Primitive {
     pub vertex_buffer: VertexBuffer<Vertex>,
@@ -97,41 +59,63 @@ impl fmt::Display for ModelLoadError {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Model {
+    #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,
-    pub meshes: Vec<Mesh>,
     pub path: PathBuf,
+    #[serde(skip)]
+    pub meshes: Mutex<Option<Vec<Mesh>>>,
+}
+
+impl Model {
+    pub fn load(
+        path: PathBuf,
+        display: &Display<WindowSurface>,
+    ) -> Result<Arc<Self>, ModelLoadError> {
+        Ok(load(path, display)?)
+    }
+
+    pub fn load_meshes(&self, display: &Display<WindowSurface>) -> Result<(), ModelLoadError> {
+        // TODO parse materials
+        let (document, file_buffers, _images) = gltf::import(&self.path)
+            .map_err(|_| ModelLoadError::ModelDoesNotExist(self.path.clone()))?;
+
+        let mut meshes = Vec::new();
+        for mesh in document.meshes() {
+            let mut primitives = Vec::new();
+            for primitive in mesh.primitives() {
+                primitives.push(
+                    Primitive::from(primitive, &file_buffers, display)
+                        .map_err(|_| ModelLoadError::CreateBufferError(self.path.clone()))?,
+                );
+            }
+
+            meshes.push(Mesh {
+                name: mesh.name().map(str::to_owned),
+                primitives,
+            });
+        }
+
+        *self.meshes.lock().unwrap() = Some(meshes);
+
+        Ok(())
+    }
 }
 
 #[memoize(Ignore: display)]
-pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
+fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
     info!("Loading model \"{:?}\"...", path);
 
-    // TODO parse materials
-    let (document, file_buffers, _images) =
-        gltf::import(path.clone()).map_err(|_| ModelLoadError::ModelDoesNotExist(path.clone()))?;
-
-    let mut meshes = Vec::new();
-    for mesh in document.meshes() {
-        let mut primitives = Vec::new();
-        for primitive in mesh.primitives() {
-            primitives.push(
-                Primitive::from(primitive, &file_buffers, display)
-                    .map_err(|_| ModelLoadError::CreateBufferError(path.clone()))?,
-            );
-        }
-
-        meshes.push(Mesh {
-            name: mesh.name().map(str::to_owned),
-            primitives,
-        });
-    }
-
-    Ok(Arc::new(Model {
+    let mut model = Model {
         uuid: Uuid::new_v4(),
         path: path.clone(),
-        meshes,
-    }))
+        meshes: Mutex::new(None),
+    };
+
+    model.load_meshes(display)?;
+
+    Ok(Arc::new(model))
 }
 
 impl PartialEq<Self> for Model {

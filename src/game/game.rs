@@ -5,9 +5,12 @@ use common::camera::Camera;
 use common::context::OpenGLContext;
 use common::debug;
 use common::input::Input;
+use common::model::Model;
 use common::renderer::Renderer;
 use common::scene::Scene;
+use std::collections::HashSet;
 use std::fs;
+use std::path::PathBuf;
 use std::time::Instant;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -57,12 +60,12 @@ impl Game {
         let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
-        let mut scene = Scene::deserialize(
-            &fs::read_to_string("assets/game_scenes/map.json").unwrap(),
+        let mut scene = Scene::from_path(
+            &PathBuf::from("assets/game_scenes/map.json"),
             &opengl_context.display,
-            opengl_context.window.inner_size(),
         )
         .unwrap();
+
         // scene.camera = scene.starting_camera.clone();
 
         let inner_size = opengl_context.window.inner_size();
