@@ -17,6 +17,7 @@ use color_eyre::Result;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use itertools::Itertools;
+use petgraph::stable_graph::NodeReferences;
 
 pub struct Renderer {
     default_program: Program,
@@ -50,14 +51,14 @@ impl Renderer {
 
     pub fn render_model_instances(
         &mut self,
-        model_instances: &[ModelInstance],
+        model_instances: NodeReferences<ModelInstance>,
         camera: &Camera,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
         let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
 
-        for model_instance in model_instances.iter() {
+        for (_, model_instance) in model_instances {
             if model_instance.model.meshes.lock().unwrap().is_some() {
                 let transform_matrix = Matrix4::from(model_instance.transform.clone());
 

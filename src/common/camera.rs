@@ -176,6 +176,6 @@ impl Default for Camera {
     fn default() -> Self {
         let position = Point3::new(5.0, 2.0, 5.0);
 
-        Self::new_fps(position, -position.to_vec().normalize(), 1920.0 / 1009.0)
+        Self::new_fly(position, -position.to_vec().normalize(), 1920.0 / 1009.0)
     }
 }

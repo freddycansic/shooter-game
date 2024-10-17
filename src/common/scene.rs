@@ -8,6 +8,10 @@ use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use palette::Srgb;
+use petgraph::graph::DiGraph;
+use petgraph::prelude::{StableDiGraph, StableGraph};
+use petgraph::stable_graph::NodeIndex;
+use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
@@ -25,8 +29,7 @@ pub struct Scene {
     pub camera: Camera, // the last camera state when editing the scene
     pub title: String,
     pub starting_camera: Camera, // the camera state to be used when starting the game
-
-    pub model_instances: Vec<ModelInstance>,
+    pub graph: StableDiGraph<ModelInstance, ()>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -34,7 +37,7 @@ pub struct Scene {
 impl Scene {
     pub fn new(title: &str, camera: Camera) -> Self {
         Self {
-            model_instances: vec![],
+            graph: StableDiGraph::new(),
             lines: vec![],
             title: title.to_owned(),
             starting_camera: Camera::new_fps(
@@ -53,7 +56,7 @@ impl Scene {
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
         let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
-        for model_instance in scene.model_instances.iter_mut() {
+        for (_, model_instance) in scene.graph.node_references() {
             if model_instance.model.meshes.lock().unwrap().is_none() {
                 model_instance.model.load_meshes(display).unwrap()
             }
@@ -76,7 +79,7 @@ impl Scene {
     pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
         let model = Model::load(path.to_path_buf(), display)?;
 
-        self.model_instances.push(ModelInstance::from(model));
+        self.graph.add_node(ModelInstance::from(model));
 
         Ok(())
     }
@@ -89,7 +92,12 @@ impl Scene {
     ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
-        renderer.render_model_instances(&self.model_instances, &self.camera, display, target);
+        renderer.render_model_instances(
+            self.graph.node_references(),
+            &self.camera,
+            display,
+            target,
+        );
         renderer.render_lines(&self.lines, &self.camera, display, target);
     }
 }

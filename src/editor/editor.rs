@@ -6,11 +6,17 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
+use egui_glium::egui_winit::egui::{Align, Button, CollapsingHeader, Ui, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
+use itertools::Itertools;
 use log::info;
 use palette::Srgb;
+use petgraph::graph::node_index;
+use petgraph::prelude::StableDiGraph;
+use petgraph::stable_graph::{EdgeReference, EdgeReferences, NodeIndex};
+use petgraph::visit::{Bfs, EdgeRef, IntoEdgeReferences, IntoNodeReferences};
+use petgraph::Direction;
 use rfd::FileDialog;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
@@ -18,6 +24,8 @@ use winit::keyboard::KeyCode;
 
 use app::Application;
 use common::line::Line;
+use common::model::Model;
+use common::model_instance::ModelInstance;
 use common::renderer::Renderer;
 use common::*;
 use context::OpenGLContext;
@@ -88,6 +96,23 @@ impl Editor {
                 2,
             ),
         ];
+
+        let model_instance = ModelInstance::from(
+            Model::load(
+                PathBuf::from("assets/models/cube.glb"),
+                &opengl_context.display,
+            )
+            .unwrap(),
+        );
+
+        let root1 = scene.graph.add_node(model_instance.clone());
+        let child1 = scene.graph.add_node(model_instance.clone());
+        scene.graph.add_edge(root1, child1, ());
+
+        let grandchild1 = scene.graph.add_node(model_instance.clone());
+        let grandchild2 = scene.graph.add_node(model_instance.clone());
+        scene.graph.add_edge(child1, grandchild1, ());
+        scene.graph.add_edge(child1, grandchild2, ());
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
@@ -331,7 +356,63 @@ impl Application for Editor {
                 });
             });
 
-            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {});
+            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {
+                let top_level_nodes = self
+                    .scene
+                    .graph
+                    .node_references()
+                    .filter(|(node_index, _)| {
+                        self.scene
+                            .graph
+                            .neighbors_directed(*node_index, Direction::Incoming)
+                            .count()
+                            == 0
+                    })
+                    .map(|(node_index, _)| node_index)
+                    .collect_vec();
+
+                for (i, node) in top_level_nodes.iter().enumerate() {
+                    let mut bfs = Bfs::new(&self.scene.graph, *node);
+
+                    ui.push_id(i, |ui| {
+                        if let Some(next) = bfs.next(&self.scene.graph) {
+                            make_collapsing_header(ui, &mut self.scene.graph, next);
+                        }
+                    });
+                }
+            });
         });
+    }
+}
+
+fn make_collapsing_header(
+    ui: &mut Ui,
+    graph: &mut StableDiGraph<ModelInstance, ()>,
+    node_index: NodeIndex,
+) {
+    let model_name = graph[node_index].name.clone();
+    let children = graph
+        .neighbors_directed(node_index, Direction::Outgoing)
+        .collect_vec();
+    let id = ui.make_persistent_id(node_index);
+
+    if children.is_empty() {
+        ui.indent(id, |ui| {
+            if ui.selectable_label(false, model_name).clicked() {
+                graph[node_index].selected = !graph[node_index].selected;
+            }
+        });
+    } else {
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+            .show_header(ui, |ui| {
+                if ui.selectable_label(false, model_name).clicked() {
+                    graph[node_index].selected = !graph[node_index].selected;
+                }
+            })
+            .body(|ui| {
+                for child in children.into_iter() {
+                    make_collapsing_header(ui, graph, child);
+                }
+            });
     }
 }
