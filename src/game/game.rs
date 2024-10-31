@@ -142,7 +142,7 @@ impl Application for Game {
             self.scene
                 .camera
                 .update(&self.input, self.state.deltatime as f32);
-            self.player.update(self.state.deltatime as f32);
+            self.player.update(&self.input, self.state.deltatime as f32);
 
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);

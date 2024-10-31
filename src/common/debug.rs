@@ -34,6 +34,7 @@ pub fn set_up_logging() {
         .level_for("egui", LevelFilter::Off)
         .level_for("egui_glium", LevelFilter::Off)
         .level_for("calloop", LevelFilter::Off)
+        .level_for("arboard", LevelFilter::Off)
         .chain(std::io::stdout())
         .apply()
         .unwrap();
