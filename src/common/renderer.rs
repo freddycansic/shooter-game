@@ -1,4 +1,4 @@
-use cgmath::{Matrix, Matrix4, SquareMatrix};
+use cgmath::{Matrix, Matrix4, Point3, SquareMatrix};
 use glium::glutin::surface::WindowSurface;
 use glium::{
     implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
@@ -7,7 +7,6 @@ use glium::{
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::camera::Camera;
 use crate::line::{Line, LinePoint};
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
@@ -52,7 +51,8 @@ impl Renderer {
     pub fn render_model_instances(
         &mut self,
         model_instances: NodeReferences<ModelInstance>,
-        camera: &Camera,
+        camera_view_projection: &Matrix4<f32>,
+        camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -97,8 +97,8 @@ impl Renderer {
             })
             .collect_vec();
 
-        let vp = maths::raw_matrix(camera.view_projection);
-        let camera_position = <[f32; 3]>::from(camera.position);
+        let vp = maths::raw_matrix(camera_view_projection.clone());
+        let camera_position = <[f32; 3]>::from(camera_position);
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
@@ -142,7 +142,7 @@ impl Renderer {
     pub fn render_lines(
         &mut self,
         lines: &[Line],
-        camera: &Camera,
+        camera_view_projection: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -176,7 +176,7 @@ impl Renderer {
         }
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(camera.view_projection),
+            vp: maths::raw_matrix(camera_view_projection.clone()),
         };
 
         for (width, line_points) in self.line_vertex_buffers.iter() {

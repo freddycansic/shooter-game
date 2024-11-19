@@ -17,7 +17,7 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::camera::Camera;
+use crate::camera::{FpsCamera, OrbitalCamera};
 use crate::line::Line;
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
@@ -26,25 +26,21 @@ use crate::{model, texture};
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
-    pub camera: Camera, // the last camera state when editing the scene
+    pub camera: OrbitalCamera, // the last camera state when editing the scene
     pub title: String,
-    pub starting_camera: Camera, // the camera state to be used when starting the game
+    pub starting_camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: StableDiGraph<ModelInstance, ()>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
 
 impl Scene {
-    pub fn new(title: &str, camera: Camera) -> Self {
+    pub fn new(title: &str, camera: OrbitalCamera) -> Self {
         Self {
             graph: StableDiGraph::new(),
             lines: vec![],
             title: title.to_owned(),
-            starting_camera: Camera::new_fps(
-                Point3::new(0.0, 0.0, 0.0),
-                Vector3::new(0.0, 0.0, 1.0),
-                1920.0 / 1008.0,
-            ),
+            starting_camera: FpsCamera {},
             camera,
         }
     }
@@ -92,6 +88,8 @@ impl Scene {
     ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
+        let vp = self.camera.view() * self.camera.projection();
+
         renderer.render_model_instances(
             self.graph.node_references(),
             &self.camera,
@@ -104,6 +102,6 @@ impl Scene {
 
 impl Default for Scene {
     fn default() -> Self {
-        Self::new("Untitled", Camera::default())
+        Self::new("Untitled", OrbitalCamera::default())
     }
 }
