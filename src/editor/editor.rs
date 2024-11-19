@@ -28,6 +28,7 @@ use common::model::Model;
 use common::model_instance::ModelInstance;
 use common::renderer::Renderer;
 use common::*;
+use common::camera::camera::Camera;
 use context::OpenGLContext;
 use input::Input;
 use scene::Scene;
@@ -184,6 +185,7 @@ impl Application for Editor {
                                 self.opengl_context
                                     .display
                                     .resize((new_size.width, new_size.height));
+
                                 self.scene.camera.set_aspect_ratio(
                                     new_size.width as f32 / new_size.height as f32,
                                 );

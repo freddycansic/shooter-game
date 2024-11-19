@@ -3,12 +3,13 @@ use crate::input::Input;
 use crate::camera::camera;
 use crate::camera::camera::Camera;
 use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct OrbitalCamera {
     pub target: Point3<f32>,
-
-    position: Point3<f32>,
-    projection: Matrix4<f32>,
+    pub projection: Matrix4<f32>,
+    pub position: Point3<f32>,
 }
 
 impl OrbitalCamera {
@@ -28,7 +29,7 @@ impl Camera for OrbitalCamera {
         // Consider the direction from the target to the camera
         let inverse_direction = (self.position - self.target).normalize();
 
-        let offset = input.device_offset();
+        let offset = input.device_offset() * deltatime;
         let yaw = (inverse_direction.y / inverse_direction.x).atan()
             + offset.x % (2.0 * std::f32::consts::PI);
         let pitch = inverse_direction.z.acos() - offset.y;
@@ -42,16 +43,12 @@ impl Camera for OrbitalCamera {
         self.position = self.target + new_inverse_direction;
     }
 
+    fn set_aspect_ratio(&mut self, ratio: f32) {
+        self.projection = camera::perspective(ratio);
+    }
+
     fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(self.position, self.target, Vector3::unit_y())
-    }
-
-    fn projection(&self) -> Matrix4<f32> {
-        self.projection
-    }
-
-    fn update_perspective(&mut self, ratio: f32) {
-        self.projection = camera::perspective(ratio);
     }
 }
 

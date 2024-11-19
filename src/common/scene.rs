@@ -23,6 +23,7 @@ use crate::model::Model;
 use crate::model_instance::ModelInstance;
 use crate::renderer::Renderer;
 use crate::{model, texture};
+use crate::camera::camera::Camera;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
@@ -88,15 +89,16 @@ impl Scene {
     ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
-        let vp = self.camera.view() * self.camera.projection();
+        let vp = self.camera.view() * self.camera.projection;
 
         renderer.render_model_instances(
             self.graph.node_references(),
-            &self.camera,
+            &vp,
+            self.camera.position,
             display,
             target,
         );
-        renderer.render_lines(&self.lines, &self.camera, display, target);
+        renderer.render_lines(&self.lines, &vp, display, target);
     }
 }
 

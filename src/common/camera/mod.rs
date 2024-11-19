@@ -1,4 +1,4 @@
-mod camera;
+pub mod camera;
 mod fps_camera;
 mod orbital_camera;
 
