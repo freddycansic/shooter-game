@@ -2,7 +2,9 @@ use crate::input::Input;
 
 use crate::camera::camera;
 use crate::camera::camera::Camera;
-use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3};
+use cgmath::num_traits::Pow;
+use cgmath::{InnerSpace, Matrix4, Point3, Rad, Vector3, Zero};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -24,23 +26,49 @@ impl OrbitalCamera {
 
 impl Camera for OrbitalCamera {
     fn update(&mut self, input: &Input, deltatime: f32) {
+        let offset = input.device_offset();
+        if offset.is_zero() {
+            return;
+        }
+
         let distance = (self.position - self.target).magnitude();
+        dbg!(self.position);
+
+        if distance == 0.0 {
+            return;
+        }
 
         // Consider the direction from the target to the camera
-        let inverse_direction = (self.position - self.target).normalize();
+        let direction = (self.target - self.position).normalize();
+        dbg!(direction);
 
-        let offset = input.device_offset() * deltatime;
-        let yaw = (inverse_direction.y / inverse_direction.x).atan()
-            + offset.x % (2.0 * std::f32::consts::PI);
-        let pitch = inverse_direction.z.acos() - offset.y;
+        let sensitity = 50.0;
 
-        let new_inverse_direction = Vector3::new(
-            distance * pitch.sin() * yaw.cos(),
-            distance * pitch.sin() * yaw.sin(),
-            distance * pitch.cos(),
-        );
+        dbg!(deltatime);
+        let offset = input.device_offset() * deltatime * sensitity;
+        dbg!(offset);
 
-        self.position = self.target + new_inverse_direction;
+        let start_yaw = (direction.z / direction.x).atan();
+        let start_pitch = direction.y.acos();
+            // ((direction.x.powf(2.0) + direction.z.powf(2.0)).sqrt() / direction.z).atan();
+
+        dbg!(start_yaw, start_pitch);
+        // panic!();
+
+        let new_yaw = (start_yaw + offset.x) % (2.0 * std::f32::consts::PI);
+        let new_pitch =
+            (start_pitch - offset.y).clamp(-std::f32::consts::PI / 2.0, std::f32::consts::PI / 2.0);
+        dbg!(new_yaw, new_pitch);
+
+        self.position = self.target
+            + Vector3::new(
+                distance * new_pitch.sin() * new_yaw.cos(),
+                distance * new_pitch.cos(),
+                distance * new_pitch.sin() * new_yaw.sin(),
+            );
+
+        dbg!(self.position);
+        // panic!();
     }
 
     fn set_aspect_ratio(&mut self, ratio: f32) {
@@ -55,8 +83,8 @@ impl Camera for OrbitalCamera {
 impl Default for OrbitalCamera {
     fn default() -> Self {
         Self::new(
+            Point3::new(4.0, 4.0, 4.0),
             Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
             1920.0 / 1080.0,
         )
     }

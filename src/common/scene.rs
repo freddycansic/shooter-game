@@ -3,7 +3,7 @@ use std::fmt::Formatter;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use cgmath::{Point3, Vector3};
+use cgmath::{Matrix4, Point3, Rad, Vector3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
@@ -17,13 +17,13 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::camera::camera::Camera;
 use crate::camera::{FpsCamera, OrbitalCamera};
 use crate::line::Line;
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
 use crate::renderer::Renderer;
 use crate::{model, texture};
-use crate::camera::camera::Camera;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
@@ -89,7 +89,7 @@ impl Scene {
     ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
-        let vp = self.camera.view() * self.camera.projection;
+        let vp = self.camera.projection * self.camera.view();
 
         renderer.render_model_instances(
             self.graph.node_references(),
