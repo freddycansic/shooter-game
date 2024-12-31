@@ -16,7 +16,7 @@ use winit::keyboard::KeyCode;
 struct FrameState {
     pub last_frame_end: Instant,
     pub deltatime: f64,
-    pub using_viewport: bool,
+    pub is_moving_camera: bool,
     pub fps: f32,
 }
 
@@ -35,7 +35,7 @@ impl Default for FrameState {
             last_frame_end: Instant::now(),
             deltatime: 0.0,
             fps: 0.0,
-            using_viewport: false,
+            is_moving_camera: false,
         }
     }
 }
@@ -133,9 +133,9 @@ impl Application for Game {
     }
 
     fn update(&mut self) {
-        self.state.using_viewport = true;
+        self.state.is_moving_camera = true;
 
-        if self.state.using_viewport {
+        if self.state.is_moving_camera {
             self.scene
                 .camera
                 .update(&self.input, self.state.deltatime as f32);

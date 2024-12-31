@@ -1,21 +1,19 @@
 use cgmath::Point3;
-use std::fs;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, Button, CollapsingHeader, Ui, ViewportId};
+use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
 use itertools::Itertools;
 use log::info;
 use palette::Srgb;
-use petgraph::graph::node_index;
 use petgraph::prelude::StableDiGraph;
-use petgraph::stable_graph::{EdgeReference, EdgeReferences, NodeIndex};
-use petgraph::visit::{Bfs, EdgeRef, IntoEdgeReferences, IntoNodeReferences};
+use petgraph::stable_graph::NodeIndex;
+use petgraph::visit::{Bfs, IntoNodeReferences};
 use petgraph::Direction;
 use rfd::FileDialog;
 use winit::event::{Event, MouseButton, WindowEvent};

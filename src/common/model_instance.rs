@@ -1,8 +1,7 @@
 use crate::model::Model;
 use crate::texture::Texture;
 use crate::transform::Transform;
-use serde::de::{EnumAccess, Visitor};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone)]

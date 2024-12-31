@@ -1,11 +1,10 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::offset_of;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{fmt, ptr};
 
-use cgmath::{Matrix4, Quaternion, Vector3, Zero};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
@@ -16,15 +15,11 @@ use gltf::{Accessor, Semantic};
 use itertools::Itertools;
 use log::{debug, info, warn};
 use memoize::memoize;
-use serde::de::{Error, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use vertex::Vertex;
 
-use crate::texture::Texture;
-use crate::transform::Transform;
 use crate::{maths, vertex};
 
 pub struct Primitive {
@@ -107,7 +102,7 @@ impl Model {
 fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
     info!("Loading model {:?}...", path);
 
-    let mut model = Model {
+    let model = Model {
         uuid: Uuid::new_v4(),
         path: path.clone(),
         meshes: Mutex::new(None),

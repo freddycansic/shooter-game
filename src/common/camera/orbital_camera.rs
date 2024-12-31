@@ -2,7 +2,7 @@ use crate::input::Input;
 
 use crate::camera::camera;
 use crate::camera::camera::Camera;
-use cgmath::{Matrix4, Point3, Vector3, Zero};
+use cgmath::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

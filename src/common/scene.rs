@@ -7,9 +7,7 @@ use glium::{Display, Frame, Surface};
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
-use serde::de::{MapAccess, Visitor};
-use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use crate::camera::camera::Camera;
 use crate::camera::{FpsCamera, OrbitalCamera};
@@ -44,7 +42,7 @@ impl Scene {
     }
 
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
-        let mut scene = serde_json::from_str::<Scene>(scene_string)?;
+        let scene = serde_json::from_str::<Scene>(scene_string)?;
 
         for (_, model_instance) in scene.graph.node_references() {
             if model_instance.model.meshes.lock().unwrap().is_none() {

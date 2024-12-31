@@ -2,8 +2,7 @@ use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::{CompressedTexture2d, RawImage2d};
 use glium::Display;
-use image::io::Reader;
-use image::GenericImageView;
+use image::ImageReader;
 use log::info;
 use memoize::memoize;
 use serde::{Deserialize, Serialize};
@@ -38,7 +37,7 @@ fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Texture>,
     info!("Loading texture {:?}...", path);
 
     let image =
-        Reader::open(path.clone()).map_err(|_| TextureLoadError::ImageNotFound(path.clone()))?;
+        ImageReader::open(path.clone()).map_err(|_| TextureLoadError::ImageNotFound(path.clone()))?;
 
     let decoded = image
         .decode()

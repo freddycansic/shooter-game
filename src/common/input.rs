@@ -1,5 +1,5 @@
 use cgmath::{Vector2, Zero};
-use log::{info, warn};
+use log::warn;
 use winit::dpi::PhysicalPosition;
 use winit::event::{DeviceEvent, Event, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::window::WindowId;
