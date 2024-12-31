@@ -56,46 +56,7 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
-
-        for (_, model_instance) in model_instances {
-            if model_instance.model.meshes.lock().unwrap().is_some() {
-                let transform_matrix = Matrix4::from(model_instance.transform.clone());
-
-                let instance = Instance {
-                    transform: <[[f32; 4]; 4]>::from(transform_matrix),
-                    transform_normal: <[[f32; 4]; 4]>::from(
-                        transform_matrix.invert().unwrap().transpose(),
-                    ),
-                };
-
-                let texture = match &model_instance.texture {
-                    Some(texture) => {
-                        if texture.inner_texture.is_some() {
-                            texture.clone()
-                        } else {
-                            Texture::default(display).unwrap().clone()
-                        }
-                    }
-                    None => Texture::default(display).unwrap().clone(),
-                };
-
-                instance_map
-                    .entry((model_instance.model.clone(), texture))
-                    .or_insert(vec![instance])
-                    .push(instance);
-            }
-        }
-
-        let instance_buffers = instance_map
-            .into_iter()
-            .map(|((model, texture), instances)| {
-                (
-                    (model, texture),
-                    VertexBuffer::new(display, &instances).unwrap(),
-                )
-            })
-            .collect_vec();
+        let batched_instances = Self::batch_model_instances(model_instances, display);
 
         let vp = maths::raw_matrix(camera_view_projection.clone());
         let camera_position = <[f32; 3]>::from(camera_position);
@@ -106,7 +67,7 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        for ((model, texture), instance_buffer) in instance_buffers {
+        for (model, texture, instance_buffer) in batched_instances {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
@@ -146,34 +107,9 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
+        let batched_lines = Self::batch_lines(lines);
 
-        for line in lines.iter() {
-            let line_points = vec![
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p1),
-                    color: *line.color.as_ref(),
-                },
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p2),
-                    color: *line.color.as_ref(),
-                },
-            ];
-
-            batched_lines
-                .entry(line.width)
-                .and_modify(|lines| lines.extend(&line_points))
-                .or_insert(line_points);
-        }
-
-        for (width, lines) in batched_lines.iter() {
-            if self.line_vertex_buffers.contains_key(width) {
-                self.line_vertex_buffers.get(width).unwrap().write(lines);
-            } else {
-                self.line_vertex_buffers
-                    .insert(*width, VertexBuffer::dynamic(display, lines).unwrap());
-            }
-        }
+        self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
             vp: maths::raw_matrix(camera_view_projection.clone()),
@@ -193,6 +129,84 @@ impl Renderer {
                 )
                 .unwrap();
         }
+    }
+
+    fn write_lines_to_vertex_buffers(&mut self, display: &Display<WindowSurface>, batched_lines: HashMap<u8, Vec<LinePoint>>) {
+        for (width, lines) in batched_lines.iter() {
+            if self.line_vertex_buffers.contains_key(width) {
+                self.line_vertex_buffers.get(width).unwrap().write(lines);
+            } else {
+                self.line_vertex_buffers
+                    .insert(*width, VertexBuffer::dynamic(display, lines).unwrap());
+            }
+        }
+    }
+
+    fn batch_lines(lines: &[Line]) -> HashMap<u8, Vec<LinePoint>> {
+        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
+
+        for line in lines.iter() {
+            let line_points = vec![
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p1),
+                    color: *line.color.as_ref(),
+                },
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p2),
+                    color: *line.color.as_ref(),
+                },
+            ];
+
+            batched_lines
+                .entry(line.width)
+                .and_modify(|lines| lines.extend(&line_points))
+                .or_insert(line_points);
+        }
+        batched_lines
+    }
+
+    /// Batches instances with the same model and texture
+    fn batch_model_instances(model_instances: NodeReferences<ModelInstance>, display: &Display<WindowSurface>) -> Vec<(Arc<Model>, Arc<Texture>, VertexBuffer<Instance>)> {
+        let instance_map = Self::group_instances_on_model_and_texture(model_instances, display);
+
+        instance_map
+            .into_iter()
+            .map(|((model, texture), instances)| (model, texture, VertexBuffer::new(display, &instances).unwrap()))
+            .collect_vec()
+    }
+
+    fn group_instances_on_model_and_texture(model_instances: NodeReferences<ModelInstance>, display: &Display<WindowSurface>) -> HashMap<(Arc<Model>, Arc<Texture>), Vec<Instance>> {
+        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
+
+        for (_, model_instance) in model_instances {
+            if model_instance.model.meshes.lock().unwrap().is_some() {
+                let transform_matrix = Matrix4::from(model_instance.transform.clone());
+
+                let instance = Instance {
+                    transform: <[[f32; 4]; 4]>::from(transform_matrix),
+                    transform_normal: <[[f32; 4]; 4]>::from(
+                        transform_matrix.invert().unwrap().transpose(),
+                    ),
+                };
+
+                let texture = match &model_instance.texture {
+                    Some(texture) => {
+                        if texture.inner_texture.is_some() {
+                            texture.clone()
+                        } else {
+                            Texture::default(display).unwrap().clone()
+                        }
+                    }
+                    None => Texture::default(display).unwrap().clone(),
+                };
+
+                instance_map
+                    .entry((model_instance.model.clone(), texture))
+                    .or_insert(vec![instance])
+                    .push(instance);
+            }
+        }
+        instance_map
     }
 }
 

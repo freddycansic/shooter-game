@@ -60,6 +60,7 @@ pub struct Model {
     pub uuid: Uuid,
     pub path: PathBuf,
     #[serde(skip)]
+    // This is in a mutex for interior mutability
     pub meshes: Mutex<Option<Vec<Mesh>>>,
 }
 
