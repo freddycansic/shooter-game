@@ -38,7 +38,7 @@ struct FrameState {
     pub frame_count: u128,
     pub deltatime: f64,
     pub fps: f32,
-    pub using_viewport: bool,
+    pub is_moving_camera: bool,
 }
 
 impl FrameState {
@@ -148,7 +148,7 @@ impl Editor {
             frame_count: 0,
             deltatime: 0.0,
             fps: 0.0,
-            using_viewport: false,
+            is_moving_camera: false,
         };
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
@@ -232,10 +232,12 @@ impl Application for Editor {
             }
         }
 
-        self.state.using_viewport = self.input.mouse_button_down(MouseButton::Middle)
+        self.scene.camera.update_zoom(&self.input);
+
+        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
-        if self.state.using_viewport {
+        if self.state.is_moving_camera {
             self.scene
                 .camera
                 .update(&self.input, self.state.deltatime as f32);

@@ -27,16 +27,29 @@ impl OrbitalCamera {
             pitch: std::f32::consts::FRAC_PI_2,
         }
     }
+
+    pub fn update_zoom(&mut self, input: &Input) {
+        let mouse_wheel_offset = input.mouse_wheel_offset();
+
+        let zoom_step = 0.4;
+        self.radius -= mouse_wheel_offset * zoom_step;
+
+        self.update_position();
+    }
+
+    fn update_position(&mut self) {
+        self.position = self.target
+            + Vector3::new(
+            self.radius * self.pitch.sin() * self.yaw.cos(),
+            self.radius * self.pitch.cos(),
+            self.radius * self.pitch.sin() * self.yaw.sin(),
+        );
+    }
 }
 
 impl Camera for OrbitalCamera {
     fn update(&mut self, input: &Input, deltatime: f32) {
-        let offset = input.device_offset();
-        if offset.is_zero() {
-            return;
-        }
-
-        let sensitivity = 50.0;
+        let sensitivity = 100.0;
 
         let offset = input.device_offset() * deltatime * sensitivity;
 
@@ -44,14 +57,10 @@ impl Camera for OrbitalCamera {
         self.yaw %= 2.0 * std::f32::consts::PI;
 
         self.pitch -= offset.y;
-        self.pitch = self.pitch.clamp(-std::f32::consts::PI / 2.0, std::f32::consts::PI / 2.0);
+        let epsilon = 0.000000001;
+        self.pitch = self.pitch.clamp(epsilon, std::f32::consts::PI - epsilon);
 
-        self.position = self.target
-            + Vector3::new(
-                self.radius * self.pitch.sin() * self.yaw.cos(),
-                self.radius * self.pitch.cos(),
-                self.radius * self.pitch.sin() * self.yaw.sin(),
-            );
+        self.update_position();
     }
 
     fn set_aspect_ratio(&mut self, ratio: f32) {
