@@ -42,7 +42,7 @@ impl Input {
             last_cursor_position: None,
             window_offset: Vector2::zero(),
             device_offset: Vector2::zero(),
-            mouse_wheel_offset: 0.0
+            mouse_wheel_offset: 0.0,
         }
     }
 
@@ -120,17 +120,21 @@ impl Input {
                     }
                     WindowEvent::MouseInput { state, button, .. } => {
                         self.process_mouse_button_event(*button, *state);
-                    },
-                    WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y_offset), .. } => {
+                    }
+                    WindowEvent::MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(_, y_offset),
+                        ..
+                    } => {
                         self.process_mouse_wheel_event(*y_offset);
                     }
                     _ => (),
                 };
             }
-            Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::MouseMotion { delta, .. } = event {
-                    self.process_cursor_moved_device_event(*delta);
-                }
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta, .. },
+                ..
+            } => {
+                self.process_cursor_moved_device_event(*delta);
             }
             _ => (),
         };

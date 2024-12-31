@@ -58,7 +58,7 @@ impl Renderer {
     ) {
         let batched_instances = Self::batch_model_instances(model_instances, display);
 
-        let vp = maths::raw_matrix(camera_view_projection.clone());
+        let vp = maths::raw_matrix(*camera_view_projection);
         let camera_position = <[f32; 3]>::from(camera_position);
 
         let sample_behaviour = SamplerBehavior {
@@ -112,14 +112,14 @@ impl Renderer {
         self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(camera_view_projection.clone()),
+            vp: maths::raw_matrix(*camera_view_projection),
         };
 
         for (width, line_points) in self.line_vertex_buffers.iter() {
             target
                 .draw(
                     line_points,
-                    &NoIndices(PrimitiveType::LinesList),
+                    NoIndices(PrimitiveType::LinesList),
                     &self.lines_program,
                     &uniforms,
                     &DrawParameters {
@@ -131,7 +131,11 @@ impl Renderer {
         }
     }
 
-    fn write_lines_to_vertex_buffers(&mut self, display: &Display<WindowSurface>, batched_lines: HashMap<u8, Vec<LinePoint>>) {
+    fn write_lines_to_vertex_buffers(
+        &mut self,
+        display: &Display<WindowSurface>,
+        batched_lines: HashMap<u8, Vec<LinePoint>>,
+    ) {
         for (width, lines) in batched_lines.iter() {
             if self.line_vertex_buffers.contains_key(width) {
                 self.line_vertex_buffers.get(width).unwrap().write(lines);
@@ -166,16 +170,28 @@ impl Renderer {
     }
 
     /// Batches instances with the same model and texture
-    fn batch_model_instances(model_instances: NodeReferences<ModelInstance>, display: &Display<WindowSurface>) -> Vec<(Arc<Model>, Arc<Texture>, VertexBuffer<Instance>)> {
+    fn batch_model_instances(
+        model_instances: NodeReferences<ModelInstance>,
+        display: &Display<WindowSurface>,
+    ) -> Vec<(Arc<Model>, Arc<Texture>, VertexBuffer<Instance>)> {
         let instance_map = Self::group_instances_on_model_and_texture(model_instances, display);
 
         instance_map
             .into_iter()
-            .map(|((model, texture), instances)| (model, texture, VertexBuffer::new(display, &instances).unwrap()))
+            .map(|((model, texture), instances)| {
+                (
+                    model,
+                    texture,
+                    VertexBuffer::new(display, &instances).unwrap(),
+                )
+            })
             .collect_vec()
     }
 
-    fn group_instances_on_model_and_texture(model_instances: NodeReferences<ModelInstance>, display: &Display<WindowSurface>) -> HashMap<(Arc<Model>, Arc<Texture>), Vec<Instance>> {
+    fn group_instances_on_model_and_texture(
+        model_instances: NodeReferences<ModelInstance>,
+        display: &Display<WindowSurface>,
+    ) -> HashMap<(Arc<Model>, Arc<Texture>), Vec<Instance>> {
         let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
 
         for (_, model_instance) in model_instances {

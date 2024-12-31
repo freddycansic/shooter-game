@@ -13,7 +13,7 @@ pub struct OrbitalCamera {
 
     position: Point3<f32>,
     yaw: f32,
-    pitch: f32
+    pitch: f32,
 }
 
 impl OrbitalCamera {
@@ -40,10 +40,10 @@ impl OrbitalCamera {
     fn update_position(&mut self) {
         self.position = self.target
             + Vector3::new(
-            self.radius * self.pitch.sin() * self.yaw.cos(),
-            self.radius * self.pitch.cos(),
-            self.radius * self.pitch.sin() * self.yaw.sin(),
-        );
+                self.radius * self.pitch.sin() * self.yaw.cos(),
+                self.radius * self.pitch.cos(),
+                self.radius * self.pitch.sin() * self.yaw.sin(),
+            );
     }
 }
 
@@ -78,10 +78,6 @@ impl Camera for OrbitalCamera {
 
 impl Default for OrbitalCamera {
     fn default() -> Self {
-        Self::new(
-            Point3::new(0.0, 0.0, 0.0),
-            5.0,
-            1920.0 / 1080.0,
-        )
+        Self::new(Point3::new(0.0, 0.0, 0.0), 5.0, 1920.0 / 1080.0)
     }
 }

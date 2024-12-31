@@ -36,8 +36,8 @@ impl Texture {
 fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Texture>, TextureLoadError> {
     info!("Loading texture {:?}...", path);
 
-    let image =
-        ImageReader::open(path.clone()).map_err(|_| TextureLoadError::ImageNotFound(path.clone()))?;
+    let image = ImageReader::open(path.clone())
+        .map_err(|_| TextureLoadError::ImageNotFound(path.clone()))?;
 
     let decoded = image
         .decode()

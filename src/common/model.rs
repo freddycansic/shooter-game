@@ -69,7 +69,7 @@ impl Model {
         path: PathBuf,
         display: &Display<WindowSurface>,
     ) -> Result<Arc<Self>, ModelLoadError> {
-        Ok(load(path, display)?)
+        load(path, display)
     }
 
     pub fn load_meshes(&self, display: &Display<WindowSurface>) -> Result<(), ModelLoadError> {

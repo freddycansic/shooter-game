@@ -74,27 +74,29 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let mut scene = Scene::default();
-        scene.lines = vec![
-            Line::new(
-                Point3::new(-1000.0, 0.0, 0.0),
-                Point3::new(1000.0, 0.0, 0.0),
-                Srgb::from(palette::named::RED),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, -1000.0, 0.0),
-                Point3::new(0.0, 1000.0, 0.0),
-                Srgb::from(palette::named::GREEN),
-                2,
-            ),
-            Line::new(
-                Point3::new(0.0, 0.0, -1000.0),
-                Point3::new(0.0, 0.0, 1000.0),
-                Srgb::from(palette::named::BLUE),
-                2,
-            ),
-        ];
+        let mut scene = Scene {
+            lines: vec![
+                Line::new(
+                    Point3::new(-1000.0, 0.0, 0.0),
+                    Point3::new(1000.0, 0.0, 0.0),
+                    Srgb::from(palette::named::RED),
+                    2,
+                ),
+                Line::new(
+                    Point3::new(0.0, -1000.0, 0.0),
+                    Point3::new(0.0, 1000.0, 0.0),
+                    Srgb::from(palette::named::GREEN),
+                    2,
+                ),
+                Line::new(
+                    Point3::new(0.0, 0.0, -1000.0),
+                    Point3::new(0.0, 0.0, 1000.0),
+                    Srgb::from(palette::named::BLUE),
+                    2,
+                ),
+            ],
+            ..Default::default()
+        };
 
         let model_instance = ModelInstance::from(
             Model::load(
@@ -349,6 +351,8 @@ impl Application for Editor {
                                     .arg("--bin")
                                     .arg("game")
                                     .spawn()
+                                    .unwrap()
+                                    .wait()
                                     .unwrap();
 
                                 ui.close_menu();
