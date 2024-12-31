@@ -1,7 +1,7 @@
 use cgmath::{Vector2, Zero};
 use log::warn;
 use winit::dpi::PhysicalPosition;
-use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
+use winit::event::{DeviceEvent, Event, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::window::WindowId;
 use winit::{
     event::{ElementState, KeyEvent},
@@ -17,6 +17,7 @@ pub struct Input {
     last_cursor_position: Option<PhysicalPosition<f64>>,
     window_offset: Vector2<f32>,
     device_offset: Vector2<f32>,
+    mouse_wheel_offset: f32,
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -41,6 +42,7 @@ impl Input {
             last_cursor_position: None,
             window_offset: Vector2::zero(),
             device_offset: Vector2::zero(),
+            mouse_wheel_offset: 0.0,
         }
     }
 
@@ -87,6 +89,10 @@ impl Input {
         self.device_offset
     }
 
+    pub fn mouse_wheel_offset(&self) -> f32 {
+        self.mouse_wheel_offset
+    }
+
     pub fn reset_internal_state(&mut self) {
         for key_state in self.key_states.iter_mut() {
             if *key_state == KeyState::JustReleased {
@@ -96,6 +102,7 @@ impl Input {
 
         self.window_offset = Vector2::zero();
         self.device_offset = Vector2::zero();
+        self.mouse_wheel_offset = 0.0;
     }
 
     pub fn process_event(&mut self, window_id: WindowId, event: &Event<()>) {
@@ -114,13 +121,20 @@ impl Input {
                     WindowEvent::MouseInput { state, button, .. } => {
                         self.process_mouse_button_event(*button, *state);
                     }
+                    WindowEvent::MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(_, y_offset),
+                        ..
+                    } => {
+                        self.process_mouse_wheel_event(*y_offset);
+                    }
                     _ => (),
                 };
             }
-            Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::MouseMotion { delta, .. } = event {
-                    self.process_cursor_moved_device_event(*delta);
-                }
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta, .. },
+                ..
+            } => {
+                self.process_cursor_moved_device_event(*delta);
             }
             _ => (),
         };
@@ -177,12 +191,14 @@ impl Input {
     }
 
     fn process_cursor_moved_device_event(&mut self, offset: (f64, f64)) {
-        // println!("{:?}", offset);
-
         self.device_offset = Vector2::new(
             (offset.0 * Self::CURSOR_SENSITIVITY) as f32,
             (offset.1 * Self::CURSOR_SENSITIVITY) as f32,
         );
+    }
+
+    fn process_mouse_wheel_event(&mut self, y_offset: f32) {
+        self.mouse_wheel_offset = y_offset;
     }
 
     fn update_key_state(key_states: &mut [KeyState], index: usize, state: ElementState) {

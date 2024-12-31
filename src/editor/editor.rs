@@ -1,50 +1,52 @@
-use std::collections::VecDeque;
+use cgmath::Point3;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::thread::Thread;
 use std::time::Instant;
 
-use cgmath::{Deg, Matrix4, Point3, Quaternion, Rotation3, Vector3, Zero};
 use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
+use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
-use glium::Display;
-use image::open;
-use log::{debug, info};
+use itertools::Itertools;
+use log::info;
 use palette::Srgb;
+use petgraph::prelude::StableDiGraph;
+use petgraph::stable_graph::NodeIndex;
+use petgraph::visit::{Bfs, IntoNodeReferences};
+use petgraph::Direction;
 use rfd::FileDialog;
-use serde::Serialize;
 use winit::event::{Event, MouseButton, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
-use common::camera::Camera;
-use common::texture::Texture;
+use common::camera::camera::Camera;
+use common::line::Line;
+use common::model::Model;
+use common::model_instance::ModelInstance;
+use common::renderer::Renderer;
 use common::*;
 use context::OpenGLContext;
 use input::Input;
-use line::Line;
-use model::{Model, ModelInstance, Transform};
 use scene::Scene;
 
 struct FrameState {
-    pub start: Instant,
+    pub last_frame_end: Instant,
     pub frame_count: u128,
     pub deltatime: f64,
     pub fps: f32,
-    pub using_viewport: bool,
+    pub is_moving_camera: bool,
 }
 
 impl FrameState {
     pub fn update_statistics(&mut self) {
         self.frame_count = (self.frame_count + 1) % u128::MAX;
 
-        self.deltatime = self.start.elapsed().as_secs_f64();
+        self.deltatime = self.last_frame_end.elapsed().as_secs_f64();
         self.fps = (1.0 / self.deltatime) as f32;
+
+        self.last_frame_end = Instant::now();
     }
 }
 
@@ -56,6 +58,7 @@ enum EngineEvent {
 pub struct Editor {
     input: Input,
     scene: Scene,
+    renderer: Renderer,
     opengl_context: OpenGLContext,
     gui: EguiGlium,
     state: FrameState,
@@ -71,7 +74,48 @@ impl Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
         let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
-        let mut scene = Scene::new("Untitled", Camera::default(), &opengl_context.display).unwrap();
+        let mut scene = Scene {
+            lines: vec![
+                Line::new(
+                    Point3::new(-1000.0, 0.0, 0.0),
+                    Point3::new(1000.0, 0.0, 0.0),
+                    Srgb::from(palette::named::RED),
+                    2,
+                ),
+                Line::new(
+                    Point3::new(0.0, -1000.0, 0.0),
+                    Point3::new(0.0, 1000.0, 0.0),
+                    Srgb::from(palette::named::GREEN),
+                    2,
+                ),
+                Line::new(
+                    Point3::new(0.0, 0.0, -1000.0),
+                    Point3::new(0.0, 0.0, 1000.0),
+                    Srgb::from(palette::named::BLUE),
+                    2,
+                ),
+            ],
+            ..Default::default()
+        };
+
+        let model_instance = ModelInstance::from(
+            Model::load(
+                PathBuf::from("assets/models/cube.glb"),
+                &opengl_context.display,
+            )
+            .unwrap(),
+        );
+
+        let root1 = scene.graph.add_node(model_instance.clone());
+        let child1 = scene.graph.add_node(model_instance.clone());
+        scene.graph.add_edge(root1, child1, ());
+
+        let grandchild1 = scene.graph.add_node(model_instance.clone());
+        let grandchild2 = scene.graph.add_node(model_instance.clone());
+        scene.graph.add_edge(child1, grandchild1, ());
+        scene.graph.add_edge(child1, grandchild2, ());
+
+        let renderer = Renderer::new(&opengl_context.display).unwrap();
 
         // let size = 10;
         // let model =
@@ -100,11 +144,11 @@ impl Editor {
         );
 
         let state = FrameState {
-            start: Instant::now(),
+            last_frame_end: Instant::now(),
             frame_count: 0,
             deltatime: 0.0,
             fps: 0.0,
-            using_viewport: false,
+            is_moving_camera: false,
         };
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
@@ -112,6 +156,7 @@ impl Editor {
         Self {
             opengl_context,
             scene,
+            renderer,
             input,
             gui,
             state,
@@ -140,13 +185,12 @@ impl Application for Editor {
                                 self.opengl_context
                                     .display
                                     .resize((new_size.width, new_size.height));
+
                                 self.scene.camera.set_aspect_ratio(
                                     new_size.width as f32 / new_size.height as f32,
                                 );
                             }
                             WindowEvent::RedrawRequested => {
-                                self.state.start = Instant::now();
-
                                 if self.input.key_pressed(KeyCode::Escape) {
                                     event_loop_window_target.exit();
                                 }
@@ -178,12 +222,8 @@ impl Application for Editor {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(scene_string) => {
-                    self.scene = Scene::deserialize(
-                        &scene_string,
-                        &self.opengl_context.display,
-                        self.opengl_context.window.inner_size(),
-                    )
-                    .unwrap()
+                    self.scene =
+                        Scene::from_string(&scene_string, &self.opengl_context.display).unwrap()
                 }
                 EngineEvent::ImportModel(model_path) => self
                     .scene
@@ -192,11 +232,15 @@ impl Application for Editor {
             }
         }
 
-        self.state.using_viewport = self.input.mouse_button_down(MouseButton::Middle)
+        self.scene.camera.update_zoom(&self.input);
+
+        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
-        if self.state.using_viewport {
-            self.scene.camera.update(&self.input);
+        if self.state.is_moving_camera {
+            self.scene
+                .camera
+                .update(&self.input, self.state.deltatime as f32);
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();
@@ -220,17 +264,20 @@ impl Application for Editor {
             return;
         }
 
-        for model_instance in self.scene.model_instances.iter_mut() {
-            model_instance.transform.rotation =
-                Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
-        }
+        // for model_instance in self.scene.model_instances.iter_mut() {
+        //     model_instance.transform.rotation =
+        //         Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+        // }
 
         let mut target = self.opengl_context.display.draw();
         {
-            self.scene.render(&self.opengl_context.display, &mut target);
+            self.scene.render(
+                &mut self.renderer,
+                &self.opengl_context.display,
+                &mut target,
+            );
 
             self.render_gui();
-
             self.gui.paint(&self.opengl_context.display, &mut target);
         }
         target.finish().unwrap();
@@ -243,12 +290,7 @@ impl Application for Editor {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.scene = Scene::new(
-                                    "Untitled",
-                                    Camera::default(),
-                                    &self.opengl_context.display,
-                                )
-                                .unwrap();
+                                self.scene = Scene::default();
 
                                 ui.close_menu();
                             }
@@ -273,9 +315,8 @@ impl Application for Editor {
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
-                                debug!("Saving scene...");
+                                info!("Saving scene...");
                                 self.scene.save_as();
-                                info!("Scene saved");
                                 ui.close_menu();
                             }
                         });
@@ -310,6 +351,8 @@ impl Application for Editor {
                                     .arg("--bin")
                                     .arg("game")
                                     .spawn()
+                                    .unwrap()
+                                    .wait()
                                     .unwrap();
 
                                 ui.close_menu();
@@ -319,7 +362,63 @@ impl Application for Editor {
                 });
             });
 
-            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {});
+            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {
+                let top_level_nodes = self
+                    .scene
+                    .graph
+                    .node_references()
+                    .filter(|(node_index, _)| {
+                        self.scene
+                            .graph
+                            .neighbors_directed(*node_index, Direction::Incoming)
+                            .count()
+                            == 0
+                    })
+                    .map(|(node_index, _)| node_index)
+                    .collect_vec();
+
+                for (i, node) in top_level_nodes.iter().enumerate() {
+                    let mut bfs = Bfs::new(&self.scene.graph, *node);
+
+                    ui.push_id(i, |ui| {
+                        if let Some(next) = bfs.next(&self.scene.graph) {
+                            make_collapsing_header(ui, &mut self.scene.graph, next);
+                        }
+                    });
+                }
+            });
         });
+    }
+}
+
+fn make_collapsing_header(
+    ui: &mut Ui,
+    graph: &mut StableDiGraph<ModelInstance, ()>,
+    node_index: NodeIndex,
+) {
+    let model_name = graph[node_index].name.clone();
+    let children = graph
+        .neighbors_directed(node_index, Direction::Outgoing)
+        .collect_vec();
+    let id = ui.make_persistent_id(node_index);
+
+    if children.is_empty() {
+        ui.indent(id, |ui| {
+            if ui.selectable_label(false, model_name).clicked() {
+                graph[node_index].selected = !graph[node_index].selected;
+            }
+        });
+    } else {
+        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
+            .show_header(ui, |ui| {
+                if ui.selectable_label(false, model_name).clicked() {
+                    graph[node_index].selected = !graph[node_index].selected;
+                }
+            })
+            .body(|ui| {
+                for child in children.into_iter() {
+                    make_collapsing_header(ui, graph, child);
+                }
+            });
     }
 }

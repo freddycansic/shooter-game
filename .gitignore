@@ -5,3 +5,4 @@ flamegraph.svg
 .vscode/
 perf.data
 perf.data.old
+*/**.blend1
