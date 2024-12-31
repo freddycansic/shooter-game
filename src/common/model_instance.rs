@@ -1,15 +1,9 @@
 use crate::model::Model;
 use crate::texture::Texture;
 use crate::transform::Transform;
-use crate::{model, texture};
-use color_eyre::Result;
-use egui_glium::egui_winit::egui::TextBuffer;
-use glium::glutin::surface::WindowSurface;
-use glium::Display;
 use serde::de::{EnumAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ModelInstance {

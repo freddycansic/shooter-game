@@ -23,12 +23,12 @@ use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
+use common::camera::camera::Camera;
 use common::line::Line;
 use common::model::Model;
 use common::model_instance::ModelInstance;
 use common::renderer::Renderer;
 use common::*;
-use common::camera::camera::Camera;
 use context::OpenGLContext;
 use input::Input;
 use scene::Scene;

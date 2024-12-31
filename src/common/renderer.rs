@@ -5,13 +5,13 @@ use glium::{
     VertexBuffer,
 };
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::line::{Line, LinePoint};
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
 use crate::texture::Texture;
-use crate::{context, maths, texture};
+use crate::{context, maths};
 use color_eyre::Result;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};

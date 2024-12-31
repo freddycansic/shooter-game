@@ -1,21 +1,15 @@
-use std::collections::HashMap;
-use std::fmt::Formatter;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use cgmath::{Matrix4, Point3, Rad, Vector3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
-use palette::Srgb;
-use petgraph::graph::DiGraph;
-use petgraph::prelude::{StableDiGraph, StableGraph};
-use petgraph::stable_graph::NodeIndex;
+use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
 use serde::de::{MapAccess, Visitor};
 use serde::ser::{SerializeMap, SerializeStruct, SerializeTuple};
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::camera::camera::Camera;
 use crate::camera::{FpsCamera, OrbitalCamera};
@@ -23,7 +17,6 @@ use crate::line::Line;
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
 use crate::renderer::Renderer;
-use crate::{model, texture};
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
@@ -94,7 +87,7 @@ impl Scene {
         renderer.render_model_instances(
             self.graph.node_references(),
             &vp,
-            self.camera.position,
+            self.camera.position(),
             display,
             target,
         );
