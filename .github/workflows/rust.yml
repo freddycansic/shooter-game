@@ -15,15 +15,15 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set nightly toolchain
-    - run: rustup update nightly && rustup default nightly
+      run: rustup update nightly && rustup default nightly
     - name: Build
-    - run: cargo build
+      run: cargo build
 
   build-windows:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set nightly toolchain
-    - run: rustup update nightly && rustup default nightly
+      run: rustup update nightly && rustup default nightly
     - name: Build
-    - run: cargo build
+      run: cargo build
