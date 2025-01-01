@@ -170,6 +170,7 @@ impl Renderer {
     }
 
     /// Batches instances with the same model and texture
+    #[allow(clippy::mutable_key_type)]
     fn batch_model_instances(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,
@@ -188,6 +189,7 @@ impl Renderer {
             .collect_vec()
     }
 
+    #[allow(clippy::mutable_key_type)]
     fn group_instances_on_model_and_texture(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,

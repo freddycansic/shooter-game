@@ -6,6 +6,7 @@ pub trait Camera {
     fn set_aspect_ratio(&mut self, ratio: f32);
 
     fn position(&self) -> Point3<f32>;
+    fn projection(&self) -> Matrix4<f32>;
     fn view(&self) -> Matrix4<f32>;
 }
 

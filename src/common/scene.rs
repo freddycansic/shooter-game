@@ -1,6 +1,4 @@
-use std::fs;
-use std::path::Path;
-
+use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
@@ -8,9 +6,9 @@ use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
-use crate::camera::camera::Camera;
-use crate::camera::{FpsCamera, OrbitalCamera};
+use crate::camera::FpsCamera;
 use crate::line::Line;
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
@@ -18,27 +16,25 @@ use crate::renderer::Renderer;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
-    pub camera: OrbitalCamera, // the last camera state when editing the scene
     pub title: String,
-    pub starting_camera: FpsCamera, // the camera state to be used when starting the game
+    pub camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: StableDiGraph<ModelInstance, ()>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
 
 impl Scene {
-    pub fn new(title: &str, camera: OrbitalCamera) -> Self {
+    pub fn new(title: &str) -> Self {
         Self {
             graph: StableDiGraph::new(),
             lines: vec![],
             title: title.to_owned(),
-            starting_camera: FpsCamera {},
-            camera,
+            camera: FpsCamera::default(),
         }
     }
 
     pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
-        Self::from_string(&fs::read_to_string(path)?, display)
+        Self::from_string(&std::fs::read_to_string(path)?, display)
     }
 
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
@@ -75,26 +71,26 @@ impl Scene {
     pub fn render(
         &mut self,
         renderer: &mut Renderer,
+        view_projection: Matrix4<f32>,
+        camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
         target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
 
-        let vp = self.camera.projection * self.camera.view();
-
         renderer.render_model_instances(
             self.graph.node_references(),
-            &vp,
-            self.camera.position(),
+            &view_projection,
+            camera_position,
             display,
             target,
         );
-        renderer.render_lines(&self.lines, &vp, display, target);
+        renderer.render_lines(&self.lines, &view_projection, display, target);
     }
 }
 
 impl Default for Scene {
     fn default() -> Self {
-        Self::new("Untitled", OrbitalCamera::default())
+        Self::new("Untitled")
     }
 }

@@ -22,6 +22,7 @@ use winit::keyboard::KeyCode;
 
 use app::Application;
 use common::camera::camera::Camera;
+use common::camera::OrbitalCamera;
 use common::line::Line;
 use common::model::Model;
 use common::model_instance::ModelInstance;
@@ -58,6 +59,7 @@ enum EngineEvent {
 pub struct Editor {
     input: Input,
     scene: Scene,
+    camera: OrbitalCamera,
     renderer: Renderer,
     opengl_context: OpenGLContext,
     gui: EguiGlium,
@@ -97,6 +99,8 @@ impl Editor {
             ],
             ..Default::default()
         };
+
+        let camera = OrbitalCamera::default();
 
         let model_instance = ModelInstance::from(
             Model::load(
@@ -162,6 +166,7 @@ impl Editor {
             state,
             sender,
             receiver,
+            camera,
         }
     }
 }
@@ -186,7 +191,7 @@ impl Application for Editor {
                                     .display
                                     .resize((new_size.width, new_size.height));
 
-                                self.scene.camera.set_aspect_ratio(
+                                self.camera.set_aspect_ratio(
                                     new_size.width as f32 / new_size.height as f32,
                                 );
                             }
@@ -232,15 +237,13 @@ impl Application for Editor {
             }
         }
 
-        self.scene.camera.update_zoom(&self.input);
+        self.camera.update_zoom(&self.input);
 
         self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
         if self.state.is_moving_camera {
-            self.scene
-                .camera
-                .update(&self.input, self.state.deltatime as f32);
+            self.camera.update(&self.input, self.state.deltatime as f32);
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
             self.opengl_context.center_cursor();
@@ -273,6 +276,8 @@ impl Application for Editor {
         {
             self.scene.render(
                 &mut self.renderer,
+                self.camera.projection() * self.camera.view(),
+                self.camera.position(),
                 &self.opengl_context.display,
                 &mut target,
             );

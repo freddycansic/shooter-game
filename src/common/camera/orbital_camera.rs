@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct OrbitalCamera {
     pub target: Point3<f32>,
-    pub projection: Matrix4<f32>,
     pub radius: f32,
 
+    projection: Matrix4<f32>,
     position: Point3<f32>,
     yaw: f32,
     pitch: f32,
@@ -73,6 +73,10 @@ impl Camera for OrbitalCamera {
 
     fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(self.position, self.target, Vector3::unit_y())
+    }
+
+    fn projection(&self) -> Matrix4<f32> {
+        self.projection
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::player::Player;
-use cgmath::{InnerSpace, Point3, Vector3};
 use common::app::Application;
-use common::camera::Camera;
+use common::camera::camera::Camera;
 use common::context::OpenGLContext;
 use common::debug;
 use common::input::Input;
@@ -57,7 +56,7 @@ impl Game {
         let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
-        let mut scene = Scene::from_path(
+        let scene = Scene::from_path(
             &PathBuf::from("assets/game_scenes/map.json"),
             &opengl_context.display,
         )
@@ -65,12 +64,12 @@ impl Game {
 
         // scene.camera = scene.starting_camera.clone();
 
-        let inner_size = opengl_context.window.inner_size();
-        scene.camera = Camera::new_fps(
+        // let inner_size = opengl_context.window.inner_size();
+        /*scene.camera = Camera::new_fps(
             Point3::new(3.0, 0.2, 3.0),
             -Vector3::new(3.0, 0.2, 3.0).normalize(),
             inner_size.width as f32 / inner_size.height as f32,
-        );
+        );*/
 
         let state = FrameState::default();
         let input = Input::new();
@@ -139,7 +138,7 @@ impl Application for Game {
             self.scene
                 .camera
                 .update(&self.input, self.state.deltatime as f32);
-            self.player.update(&self.input, self.state.deltatime as f32);
+            // self.player.update(&self.input, self.state.deltatime as f32);
 
             self.opengl_context.capture_cursor();
             self.opengl_context.window.set_cursor_visible(false);
@@ -157,6 +156,8 @@ impl Application for Game {
         {
             self.scene.render(
                 &mut self.renderer,
+                self.scene.camera.projection() * self.scene.camera.view(),
+                self.scene.camera.position(),
                 &self.opengl_context.display,
                 &mut target,
             );
