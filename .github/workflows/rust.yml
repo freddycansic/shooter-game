@@ -10,19 +10,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set nightly toolchain
-      run: rustup update nightly && rustup default nightly
-    - name: Build
-      run: cargo build
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
+    - name: Download cranelift
+      run: rustup component add rustc-codegen-cranelift-preview --toolchain nightly
     - name: Set nightly toolchain
       run: rustup update nightly && rustup default nightly
     - name: Build
