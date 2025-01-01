@@ -1,3 +1,10 @@
+use crate::camera::FpsCamera;
+use crate::colors::{from_named, Color, ColorExt};
+use crate::line::Line;
+use crate::model::Model;
+use crate::model_instance::ModelInstance;
+use crate::renderer::Renderer;
+use crate::texture::Texture;
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
@@ -7,18 +14,35 @@ use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use std::sync::Arc;
 
-use crate::camera::FpsCamera;
-use crate::line::Line;
-use crate::model::Model;
-use crate::model_instance::ModelInstance;
-use crate::renderer::Renderer;
+#[derive(PartialEq, Serialize, Deserialize)]
+pub enum Background {
+    Color(Color),
+    HDRI(Arc<Texture>),
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        Background::Color(from_named(palette::named::BLACK))
+    }
+}
+
+impl std::fmt::Display for Background {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Background::Color(_) => write!(f, "Solid color"),
+            Background::HDRI(texture) => write!(f, "HDRI {}", texture.path.display()),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
     pub title: String,
     pub camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: StableDiGraph<ModelInstance, ()>,
+    pub background: Background,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -30,6 +54,7 @@ impl Scene {
             lines: vec![],
             title: title.to_owned(),
             camera: FpsCamera::default(),
+            background: Background::default(),
         }
     }
 
@@ -76,7 +101,12 @@ impl Scene {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        target.clear_color_and_depth((0.01, 0.01, 0.01, 1.0), 1.0);
+        match &self.background {
+            Background::Color(color) => {
+                target.clear_color_and_depth(color.to_rgb_vector4().into(), 1.0)
+            }
+            Background::HDRI(texture) => unimplemented!(),
+        }
 
         renderer.render_model_instances(
             self.graph.node_references(),

@@ -27,6 +27,8 @@ use common::line::Line;
 use common::model::Model;
 use common::model_instance::ModelInstance;
 use common::renderer::Renderer;
+use common::scene::Background;
+use common::texture::Texture;
 use common::*;
 use context::OpenGLContext;
 use input::Input;
@@ -52,6 +54,7 @@ impl FrameState {
 }
 
 enum EngineEvent {
+    ImportHDRIBackground(PathBuf),
     LoadScene(String),
     ImportModel(PathBuf),
 }
@@ -234,6 +237,11 @@ impl Application for Editor {
                     .scene
                     .import_model(model_path.as_path(), &self.opengl_context.display)
                     .unwrap(),
+                EngineEvent::ImportHDRIBackground(hdri_path) => {
+                    self.scene.background = Background::HDRI(
+                        Texture::load(hdri_path, &self.opengl_context.display).unwrap(),
+                    )
+                }
             }
         }
 
@@ -367,7 +375,7 @@ impl Application for Editor {
                 });
             });
 
-            egui::SidePanel::left("my_side_panel").show(ctx, |ui| {
+            egui::SidePanel::left("left_panel").show(ctx, |ui| {
                 let top_level_nodes = self
                     .scene
                     .graph
@@ -391,6 +399,35 @@ impl Application for Editor {
                         }
                     });
                 }
+            });
+
+            egui::SidePanel::right("right_panel").show(ctx, |ui| {
+                ui.collapsing("Background", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(
+                            &mut self.scene.background,
+                            Background::default(),
+                            "Color",
+                        );
+
+                        if ui.selectable_label(false, "HDRI").clicked() {
+                            let sender = self.sender.clone();
+
+                            std::thread::spawn(move || {
+                                if let Some(path) = FileDialog::new()
+                                    .add_filter("Image", &["png", "jpg"])
+                                    .set_can_create_directories(true)
+                                    .set_directory("/")
+                                    .pick_file()
+                                {
+                                    sender
+                                        .send(EngineEvent::ImportHDRIBackground(path))
+                                        .unwrap();
+                                }
+                            });
+                        }
+                    });
+                });
             });
         });
     }
