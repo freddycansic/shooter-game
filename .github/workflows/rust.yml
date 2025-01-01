@@ -15,6 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build
+      run: rustup update nightly && rustup default nightly
       run: cargo build
 
   build-windows:
@@ -22,4 +23,5 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build
+      run: rustup update nightly && rustup default nightly
       run: cargo build
