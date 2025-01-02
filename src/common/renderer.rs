@@ -246,7 +246,6 @@ impl Renderer {
         let uniforms = uniform! {
             vp: maths::raw_matrix(view_projection),
             skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
-            // skybox: cubemap.inner_cubemap.as_ref().unwrap().sampled()
         };
 
         target

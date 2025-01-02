@@ -56,6 +56,7 @@ impl Scene {
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
         let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
+        // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
         for (_, model_instance) in scene.graph.node_references() {
             if model_instance.model.meshes.lock().unwrap().is_none() {
                 model_instance.model.load_meshes(display).unwrap()
