@@ -4,7 +4,7 @@ use crate::line::Line;
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
 use crate::renderer::Renderer;
-use crate::texture::Texture;
+use crate::texture::Cubemap;
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
@@ -19,21 +19,12 @@ use std::sync::Arc;
 #[derive(PartialEq, Serialize, Deserialize)]
 pub enum Background {
     Color(Color),
-    HDRI(Arc<Texture>),
+    HDRI(Arc<Cubemap>),
 }
 
 impl Default for Background {
     fn default() -> Self {
-        Background::Color(from_named(palette::named::BLACK))
-    }
-}
-
-impl std::fmt::Display for Background {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Background::Color(_) => write!(f, "Solid color"),
-            Background::HDRI(texture) => write!(f, "HDRI {}", texture.path.display()),
-        }
+        Background::Color(from_named(palette::named::GRAY))
     }
 }
 
@@ -63,12 +54,17 @@ impl Scene {
     }
 
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
-        let scene = serde_json::from_str::<Scene>(scene_string)?;
+        let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
+        // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
         for (_, model_instance) in scene.graph.node_references() {
             if model_instance.model.meshes.lock().unwrap().is_none() {
                 model_instance.model.load_meshes(display).unwrap()
             }
+        }
+
+        if let Background::HDRI(cubemap) = scene.background {
+            scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
         }
 
         Ok(scene)
@@ -96,7 +92,8 @@ impl Scene {
     pub fn render(
         &mut self,
         renderer: &mut Renderer,
-        view_projection: Matrix4<f32>,
+        view: &Matrix4<f32>,
+        projection: &Matrix4<f32>,
         camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -105,8 +102,16 @@ impl Scene {
             Background::Color(color) => {
                 target.clear_color_and_depth(color.to_rgb_vector4().into(), 1.0)
             }
-            Background::HDRI(texture) => unimplemented!(),
+            Background::HDRI(cubemap) => {
+                target.clear_color_and_depth(
+                    from_named(palette::named::WHITE).to_rgb_vector4().into(),
+                    1.0,
+                );
+                renderer.render_skybox(cubemap, view, projection, target);
+            }
         }
+
+        let view_projection = projection * view;
 
         renderer.render_model_instances(
             self.graph.node_references(),

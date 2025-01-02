@@ -28,7 +28,7 @@ use common::model::Model;
 use common::model_instance::ModelInstance;
 use common::renderer::Renderer;
 use common::scene::Background;
-use common::texture::Texture;
+use common::texture::Cubemap;
 use common::*;
 use context::OpenGLContext;
 use input::Input;
@@ -237,9 +237,9 @@ impl Application for Editor {
                     .scene
                     .import_model(model_path.as_path(), &self.opengl_context.display)
                     .unwrap(),
-                EngineEvent::ImportHDRIBackground(hdri_path) => {
+                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
                     self.scene.background = Background::HDRI(
-                        Texture::load(hdri_path, &self.opengl_context.display).unwrap(),
+                        Cubemap::load(hdri_directory_path, &self.opengl_context.display).unwrap(),
                     )
                 }
             }
@@ -284,7 +284,8 @@ impl Application for Editor {
         {
             self.scene.render(
                 &mut self.renderer,
-                self.camera.projection() * self.camera.view(),
+                &self.camera.view(),
+                &self.camera.projection(),
                 self.camera.position(),
                 &self.opengl_context.display,
                 &mut target,
@@ -415,10 +416,9 @@ impl Application for Editor {
 
                             std::thread::spawn(move || {
                                 if let Some(path) = FileDialog::new()
-                                    .add_filter("Image", &["png", "jpg"])
                                     .set_can_create_directories(true)
                                     .set_directory("/")
-                                    .pick_file()
+                                    .pick_folder()
                                 {
                                     sender
                                         .send(EngineEvent::ImportHDRIBackground(path))

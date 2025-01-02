@@ -156,7 +156,8 @@ impl Application for Game {
         {
             self.scene.render(
                 &mut self.renderer,
-                self.scene.camera.projection() * self.scene.camera.view(),
+                &self.scene.camera.view(),
+                &self.scene.camera.projection(),
                 self.scene.camera.position(),
                 &self.opengl_context.display,
                 &mut target,
