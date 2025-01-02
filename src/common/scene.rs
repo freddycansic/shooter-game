@@ -54,12 +54,16 @@ impl Scene {
     }
 
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
-        let scene = serde_json::from_str::<Scene>(scene_string)?;
+        let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
         for (_, model_instance) in scene.graph.node_references() {
             if model_instance.model.meshes.lock().unwrap().is_none() {
                 model_instance.model.load_meshes(display).unwrap()
             }
+        }
+
+        if let Background::HDRI(cubemap) = scene.background {
+            scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
         }
 
         Ok(scene)
