@@ -1,4 +1,4 @@
-use cgmath::{Matrix, Matrix4, Point3, SquareMatrix};
+use cgmath::{Matrix, Matrix3, Matrix4, Point3, SquareMatrix};
 use glium::glutin::surface::WindowSurface;
 use glium::{
     implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::line::{Line, LinePoint};
 use crate::model::Model;
 use crate::model_instance::ModelInstance;
-use crate::texture::Texture;
+use crate::texture::{Cubemap, Texture2D};
 use crate::{context, maths};
 use color_eyre::Result;
 use glium::index::{NoIndices, PrimitiveType};
@@ -20,8 +20,11 @@ use petgraph::stable_graph::NodeReferences;
 
 pub struct Renderer {
     default_program: Program,
-    lines_program: Program,
 
+    skybox_program: Program,
+    skybox_vertex_buffer: VertexBuffer<SkyboxPoint>,
+
+    lines_program: Program,
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
 }
 
@@ -41,8 +44,131 @@ impl Renderer {
             display,
         )?;
 
+        let skybox_program = context::new_program(
+            "assets/shaders/skybox/skybox.vert",
+            "assets/shaders/skybox/skybox.frag",
+            None,
+            display,
+        )?;
+
+        let skybox_vertex_buffer = VertexBuffer::new(
+            display,
+            &[
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, 1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, -1.0],
+                },
+                SkyboxPoint {
+                    position: [-1.0, -1.0, 1.0],
+                },
+                SkyboxPoint {
+                    position: [1.0, -1.0, 1.0],
+                },
+            ],
+        )?;
+
         Ok(Self {
             default_program,
+            skybox_program,
+            skybox_vertex_buffer,
             lines_program,
             line_vertex_buffers: HashMap::new(),
         })
@@ -98,6 +224,40 @@ impl Renderer {
                 }
             }
         }
+    }
+
+    pub fn render_skybox(
+        &mut self,
+        cubemap: &Cubemap,
+        view: &Matrix4<f32>,
+        projection: &Matrix4<f32>,
+        target: &mut Frame,
+    ) {
+        // Strip translation from view matrix = skybox is always in the same place
+        let view = Matrix4::from(Matrix3::from_cols(view.x.xyz(), view.y.xyz(), view.z.xyz()));
+        let view_projection = projection * view;
+
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(view_projection),
+            skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
+            // skybox: cubemap.inner_cubemap.as_ref().unwrap().sampled()
+        };
+
+        target
+            .draw(
+                &self.skybox_vertex_buffer,
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.skybox_program,
+                &uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
     }
 
     pub fn render_lines(
@@ -174,7 +334,7 @@ impl Renderer {
     fn batch_model_instances(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,
-    ) -> Vec<(Arc<Model>, Arc<Texture>, VertexBuffer<Instance>)> {
+    ) -> Vec<(Arc<Model>, Arc<Texture2D>, VertexBuffer<Instance>)> {
         let instance_map = Self::group_instances_on_model_and_texture(model_instances, display);
 
         instance_map
@@ -193,8 +353,8 @@ impl Renderer {
     fn group_instances_on_model_and_texture(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,
-    ) -> HashMap<(Arc<Model>, Arc<Texture>), Vec<Instance>> {
-        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture>), Vec<Instance>>::new();
+    ) -> HashMap<(Arc<Model>, Arc<Texture2D>), Vec<Instance>> {
+        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture2D>), Vec<Instance>>::new();
 
         for (_, model_instance) in model_instances {
             if model_instance.model.meshes.lock().unwrap().is_some() {
@@ -212,10 +372,10 @@ impl Renderer {
                         if texture.inner_texture.is_some() {
                             texture.clone()
                         } else {
-                            Texture::default(display).unwrap().clone()
+                            Texture2D::default(display).unwrap().clone()
                         }
                     }
-                    None => Texture::default(display).unwrap().clone(),
+                    None => Texture2D::default(display).unwrap().clone(),
                 };
 
                 instance_map
@@ -234,3 +394,9 @@ struct Instance {
     transform_normal: [[f32; 4]; 4],
 }
 implement_vertex!(Instance, transform, transform_normal);
+
+#[derive(Copy, Clone)]
+struct SkyboxPoint {
+    position: [f32; 3],
+}
+implement_vertex!(SkyboxPoint, position);
