@@ -1,6 +1,6 @@
 use crate::player::Player;
 use common::app::Application;
-use common::camera::camera::Camera;
+use common::camera::Camera;
 use common::context::OpenGLContext;
 use common::debug;
 use common::input::Input;

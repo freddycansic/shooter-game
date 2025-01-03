@@ -98,8 +98,9 @@ impl Renderer {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
-                light_color: <[f32; 3]>::from(lights[0].clone().color.to_rgb_vector3()),
-                light_position: <[f32; 3]>::from(lights[0].clone().position),
+                // TODO temporary
+                light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
+                light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
                 diffuse_texture: Sampler(material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0,
                 specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
             };

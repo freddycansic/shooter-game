@@ -303,10 +303,10 @@ impl Application for Editor {
             return;
         }
 
-        let node_indices = self.scene.graph.node_indices().collect_vec();
+        // let node_indices = self.scene.graph.node_indices().collect_vec();
 
-        self.scene.graph[node_indices[0]].transform.rotation =
-            Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+        // self.scene.graph[node_indices[0]].transform.rotation =
+        //     Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
 
         let mut target = self.opengl_context.display.draw();
         {
