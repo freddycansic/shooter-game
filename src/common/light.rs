@@ -9,6 +9,15 @@ pub struct Light {
     pub color: Color,
 }
 
+impl Default for Light {
+    fn default() -> Self {
+        Self {
+            position: Point3::new(0.0, 0.0, 0.0),
+            color: Color::from_named(palette::named::WHITE),
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct ShaderLight {
     pub light_translation: [f32; 3],

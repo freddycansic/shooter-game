@@ -8,7 +8,8 @@ in VS_OUT {
 
 layout (location = 0) out vec4 out_color;
 
-uniform sampler2D tex;
+uniform sampler2D diffuse_texture;
+uniform sampler2D specular_texture;
 uniform vec3 light_color;
 uniform vec3 light_position;
 uniform vec3 camera_position;
@@ -28,13 +29,13 @@ void main() {
     vec3 view_direction = normalize(camera_position - vs_in.position);
     vec3 reflect_direction = reflect(-light_direction, vs_in.normal);
 
-    float specular_brightness = 0.5;
+    vec4 specular_color = texture(specular_texture, vs_in.tex_coord);
     int shininess = 32;
     float specular_factor = pow(max(dot(view_direction, reflect_direction), 0.0), shininess);
-    vec3 specular = specular_brightness * specular_factor * light_color;
+    vec3 specular = specular_color.xyz * specular_factor * light_color;
 
-    vec4 model_color = texture(tex, vs_in.tex_coord);
+    vec4 diffuse_color = texture(diffuse_texture, vs_in.tex_coord);
 
-    out_color = model_color * vec4((ambient + diffuse + specular), 1.0);
+    out_color = diffuse_color * vec4((ambient + diffuse + specular), 1.0);
     //    out_color = vec4(1.0, 1.0, 1.0, 1.0);
 }

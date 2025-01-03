@@ -1,25 +1,24 @@
-use cgmath::{Matrix3, Matrix4, Point3};
-use glium::glutin::surface::WindowSurface;
-use glium::{
-    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    VertexBuffer,
-};
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
-use crate::models::ModelInstance;
 use crate::models::{primitives, Model};
-use crate::texture::{Cubemap, Texture2D};
+use crate::models::{Material, ModelInstance};
+use crate::texture::Cubemap;
 use crate::{context, maths};
+use cgmath::{Matrix3, Matrix4, Point3};
 use color_eyre::Result;
+use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
+use glium::{
+    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
+    VertexBuffer,
+};
 use itertools::Itertools;
 use petgraph::stable_graph::NodeReferences;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct Renderer {
     default_program: Program,
@@ -95,13 +94,15 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        for (model, texture, instance_buffer) in batched_instances {
+        for (model, material, instance_buffer) in batched_instances {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
-                light_color: <[f32; 3]>::from(lights[0].clone().color.to_rgb_vector3()),
-                light_position: <[f32; 3]>::from(lights[0].clone().position),
-                tex: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0
+                // TODO temporary
+                light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
+                light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
+                diffuse_texture: Sampler(material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0,
+                specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
             };
 
             for mesh in model.meshes.lock().unwrap().iter().flatten() {
@@ -277,7 +278,7 @@ impl Renderer {
     fn batch_model_instances(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,
-    ) -> Vec<(Arc<Model>, Arc<Texture2D>, VertexBuffer<Instance>)> {
+    ) -> Vec<(Arc<Model>, Material, VertexBuffer<Instance>)> {
         let instance_map = Self::group_instances_on_model_and_texture(model_instances, display);
 
         instance_map
@@ -297,8 +298,8 @@ impl Renderer {
     fn group_instances_on_model_and_texture(
         model_instances: NodeReferences<ModelInstance>,
         display: &Display<WindowSurface>,
-    ) -> HashMap<(Arc<Model>, Arc<Texture2D>), Vec<Instance>> {
-        let mut instance_map = HashMap::<(Arc<Model>, Arc<Texture2D>), Vec<Instance>>::new();
+    ) -> HashMap<(Arc<Model>, Material), Vec<Instance>> {
+        let mut instance_map = HashMap::<(Arc<Model>, Material), Vec<Instance>>::new();
 
         for (_, model_instance) in model_instances {
             if model_instance.model.meshes.lock().unwrap().is_some() {
@@ -308,19 +309,13 @@ impl Renderer {
                     transform: maths::raw_matrix(transform_matrix),
                 };
 
-                let texture = match &model_instance.texture {
-                    Some(texture) => {
-                        if texture.inner_texture.is_some() {
-                            texture.clone()
-                        } else {
-                            Texture2D::default(display).unwrap().clone()
-                        }
-                    }
-                    None => Texture2D::default(display).unwrap().clone(),
+                let material = match &model_instance.material {
+                    Some(material) => material.clone(),
+                    None => Material::default(display).unwrap().clone(),
                 };
 
                 instance_map
-                    .entry((model_instance.model.clone(), texture))
+                    .entry((model_instance.model.clone(), material))
                     .or_insert(vec![instance])
                     .push(instance);
             }

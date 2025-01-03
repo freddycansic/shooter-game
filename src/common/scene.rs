@@ -5,11 +5,12 @@ use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
 use crate::renderer::Renderer;
-use crate::texture::Cubemap;
+use crate::texture::{Cubemap, Texture2D};
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
+use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
@@ -59,12 +60,35 @@ impl Scene {
     pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
         let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
-        // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
-        for (_, model_instance) in scene.graph.node_references() {
-            if model_instance.model.meshes.lock().unwrap().is_none() {
-                model_instance.model.load_meshes(display).unwrap()
+        let node_indices = scene.graph.node_indices().collect_vec();
+
+        // Load assets which require Display
+        for node_index in node_indices {
+            // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
+            if scene.graph[node_index]
+                .model
+                .meshes
+                .lock()
+                .unwrap()
+                .is_none()
+            {
+                scene.graph[node_index].model.load_meshes(display).unwrap()
+            }
+
+            if let Some(material) = scene.graph[node_index].material.as_mut() {
+                material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
             }
         }
+
+        // for (_, model_instance) in scene.graph.node_references() {
+        //     if model_instance.model.meshes.lock().unwrap().is_none() {
+        //         model_instance.model.load_meshes(display).unwrap()
+        //     }
+        //
+        //     if let Some(material) = model_instance.material.as_mut() {
+        //         material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
+        //     }
+        // }
 
         if let Background::HDRI(cubemap) = scene.background {
             scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);

@@ -26,11 +26,11 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
-use common::models::Model;
 use common::models::ModelInstance;
+use common::models::{Material, Model};
 use common::renderer::Renderer;
 use common::scene::Background;
-use common::texture::Cubemap;
+use common::texture::{Cubemap, Texture2D};
 use common::*;
 use context::OpenGLContext;
 use input::Input;
@@ -112,13 +112,25 @@ impl Editor {
 
         let camera = OrbitalCamera::default();
 
-        let model_instance = ModelInstance::from(
+        let mut model_instance = ModelInstance::from(
             Model::load(
                 PathBuf::from("assets/models/cube.glb"),
                 &opengl_context.display,
             )
             .unwrap(),
         );
+        model_instance.material = Some(Material {
+            diffuse: Texture2D::load(
+                PathBuf::from("assets/textures/container.png"),
+                &opengl_context.display,
+            )
+            .unwrap(),
+            specular: Texture2D::load(
+                PathBuf::from("assets/textures/container_specular.png"),
+                &opengl_context.display,
+            )
+            .unwrap(),
+        });
 
         scene.graph.add_node(model_instance.clone());
         // let child1 = scene.graph.add_node(model_instance.clone());
@@ -291,10 +303,10 @@ impl Application for Editor {
             return;
         }
 
-        let node_indices = self.scene.graph.node_indices().collect_vec();
+        // let node_indices = self.scene.graph.node_indices().collect_vec();
 
-        self.scene.graph[node_indices[0]].transform.rotation =
-            Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+        // self.scene.graph[node_indices[0]].transform.rotation =
+        //     Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
 
         let mut target = self.opengl_context.display.draw();
         {
