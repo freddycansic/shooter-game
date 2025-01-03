@@ -56,8 +56,10 @@ fn load(
     let mut textures = side_names
         .into_iter()
         .map(|side| {
-            let raw_image =
-                texture::load_raw_image(&directory.with_file_name(side).with_extension("jpg"))?;
+            let mut path = directory.clone();
+            path.push(side);
+
+            let raw_image = texture::load_raw_image(&path.with_extension("jpg"))?;
 
             Texture2d::new(display, raw_image).map_err(TextureLoadError::CreateTextureError)
         })
