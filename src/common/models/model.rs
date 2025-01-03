@@ -21,7 +21,6 @@ use uuid::Uuid;
 use crate::models::model_vertex::ModelVertex;
 
 use crate::maths;
-use crate::models::model_vertex;
 
 pub struct Primitive {
     pub vertex_buffer: VertexBuffer<ModelVertex>,

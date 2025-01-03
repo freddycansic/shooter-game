@@ -9,7 +9,7 @@ use crate::texture::Cubemap;
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
-use glium::{implement_vertex, Display, Frame, Surface};
+use glium::{Display, Frame, Surface};
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
@@ -122,6 +122,7 @@ impl Scene {
             self.graph.node_references(),
             &view_projection,
             camera_position,
+            &self.lights,
             display,
             target,
         );

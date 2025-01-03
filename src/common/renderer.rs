@@ -1,4 +1,4 @@
-use cgmath::{Matrix, Matrix3, Matrix4, Point3, SquareMatrix};
+use cgmath::{Matrix3, Matrix4, Point3};
 use glium::glutin::surface::WindowSurface;
 use glium::{
     implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
@@ -7,6 +7,7 @@ use glium::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
@@ -79,6 +80,7 @@ impl Renderer {
         model_instances: NodeReferences<ModelInstance>,
         camera_view_projection: &Matrix4<f32>,
         camera_position: Point3<f32>,
+        lights: &[Light],
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -97,6 +99,8 @@ impl Renderer {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
+                light_color: <[f32; 3]>::from(lights[0].clone().color.to_rgb_vector3()),
+                light_position: <[f32; 3]>::from(lights[0].clone().position),
                 tex: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0
             };
 
@@ -301,11 +305,7 @@ impl Renderer {
                 let transform_matrix = Matrix4::from(model_instance.transform.clone());
 
                 let instance = Instance {
-                    transform: <[[f32; 4]; 4]>::from(transform_matrix),
-                    // TODO move this calculation into vertex shader
-                    transform_normal: <[[f32; 4]; 4]>::from(
-                        transform_matrix.invert().unwrap().transpose(),
-                    ),
+                    transform: maths::raw_matrix(transform_matrix),
                 };
 
                 let texture = match &model_instance.texture {
@@ -332,6 +332,5 @@ impl Renderer {
 #[derive(Copy, Clone)]
 struct Instance {
     transform: [[f32; 4]; 4],
-    transform_normal: [[f32; 4]; 4],
 }
-implement_vertex!(Instance, transform, transform_normal);
+implement_vertex!(Instance, transform);

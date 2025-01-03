@@ -49,7 +49,7 @@ impl OrbitalCamera {
 
 impl Camera for OrbitalCamera {
     fn update(&mut self, input: &Input, deltatime: f32) {
-        let sensitivity = 100.0;
+        let sensitivity = 200.0;
 
         let offset = input.device_offset() * deltatime * sensitivity;
 
