@@ -8,8 +8,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::line::{Line, LinePoint};
-use crate::models::Model;
+use crate::models::primitives::SimplePoint;
 use crate::models::ModelInstance;
+use crate::models::{primitives, Model};
 use crate::texture::{Cubemap, Texture2D};
 use crate::{context, maths};
 use color_eyre::Result;
@@ -22,7 +23,7 @@ pub struct Renderer {
     default_program: Program,
 
     skybox_program: Program,
-    skybox_vertex_buffer: VertexBuffer<SkyboxPoint>,
+    skybox_vertex_buffer: VertexBuffer<SimplePoint>,
 
     lines_program: Program,
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
@@ -51,119 +52,7 @@ impl Renderer {
             display,
         )?;
 
-        let skybox_vertex_buffer = VertexBuffer::new(
-            display,
-            &[
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-            ],
-        )?;
+        let skybox_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
         Ok(Self {
             default_program,
@@ -393,9 +282,3 @@ struct Instance {
     transform_normal: [[f32; 4]; 4],
 }
 implement_vertex!(Instance, transform, transform_normal);
-
-#[derive(Copy, Clone)]
-struct SkyboxPoint {
-    position: [f32; 3],
-}
-implement_vertex!(SkyboxPoint, position);
