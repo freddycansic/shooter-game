@@ -1,4 +1,4 @@
-use cgmath::Point3;
+use cgmath::{Deg, Point3, Quaternion, Rotation3};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -21,11 +21,13 @@ use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
-use common::camera::camera::Camera;
+use common::camera::Camera;
 use common::camera::OrbitalCamera;
+use common::colors::{Color, ColorExt};
+use common::light::Light;
 use common::line::Line;
-use common::model::Model;
-use common::model_instance::ModelInstance;
+use common::models::Model;
+use common::models::ModelInstance;
 use common::renderer::Renderer;
 use common::scene::Background;
 use common::texture::Cubemap;
@@ -40,6 +42,11 @@ struct FrameState {
     pub deltatime: f64,
     pub fps: f32,
     pub is_moving_camera: bool,
+    pub gui: GuiState,
+}
+
+struct GuiState {
+    pub render_lights: bool,
 }
 
 impl FrameState {
@@ -113,31 +120,37 @@ impl Editor {
             .unwrap(),
         );
 
-        let root1 = scene.graph.add_node(model_instance.clone());
-        let child1 = scene.graph.add_node(model_instance.clone());
-        scene.graph.add_edge(root1, child1, ());
-
-        let grandchild1 = scene.graph.add_node(model_instance.clone());
-        let grandchild2 = scene.graph.add_node(model_instance.clone());
-        scene.graph.add_edge(child1, grandchild1, ());
-        scene.graph.add_edge(child1, grandchild2, ());
+        scene.graph.add_node(model_instance.clone());
+        // let child1 = scene.graph.add_node(model_instance.clone());
+        // scene.graph.add_edge(root1, child1, ());
+        //
+        // let grandchild1 = scene.graph.add_node(model_instance.clone());
+        // let grandchild2 = scene.graph.add_node(model_instance.clone());
+        // scene.graph.add_edge(child1, grandchild1, ());
+        // scene.graph.add_edge(child1, grandchild2, ());
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
+        scene.lights.push(Light {
+            position: Point3::new(3.0, 2.0, 1.0),
+            color: Color::from_named(palette::named::WHITE),
+        });
+
         // let size = 10;
-        // let model =
-        //     model::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
+        // let model_instance = ModelInstance::from(
+        //     Model::load(
+        //         PathBuf::from("assets/models/cube.glb"),
+        //         &opengl_context.display,
+        //     )
+        //     .unwrap(),
+        // );
         //
         // for x in -(size / 2)..(size / 2) {
         //     for y in -(size / 2)..(size / 2) {
-        //         scene.model_instances.push(ModelInstance {
-        //             model: model.clone(),
-        //             texture: None,
-        //             transform: Transform {
-        //                 translation: Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0),
-        //                 ..Transform::default()
-        //             },
-        //         });
+        //         let mut m = model_instance.clone();
+        //         m.transform.translation = Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0);
+        //
+        //         scene.graph.add_node(m);
         //     }
         // }
 
@@ -156,6 +169,9 @@ impl Editor {
             deltatime: 0.0,
             fps: 0.0,
             is_moving_camera: false,
+            gui: GuiState {
+                render_lights: true,
+            },
         };
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
@@ -275,10 +291,10 @@ impl Application for Editor {
             return;
         }
 
-        // for model_instance in self.scene.model_instances.iter_mut() {
-        //     model_instance.transform.rotation =
-        //         Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
-        // }
+        let node_indices = self.scene.graph.node_indices().collect_vec();
+
+        self.scene.graph[node_indices[0]].transform.rotation =
+            Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
 
         let mut target = self.opengl_context.display.draw();
         {
@@ -290,6 +306,15 @@ impl Application for Editor {
                 &self.opengl_context.display,
                 &mut target,
             );
+
+            if self.state.gui.render_lights {
+                self.renderer.render_lights(
+                    &self.scene.lights,
+                    &(self.camera.projection() * self.camera.view()),
+                    &self.opengl_context.display,
+                    &mut target,
+                );
+            }
 
             self.render_gui();
             self.gui.paint(&self.opengl_context.display, &mut target);
@@ -427,6 +452,10 @@ impl Application for Editor {
                             });
                         }
                     });
+                });
+
+                ui.collapsing("Lighting", |ui| {
+                    ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
                 });
             });
         });

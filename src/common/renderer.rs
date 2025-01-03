@@ -1,4 +1,4 @@
-use cgmath::{Matrix, Matrix3, Matrix4, Point3, SquareMatrix};
+use cgmath::{Matrix3, Matrix4, Point3};
 use glium::glutin::surface::WindowSurface;
 use glium::{
     implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
@@ -7,9 +7,12 @@ use glium::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::colors::ColorExt;
+use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
-use crate::model::Model;
-use crate::model_instance::ModelInstance;
+use crate::models::primitives::SimplePoint;
+use crate::models::ModelInstance;
+use crate::models::{primitives, Model};
 use crate::texture::{Cubemap, Texture2D};
 use crate::{context, maths};
 use color_eyre::Result;
@@ -22,7 +25,8 @@ pub struct Renderer {
     default_program: Program,
 
     skybox_program: Program,
-    skybox_vertex_buffer: VertexBuffer<SkyboxPoint>,
+    light_program: Program,
+    cube_vertex_buffer: VertexBuffer<SimplePoint>,
 
     lines_program: Program,
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
@@ -51,124 +55,21 @@ impl Renderer {
             display,
         )?;
 
-        let skybox_vertex_buffer = VertexBuffer::new(
+        let light_program = context::new_program(
+            "assets/shaders/light/light.vert",
+            "assets/shaders/light/light.frag",
+            None,
             display,
-            &[
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, 1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, -1.0],
-                },
-                SkyboxPoint {
-                    position: [-1.0, -1.0, 1.0],
-                },
-                SkyboxPoint {
-                    position: [1.0, -1.0, 1.0],
-                },
-            ],
         )?;
+
+        // This will be used by the skybox and debug lights
+        let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
         Ok(Self {
             default_program,
             skybox_program,
-            skybox_vertex_buffer,
+            light_program,
+            cube_vertex_buffer,
             lines_program,
             line_vertex_buffers: HashMap::new(),
         })
@@ -179,6 +80,7 @@ impl Renderer {
         model_instances: NodeReferences<ModelInstance>,
         camera_view_projection: &Matrix4<f32>,
         camera_position: Point3<f32>,
+        lights: &[Light],
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -197,6 +99,8 @@ impl Renderer {
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
+                light_color: <[f32; 3]>::from(lights[0].clone().color.to_rgb_vector3()),
+                light_position: <[f32; 3]>::from(lights[0].clone().position),
                 tex: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0
             };
 
@@ -250,7 +154,7 @@ impl Renderer {
 
         target
             .draw(
-                &self.skybox_vertex_buffer,
+                &self.cube_vertex_buffer,
                 NoIndices(PrimitiveType::TrianglesList),
                 &self.skybox_program,
                 &uniforms,
@@ -266,6 +170,10 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
+        if lines.is_empty() {
+            return;
+        }
+
         let batched_lines = Self::batch_lines(lines);
 
         self.write_lines_to_vertex_buffers(display, batched_lines);
@@ -288,6 +196,42 @@ impl Renderer {
                 )
                 .unwrap();
         }
+    }
+
+    pub fn render_lights(
+        &mut self,
+        lights: &[Light],
+        camera_view_projection: &Matrix4<f32>,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        if lights.is_empty() {
+            return;
+        }
+
+        let shader_lights = lights
+            .iter()
+            .map(|light| ShaderLight::from(light.clone()))
+            .collect_vec();
+
+        let light_instance_buffer = VertexBuffer::new(display, &shader_lights).unwrap();
+
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(*camera_view_projection),
+        };
+
+        target
+            .draw(
+                (
+                    &self.cube_vertex_buffer,
+                    light_instance_buffer.per_instance().unwrap(),
+                ),
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.light_program,
+                &uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
     }
 
     fn write_lines_to_vertex_buffers(
@@ -328,7 +272,7 @@ impl Renderer {
         batched_lines
     }
 
-    /// Batches instances with the same model and texture
+    /// Batches instances with the same models and texture
     #[allow(clippy::mutable_key_type)]
     fn batch_model_instances(
         model_instances: NodeReferences<ModelInstance>,
@@ -342,6 +286,7 @@ impl Renderer {
                 (
                     model,
                     texture,
+                    // TODO cache vertex buffers and write over them on next frame
                     VertexBuffer::new(display, &instances).unwrap(),
                 )
             })
@@ -360,10 +305,7 @@ impl Renderer {
                 let transform_matrix = Matrix4::from(model_instance.transform.clone());
 
                 let instance = Instance {
-                    transform: <[[f32; 4]; 4]>::from(transform_matrix),
-                    transform_normal: <[[f32; 4]; 4]>::from(
-                        transform_matrix.invert().unwrap().transpose(),
-                    ),
+                    transform: maths::raw_matrix(transform_matrix),
                 };
 
                 let texture = match &model_instance.texture {
@@ -390,12 +332,5 @@ impl Renderer {
 #[derive(Copy, Clone)]
 struct Instance {
     transform: [[f32; 4]; 4],
-    transform_normal: [[f32; 4]; 4],
 }
-implement_vertex!(Instance, transform, transform_normal);
-
-#[derive(Copy, Clone)]
-struct SkyboxPoint {
-    position: [f32; 3],
-}
-implement_vertex!(SkyboxPoint, position);
+implement_vertex!(Instance, transform);

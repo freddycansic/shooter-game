@@ -1,4 +1,4 @@
-use crate::model::Model;
+use crate::models::Model;
 use crate::texture::Texture2D;
 use crate::transform::Transform;
 use serde::{Deserialize, Serialize};
