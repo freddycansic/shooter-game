@@ -21,11 +21,11 @@ use winit::event_loop::ControlFlow;
 use winit::keyboard::KeyCode;
 
 use app::Application;
-use common::camera::camera::Camera;
+use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::line::Line;
-use common::model::Model;
-use common::model_instance::ModelInstance;
+use common::models::Model;
+use common::models::ModelInstance;
 use common::renderer::Renderer;
 use common::scene::Background;
 use common::texture::Cubemap;
@@ -125,13 +125,13 @@ impl Editor {
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
         // let size = 10;
-        // let model =
-        //     model::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
+        // let models =
+        //     models::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
         //
         // for x in -(size / 2)..(size / 2) {
         //     for y in -(size / 2)..(size / 2) {
         //         scene.model_instances.push(ModelInstance {
-        //             model: model.clone(),
+        //             models: models.clone(),
         //             texture: None,
         //             transform: Transform {
         //                 translation: Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0),

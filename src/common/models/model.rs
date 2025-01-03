@@ -101,7 +101,7 @@ impl Model {
 
 #[memoize(Ignore: display)]
 fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
-    info!("Loading model {:?}...", path);
+    info!("Loading models {:?}...", path);
 
     let model = Model {
         uuid: Uuid::new_v4(),

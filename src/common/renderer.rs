@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::line::{Line, LinePoint};
-use crate::model::Model;
-use crate::model_instance::ModelInstance;
+use crate::models::Model;
+use crate::models::ModelInstance;
 use crate::texture::{Cubemap, Texture2D};
 use crate::{context, maths};
 use color_eyre::Result;
@@ -328,7 +328,7 @@ impl Renderer {
         batched_lines
     }
 
-    /// Batches instances with the same model and texture
+    /// Batches instances with the same models and texture
     #[allow(clippy::mutable_key_type)]
     fn batch_model_instances(
         model_instances: NodeReferences<ModelInstance>,

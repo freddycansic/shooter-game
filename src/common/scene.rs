@@ -1,8 +1,8 @@
 use crate::camera::FpsCamera;
 use crate::colors::{from_named, Color, ColorExt};
 use crate::line::Line;
-use crate::model::Model;
-use crate::model_instance::ModelInstance;
+use crate::models::Model;
+use crate::models::ModelInstance;
 use crate::renderer::Renderer;
 use crate::texture::Cubemap;
 use cgmath::{Matrix4, Point3};
@@ -80,7 +80,7 @@ impl Scene {
         });
     }
 
-    /// Load a model and create an instance of it in the scene
+    /// Load a models and create an instance of it in the scene
     pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
         let model = Model::load(path.to_path_buf(), display)?;
 
