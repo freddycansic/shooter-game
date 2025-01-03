@@ -1,5 +1,4 @@
-use crate::models::Model;
-use crate::texture::Texture2D;
+use crate::models::{Material, Model};
 use crate::transform::Transform;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -8,9 +7,9 @@ use std::sync::Arc;
 pub struct ModelInstance {
     pub model: Arc<Model>,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub texture: Option<Arc<Texture2D>>,
     pub transform: Transform,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub material: Option<Material>,
     #[serde(skip)]
     pub selected: bool,
 }
@@ -20,7 +19,7 @@ impl From<Arc<Model>> for ModelInstance {
         Self {
             model,
             name: "Model".to_owned(),
-            texture: None,
+            material: None,
             transform: Transform::default(),
             selected: false,
         }

@@ -25,9 +25,34 @@ impl Texture2D {
         Ok(load(path, display)?)
     }
 
-    pub fn default(display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+    pub fn default_diffuse(display: &Display<WindowSurface>) -> Result<Arc<Self>> {
         Self::load(PathBuf::from("assets/textures/uv-test.jpg"), display)
     }
+
+    pub fn solid(width: u32, height: u32, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+        Ok(solid_grey_texture(255 / 2, width, height, display)?)
+    }
+}
+
+#[memoize(Ignore: display)]
+fn solid_grey_texture(
+    // This must be integral as f32 cannot implement Eq
+    value: u8,
+    width: u32,
+    height: u32,
+    display: &Display<WindowSurface>,
+) -> Result<Arc<Texture2D>, TextureLoadError> {
+    let opengl_texture = CompressedTexture2d::new(
+        display,
+        vec![vec![(value / 255, value / 255, value / 255); height as usize]; width as usize],
+    )
+    .map_err(TextureLoadError::CreateTextureError)?;
+
+    Ok(Arc::new(Texture2D {
+        inner_texture: Some(opengl_texture),
+        path: PathBuf::new(),
+        uuid: Uuid::new_v4(),
+    }))
 }
 
 #[memoize(Ignore: display)]
