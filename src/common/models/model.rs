@@ -18,12 +18,13 @@ use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use vertex::Vertex;
+use crate::models::model_vertex::ModelVertex;
 
-use crate::{maths, vertex};
+use crate::maths;
+use crate::models::model_vertex;
 
 pub struct Primitive {
-    pub vertex_buffer: VertexBuffer<Vertex>,
+    pub vertex_buffer: VertexBuffer<ModelVertex>,
     pub index_buffer: IndexBuffer<u16>,
 }
 
@@ -182,16 +183,16 @@ impl Primitive {
         indices
     }
 
-    fn extract_vertices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<Vertex> {
+    fn extract_vertices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<ModelVertex> {
         let num_vertices = primitive.attributes().next().unwrap().1.count();
-        let mut vertices = vec![Vertex::default(); num_vertices];
+        let mut vertices = vec![ModelVertex::default(); num_vertices];
 
         for (semantic, accessor) in primitive.attributes() {
             match semantic {
                 Semantic::Positions => {
                     map_accessor_data_to_buffer(
                         &mut vertices,
-                        offset_of!(Vertex, position),
+                        offset_of!(ModelVertex, position),
                         &accessor,
                         file_buffers,
                     );
@@ -199,7 +200,7 @@ impl Primitive {
                 Semantic::Normals => {
                     map_accessor_data_to_buffer(
                         &mut vertices,
-                        offset_of!(Vertex, normal),
+                        offset_of!(ModelVertex, normal),
                         &accessor,
                         file_buffers,
                     );
@@ -207,7 +208,7 @@ impl Primitive {
                 Semantic::TexCoords(0) => {
                     map_accessor_data_to_buffer(
                         &mut vertices,
-                        offset_of!(Vertex, tex_coord),
+                        offset_of!(ModelVertex, tex_coord),
                         &accessor,
                         file_buffers,
                     );
@@ -263,7 +264,7 @@ fn map_accessor_data_to_buffer<T: Debug>(
     }
 }
 
-fn generate_tex_coords(vertices: &mut [Vertex]) {
+fn generate_tex_coords(vertices: &mut [ModelVertex]) {
     let mut x_min = f32::MAX;
     let mut x_max = f32::MIN;
     let mut z_min = f32::MAX;

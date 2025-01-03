@@ -1,13 +1,13 @@
 use glium::implement_vertex;
 
 #[derive(Copy, Clone, Debug)]
-pub struct Vertex {
+pub struct ModelVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub tex_coord: [f32; 2],
 }
 
-impl Default for Vertex {
+impl Default for ModelVertex {
     fn default() -> Self {
         Self {
             position: [0.0, 0.0, 0.0],
@@ -17,4 +17,4 @@ impl Default for Vertex {
     }
 }
 
-implement_vertex!(Vertex, position, normal, tex_coord);
+implement_vertex!(ModelVertex, position, normal, tex_coord);

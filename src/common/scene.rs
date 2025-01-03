@@ -1,5 +1,6 @@
 use crate::camera::FpsCamera;
-use crate::colors::{from_named, Color, ColorExt};
+use crate::colors::{Color, ColorExt};
+use crate::light::Light;
 use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
@@ -8,7 +9,7 @@ use crate::texture::Cubemap;
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
-use glium::{Display, Frame, Surface};
+use glium::{implement_vertex, Display, Frame, Surface};
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
@@ -24,7 +25,7 @@ pub enum Background {
 
 impl Default for Background {
     fn default() -> Self {
-        Background::Color(from_named(palette::named::GRAY))
+        Background::Color(Color::from_named(palette::named::GRAY))
     }
 }
 
@@ -34,6 +35,7 @@ pub struct Scene {
     pub camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: StableDiGraph<ModelInstance, ()>,
     pub background: Background,
+    pub lights: Vec<Light>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -46,6 +48,7 @@ impl Scene {
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
+            lights: vec![],
         }
     }
 
@@ -104,7 +107,9 @@ impl Scene {
             }
             Background::HDRI(cubemap) => {
                 target.clear_color_and_depth(
-                    from_named(palette::named::WHITE).to_rgb_vector4().into(),
+                    Color::from_named(palette::named::WHITE)
+                        .to_rgb_vector4()
+                        .into(),
                     1.0,
                 );
                 renderer.render_skybox(cubemap, view, projection, target);

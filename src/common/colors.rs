@@ -1,29 +1,34 @@
-use cgmath::Vector4;
+use cgmath::{Vector3, Vector4};
 use palette::{FromColor, IntoColor, Lch, ShiftHue, Srgb};
 
 pub type Color = Lch;
 
-pub fn shift_hue(color: &Lch, time: f32) -> Color {
-    let shift = time % 360.0;
-    color.shift_hue(shift)
-}
-
-pub fn shift_hue_from_named(color: Srgb<u8>, time: f32) -> Color {
-    shift_hue(&from_named(color), time)
-}
-
 pub trait ColorExt {
+    fn shift_hue_by_time(&self, time: f32) -> Self;
+    fn from_named(color: Srgb<u8>) -> Self;
     fn to_rgb_vector4(self) -> Vector4<f32>;
+    fn to_rgb_vector3(self) -> Vector3<f32>;
 }
 
 impl ColorExt for Color {
+    fn shift_hue_by_time(&self, time: f32) -> Color {
+        let shift = time % 360.0;
+        self.shift_hue(shift)
+    }
+
+    fn from_named(named: Srgb<u8>) -> Color {
+        Lch::from_color(Srgb::<f32>::from_format(named))
+    }
+
     fn to_rgb_vector4(self) -> Vector4<f32> {
+        let vec3 = self.to_rgb_vector3();
+
+        Vector4::new(vec3.x, vec3.y, vec3.z, 1.0)
+    }
+
+    fn to_rgb_vector3(self) -> Vector3<f32> {
         let rgb: Srgb = self.into_color();
 
-        Vector4::new(rgb.red, rgb.green, rgb.blue, 1.0)
+        Vector3::new(rgb.red, rgb.green, rgb.blue)
     }
-}
-
-pub fn from_named(named: Srgb<u8>) -> Color {
-    Lch::from_color(Srgb::<f32>::from_format(named))
 }

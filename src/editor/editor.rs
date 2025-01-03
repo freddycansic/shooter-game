@@ -23,6 +23,8 @@ use winit::keyboard::KeyCode;
 use app::Application;
 use common::camera::Camera;
 use common::camera::OrbitalCamera;
+use common::colors::{Color, ColorExt};
+use common::light::Light;
 use common::line::Line;
 use common::models::Model;
 use common::models::ModelInstance;
@@ -40,6 +42,11 @@ struct FrameState {
     pub deltatime: f64,
     pub fps: f32,
     pub is_moving_camera: bool,
+    pub gui: GuiState,
+}
+
+struct GuiState {
+    pub render_lights: bool,
 }
 
 impl FrameState {
@@ -124,6 +131,11 @@ impl Editor {
 
         let renderer = Renderer::new(&opengl_context.display).unwrap();
 
+        scene.lights.push(Light {
+            position: Point3::new(3.0, 2.0, 1.0),
+            color: Color::from_named(palette::named::WHITE),
+        });
+
         // let size = 10;
         // let models =
         //     models::load("assets/models/teapot.glb".into(), &opengl_context.display).unwrap();
@@ -156,6 +168,9 @@ impl Editor {
             deltatime: 0.0,
             fps: 0.0,
             is_moving_camera: false,
+            gui: GuiState {
+                render_lights: true,
+            },
         };
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
@@ -290,6 +305,15 @@ impl Application for Editor {
                 &self.opengl_context.display,
                 &mut target,
             );
+
+            if self.state.gui.render_lights {
+                self.renderer.render_lights(
+                    &self.scene.lights,
+                    &(self.camera.projection() * self.camera.view()),
+                    &self.opengl_context.display,
+                    &mut target,
+                );
+            }
 
             self.render_gui();
             self.gui.paint(&self.opengl_context.display, &mut target);
@@ -427,6 +451,10 @@ impl Application for Editor {
                             });
                         }
                     });
+                });
+
+                ui.collapsing("Lighting", |ui| {
+                    ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
                 });
             });
         });

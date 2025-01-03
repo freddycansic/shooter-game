@@ -7,6 +7,7 @@ use glium::{
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
 use crate::models::ModelInstance;
@@ -23,7 +24,8 @@ pub struct Renderer {
     default_program: Program,
 
     skybox_program: Program,
-    skybox_vertex_buffer: VertexBuffer<SimplePoint>,
+    light_program: Program,
+    cube_vertex_buffer: VertexBuffer<SimplePoint>,
 
     lines_program: Program,
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
@@ -52,12 +54,21 @@ impl Renderer {
             display,
         )?;
 
-        let skybox_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
+        let light_program = context::new_program(
+            "assets/shaders/light/light.vert",
+            "assets/shaders/light/light.frag",
+            None,
+            display,
+        )?;
+
+        // This will be used by the skybox and debug lights
+        let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
         Ok(Self {
             default_program,
             skybox_program,
-            skybox_vertex_buffer,
+            light_program,
+            cube_vertex_buffer,
             lines_program,
             line_vertex_buffers: HashMap::new(),
         })
@@ -139,7 +150,7 @@ impl Renderer {
 
         target
             .draw(
-                &self.skybox_vertex_buffer,
+                &self.cube_vertex_buffer,
                 NoIndices(PrimitiveType::TrianglesList),
                 &self.skybox_program,
                 &uniforms,
@@ -155,6 +166,10 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
+        if lines.is_empty() {
+            return;
+        }
+
         let batched_lines = Self::batch_lines(lines);
 
         self.write_lines_to_vertex_buffers(display, batched_lines);
@@ -177,6 +192,42 @@ impl Renderer {
                 )
                 .unwrap();
         }
+    }
+
+    pub fn render_lights(
+        &mut self,
+        lights: &[Light],
+        camera_view_projection: &Matrix4<f32>,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        if lights.is_empty() {
+            return;
+        }
+
+        let shader_lights = lights
+            .iter()
+            .map(|light| ShaderLight::from(light.clone()))
+            .collect_vec();
+
+        let light_instance_buffer = VertexBuffer::new(display, &shader_lights).unwrap();
+
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(*camera_view_projection),
+        };
+
+        target
+            .draw(
+                (
+                    &self.cube_vertex_buffer,
+                    light_instance_buffer.per_instance().unwrap(),
+                ),
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.light_program,
+                &uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
     }
 
     fn write_lines_to_vertex_buffers(
@@ -231,6 +282,7 @@ impl Renderer {
                 (
                     model,
                     texture,
+                    // TODO cache vertex buffers and write over them on next frame
                     VertexBuffer::new(display, &instances).unwrap(),
                 )
             })
@@ -250,6 +302,7 @@ impl Renderer {
 
                 let instance = Instance {
                     transform: <[[f32; 4]; 4]>::from(transform_matrix),
+                    // TODO move this calculation into vertex shader
                     transform_normal: <[[f32; 4]; 4]>::from(
                         transform_matrix.invert().unwrap().transpose(),
                     ),
