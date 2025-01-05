@@ -1,4 +1,4 @@
-use cgmath::{Deg, Point3, Quaternion, Rotation3};
+use cgmath::Point3;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -30,6 +30,7 @@ use common::models::ModelInstance;
 use common::models::{Material, Model};
 use common::renderer::Renderer;
 use common::scene::Background;
+use common::terrain::Terrain;
 use common::texture::{Cubemap, Texture2D};
 use common::*;
 use context::OpenGLContext;
@@ -107,6 +108,13 @@ impl Editor {
                     2,
                 ),
             ],
+            terrain: Some(
+                Terrain::load(
+                    &PathBuf::from("assets/game_scenes/terrain_heightmap.png"),
+                    &opengl_context.display,
+                )
+                .unwrap(),
+            ),
             ..Default::default()
         };
 

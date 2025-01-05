@@ -5,6 +5,7 @@ use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
 use crate::renderer::Renderer;
+use crate::terrain::Terrain;
 use crate::texture::{Cubemap, Texture2D};
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
@@ -37,6 +38,7 @@ pub struct Scene {
     pub graph: StableDiGraph<ModelInstance, ()>,
     pub background: Background,
     pub lights: Vec<Light>,
+    pub terrain: Option<Terrain>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -49,6 +51,7 @@ impl Scene {
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
+            terrain: None,
             lights: vec![],
         }
     }
@@ -150,6 +153,11 @@ impl Scene {
             display,
             target,
         );
+
+        if let Some(terrain) = &self.terrain {
+            renderer.render_terrain(terrain, &view_projection, camera_position, target);
+        }
+
         renderer.render_lines(&self.lines, &view_projection, display, target);
     }
 }
