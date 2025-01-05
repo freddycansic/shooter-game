@@ -4,6 +4,7 @@ use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
 use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::terrain::Terrain;
 use crate::texture::Cubemap;
 use crate::{context, maths};
 use cgmath::{Matrix3, Matrix4, Point3};
@@ -29,6 +30,8 @@ pub struct Renderer {
 
     lines_program: Program,
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
+
+    terrain_program: Program,
 }
 
 impl Renderer {
@@ -61,6 +64,13 @@ impl Renderer {
             display,
         )?;
 
+        let terrain_program = context::new_program(
+            "assets/shaders/terrain/terrain.vert",
+            "assets/shaders/terrain/terrain.frag",
+            None,
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
@@ -71,6 +81,7 @@ impl Renderer {
             cube_vertex_buffer,
             lines_program,
             line_vertex_buffers: HashMap::new(),
+            terrain_program,
         })
     }
 
@@ -129,6 +140,36 @@ impl Renderer {
                 }
             }
         }
+    }
+
+    pub fn render_terrain(
+        &mut self,
+        terrain: &Terrain,
+        view_projection: &Matrix4<f32>,
+        camera_position: Point3<f32>,
+        target: &mut Frame,
+    ) {
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(*view_projection),
+            camera_position: <[f32; 3]>::from(camera_position),
+        };
+
+        target
+            .draw(
+                terrain.vertex_buffer.as_ref().unwrap(),
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.terrain_program,
+                &uniforms,
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::IfLess,
+                        write: true,
+                        ..Default::default()
+                    },
+                    ..DrawParameters::default()
+                },
+            )
+            .unwrap()
     }
 
     pub fn render_skybox(
@@ -230,7 +271,14 @@ impl Renderer {
                 NoIndices(PrimitiveType::TrianglesList),
                 &self.light_program,
                 &uniforms,
-                &DrawParameters::default(),
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::IfLess,
+                        write: true,
+                        ..Default::default()
+                    },
+                    ..DrawParameters::default()
+                },
             )
             .unwrap();
     }
