@@ -6,13 +6,16 @@ uniform vec3 camera_position;
 
 in VS_OUT {
     vec3 position;
+    vec2 tex_coord;
     vec3 normal;
 } vs_in;
+
+uniform sampler2D diffuse_texture;
 
 void main() {
     vec3 light_color = vec3(1.0, 1.0, 1.0);
     vec3 light_position = camera_position;
-    vec4 diffuse_color = vec4(1.0, 1.0, 1.0, 1.0);
+    vec4 diffuse_color = texture(diffuse_texture, vs_in.tex_coord);
 
     // Ambient
     float ambient_strength = 0.3;
@@ -26,4 +29,5 @@ void main() {
 
     // Combine
     out_color = diffuse_color * vec4((ambient + diffuse), 1.0);
+    //    out_color = vec4(1.0, 1.0, 1.0, 1.0);
 }

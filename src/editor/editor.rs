@@ -110,7 +110,15 @@ impl Editor {
             ],
             terrain: Some(
                 Terrain::load(
-                    &PathBuf::from("assets/game_scenes/terrain_heightmap.png"),
+                    &PathBuf::from("assets/terrain/terrain_heightmap.png"),
+                    &Material {
+                        diffuse: Texture2D::load(
+                            PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
+                            &opengl_context.display,
+                        )
+                        .unwrap(),
+                        ..Material::default(&opengl_context.display).unwrap()
+                    },
                     &opengl_context.display,
                 )
                 .unwrap(),
