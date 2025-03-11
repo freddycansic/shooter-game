@@ -149,9 +149,16 @@ impl Renderer {
         camera_position: Point3<f32>,
         target: &mut Frame,
     ) {
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
         let uniforms = uniform! {
             vp: maths::raw_matrix(*view_projection),
             camera_position: <[f32; 3]>::from(camera_position),
+            diffuse_texture: Sampler(terrain.material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0
         };
 
         target
