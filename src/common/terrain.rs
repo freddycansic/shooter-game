@@ -1,12 +1,14 @@
-use crate::import;
-use crate::models::Material;
+use std::path::{Path, PathBuf};
+
 use cgmath::Vector3;
 use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{implement_vertex, Display, VertexBuffer};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+
+use crate::import;
+use crate::models::Material;
 
 #[derive(Serialize, Deserialize)]
 pub struct Terrain {

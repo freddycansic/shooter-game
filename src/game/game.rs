@@ -1,16 +1,19 @@
-use crate::player::Player;
-use common::app::Application;
+use std::path::PathBuf;
+use std::time::Instant;
+
+use glium::glutin::surface::WindowSurface;
+use glium::Display;
+use winit::event::{DeviceEvent, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::KeyCode;
+use winit::window::Window;
+
+use common::application::Application;
 use common::camera::Camera;
-use common::context::OpenGLContext;
 use common::debug;
 use common::input::Input;
 use common::renderer::Renderer;
 use common::scene::Scene;
-use std::path::PathBuf;
-use std::time::Instant;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::keyboard::KeyCode;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -42,25 +45,22 @@ impl Default for FrameState {
 pub struct Game {
     input: Input,
     scene: Scene,
-    player: Player,
     renderer: Renderer,
-    opengl_context: OpenGLContext,
     state: FrameState,
 }
 
-impl Game {
-    pub fn new(event_loop: &EventLoop<()>) -> Self {
+impl Application for Game {
+    fn new(
+        window: &Window,
+        display: &Display<WindowSurface>,
+        event_loop: &ActiveEventLoop,
+    ) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
-        let opengl_context = OpenGLContext::new("We shootin now", false, event_loop);
-
-        let renderer = Renderer::new(&opengl_context.display).unwrap();
-        let scene = Scene::from_path(
-            &PathBuf::from("assets/game_scenes/map.json"),
-            &opengl_context.display,
-        )
-        .unwrap();
+        let renderer = Renderer::new(display).unwrap();
+        let scene =
+            Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
 
         // scene.camera = scene.starting_camera.clone();
 
@@ -74,97 +74,91 @@ impl Game {
         let state = FrameState::default();
         let input = Input::new();
 
-        let player = Player::new();
-
         Self {
-            opengl_context,
             renderer,
             scene,
             state,
             input,
-            player,
         }
+    }
+
+    fn window_event(
+        &mut self,
+        event: WindowEvent,
+        event_loop: &ActiveEventLoop,
+        window: &Window,
+        display: &Display<WindowSurface>,
+    ) {
+        self.input.process_window_event(&event);
+
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(new_size) => {
+                display.resize((new_size.width, new_size.height));
+
+                self.scene
+                    .camera
+                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+            }
+            WindowEvent::RedrawRequested => {
+                if self.input.key_pressed(KeyCode::Escape) {
+                    event_loop.exit();
+                }
+
+                self.update(window, display);
+                self.render(window, display);
+
+                self.state.update_statistics();
+            }
+            _ => (),
+        };
+    }
+
+    fn device_event(
+        &mut self,
+        event: DeviceEvent,
+        event_loop: &ActiveEventLoop,
+        window: &Window,
+        display: &Display<WindowSurface>,
+    ) {
+        self.input.process_device_event(event);
     }
 }
 
-impl Application for Game {
-    // TODO figure out some way to not copy this code from editor
-    fn run(mut self, event_loop: EventLoop<()>) {
-        event_loop
-            .run(move |event, event_loop_window_target| {
-                event_loop_window_target.set_control_flow(ControlFlow::Poll);
-                self.input
-                    .process_event(self.opengl_context.window.id(), &event);
-
-                match event {
-                    Event::WindowEvent {
-                        event: window_event,
-                        window_id,
-                    } if window_id == self.opengl_context.window.id() => {
-                        match &window_event {
-                            WindowEvent::CloseRequested => event_loop_window_target.exit(),
-                            WindowEvent::Resized(new_size) => {
-                                self.opengl_context
-                                    .display
-                                    .resize((new_size.width, new_size.height));
-                                self.scene.camera.set_aspect_ratio(
-                                    new_size.width as f32 / new_size.height as f32,
-                                );
-                            }
-                            WindowEvent::RedrawRequested => {
-                                if self.input.key_pressed(KeyCode::Escape) {
-                                    event_loop_window_target.exit();
-                                }
-
-                                self.update();
-                                self.render();
-
-                                self.state.update_statistics();
-                            }
-                            _ => (),
-                        };
-                    }
-                    Event::AboutToWait => self.opengl_context.window.request_redraw(),
-                    _ => (),
-                }
-            })
-            .unwrap();
-    }
-
-    fn update(&mut self) {
+impl Game {
+    fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         self.state.is_moving_camera = true;
 
         if self.state.is_moving_camera {
             self.scene
                 .camera
                 .update(&self.input, self.state.deltatime as f32);
-            // self.player.update(&self.input, self.state.deltatime as f32);
 
-            self.opengl_context.capture_cursor();
-            self.opengl_context.window.set_cursor_visible(false);
-            self.opengl_context.center_cursor();
+            self.capture_cursor(window);
+            window.set_cursor_visible(false);
+            self.center_cursor(window);
         } else {
-            self.opengl_context.release_cursor();
-            self.opengl_context.window.set_cursor_visible(true);
+            self.release_cursor(window);
+            window.set_cursor_visible(true);
         }
 
         self.input.reset_internal_state();
     }
 
-    fn render(&mut self) {
-        let mut target = self.opengl_context.display.draw();
+    fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
+        let mut target = display.draw();
         {
             self.scene.render(
                 &mut self.renderer,
                 &self.scene.camera.view(),
                 &self.scene.camera.projection(),
                 self.scene.camera.position(),
-                &self.opengl_context.display,
+                display,
                 &mut target,
             );
         }
         target.finish().unwrap();
     }
 
-    fn render_gui(&mut self) {}
+    fn render_gui(&mut self, window: &Window, display: &Display<WindowSurface>) {}
 }

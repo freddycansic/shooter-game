@@ -1,12 +1,6 @@
-use crate::camera::FpsCamera;
-use crate::colors::{Color, ColorExt};
-use crate::light::Light;
-use crate::line::Line;
-use crate::models::Model;
-use crate::models::ModelInstance;
-use crate::renderer::Renderer;
-use crate::terrain::Terrain;
-use crate::texture::{Cubemap, Texture2D};
+use std::path::Path;
+use std::sync::Arc;
+
 use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
@@ -16,8 +10,16 @@ use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
-use std::sync::Arc;
+
+use crate::camera::FpsCamera;
+use crate::colors::{Color, ColorExt};
+use crate::light::Light;
+use crate::line::Line;
+use crate::models::Model;
+use crate::models::ModelInstance;
+use crate::renderer::Renderer;
+use crate::terrain::Terrain;
+use crate::texture::{Cubemap, Texture2D};
 
 #[derive(PartialEq, Serialize, Deserialize)]
 pub enum Background {

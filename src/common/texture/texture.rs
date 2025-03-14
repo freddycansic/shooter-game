@@ -1,11 +1,13 @@
-use crate::import;
-use crate::import::image::ImageLoadError;
-use color_eyre::eyre::Result;
-use glium::texture::RawImage2d;
 use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::PathBuf;
+
+use color_eyre::eyre::Result;
+use glium::texture::RawImage2d;
+
+use crate::import;
+use crate::import::image::ImageLoadError;
 
 #[derive(Debug, Clone)]
 pub enum TextureLoadError {

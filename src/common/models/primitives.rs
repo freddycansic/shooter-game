@@ -1,4 +1,5 @@
 use glium::implement_vertex;
+
 #[derive(Copy, Clone)]
 pub struct SimplePoint {
     position: [f32; 3],

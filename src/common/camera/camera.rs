@@ -1,5 +1,6 @@
-use crate::input::Input;
 use cgmath::{Matrix4, Point3, Rad};
+
+use crate::input::Input;
 
 pub trait Camera {
     fn update(&mut self, input: &Input, deltatime: f32);

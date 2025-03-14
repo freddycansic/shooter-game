@@ -1,7 +1,8 @@
+use std::path::{Path, PathBuf};
+
 use color_eyre::Result;
 use image::{DynamicImage, ImageReader};
 use log::info;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
 pub enum ImageLoadError {

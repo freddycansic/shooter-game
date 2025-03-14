@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+
 use crate::models::{Material, Model};
 use crate::transform::Transform;
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ModelInstance {

@@ -18,9 +18,8 @@ use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::model_vertex::ModelVertex;
-
 use crate::maths;
+use crate::models::model_vertex::ModelVertex;
 
 pub struct Primitive {
     pub vertex_buffer: VertexBuffer<ModelVertex>,

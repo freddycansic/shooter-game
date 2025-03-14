@@ -105,39 +105,31 @@ impl Input {
         self.mouse_wheel_offset = 0.0;
     }
 
-    pub fn process_event(&mut self, window_id: WindowId, event: &Event<()>) {
-        match event {
-            Event::WindowEvent {
-                event: window_event,
-                window_id: event_window_id,
-            } if *event_window_id == window_id => {
-                match &window_event {
-                    WindowEvent::KeyboardInput { event, .. } => {
-                        self.process_key_event(event.clone());
-                    }
-                    WindowEvent::CursorMoved { position, .. } => {
-                        self.process_cursor_moved_window_event(*position);
-                    }
-                    WindowEvent::MouseInput { state, button, .. } => {
-                        self.process_mouse_button_event(*button, *state);
-                    }
-                    WindowEvent::MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(_, y_offset),
-                        ..
-                    } => {
-                        self.process_mouse_wheel_event(*y_offset);
-                    }
-                    _ => (),
-                };
+    pub fn process_window_event(&mut self, window_event: &WindowEvent) {
+        match &window_event {
+            WindowEvent::KeyboardInput { event, .. } => {
+                self.process_key_event(event.clone());
             }
-            Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion { delta, .. },
+            WindowEvent::CursorMoved { position, .. } => {
+                self.process_cursor_moved_window_event(*position);
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.process_mouse_button_event(*button, *state);
+            }
+            WindowEvent::MouseWheel {
+                delta: MouseScrollDelta::LineDelta(_, y_offset),
                 ..
             } => {
-                self.process_cursor_moved_device_event(*delta);
+                self.process_mouse_wheel_event(*y_offset);
             }
             _ => (),
         };
+    }
+
+    pub fn process_device_event(&mut self, device_event: DeviceEvent) {
+        if let DeviceEvent::MouseMotion { delta, .. } = device_event {
+            self.process_cursor_moved_device_event(delta);
+        }
     }
 
     fn process_key_event(&mut self, key_event: KeyEvent) {

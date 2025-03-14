@@ -4,49 +4,78 @@ use color_eyre::Result;
 use glium::backend::glutin::SimpleWindowBuilder;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Program};
-use winit::dpi::LogicalPosition;
-use winit::event_loop::EventLoop;
-use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
+use winit::application::ApplicationHandler;
+use winit::event::{DeviceEvent, DeviceId, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowAttributes, WindowId};
+
+use crate::application::Application;
 
 #[derive(Debug)]
-pub struct OpenGLContext {
-    pub window: Window,
-    pub display: Display<WindowSurface>,
+pub struct OpenGLContext<A: Application> {
+    pub window: Option<Window>,
+    pub display: Option<Display<WindowSurface>>,
+    pub application: Option<A>,
+    window_attributes: WindowAttributes,
 }
 
-impl OpenGLContext {
-    pub fn new(title: &str, fullscreen: bool, event_loop: &EventLoop<()>) -> Self {
-        let mut window_builder = WindowBuilder::new().with_title(title);
-
-        if fullscreen {
-            window_builder = window_builder.with_fullscreen(Some(Fullscreen::Borderless(None)));
-        } else {
-            window_builder = window_builder.with_maximized(true);
+impl<A: Application> OpenGLContext<A> {
+    pub fn new(window_attributes: WindowAttributes) -> Self {
+        Self {
+            window: None,
+            display: None,
+            application: None,
+            window_attributes,
         }
+    }
+}
 
+impl<A: Application> ApplicationHandler for OpenGLContext<A> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let (window, display) = SimpleWindowBuilder::new()
-            .set_window_builder(window_builder)
+            .set_window_builder(self.window_attributes.clone())
             .build(event_loop);
 
-        Self { window, display }
+        self.window = Some(window);
+        self.display = Some(display);
+
+        self.application = Some(A::new(
+            self.window.as_ref().unwrap(),
+            self.display.as_ref().unwrap(),
+            event_loop,
+        ));
     }
 
-    pub fn capture_cursor(&mut self) {
-        self.window
-            .set_cursor_grab(CursorGrabMode::Confined)
-            .or_else(|_| self.window.set_cursor_grab(CursorGrabMode::Locked))
-            .unwrap();
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        if window_id != self.window.as_ref().unwrap().id() {
+            return;
+        }
+
+        self.application.as_mut().unwrap().window_event(
+            event,
+            event_loop,
+            self.window.as_ref().unwrap(),
+            self.display.as_ref().unwrap(),
+        );
     }
 
-    pub fn release_cursor(&mut self) {
-        self.window.set_cursor_grab(CursorGrabMode::None).unwrap();
-    }
-
-    pub fn center_cursor(&mut self) {
-        let dimensions = self.window.inner_size();
-        let center = LogicalPosition::new(dimensions.width / 2, dimensions.height / 2);
-
-        self.window.set_cursor_position(center).unwrap();
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
+    ) {
+        self.application.as_mut().unwrap().device_event(
+            event,
+            event_loop,
+            self.window.as_ref().unwrap(),
+            self.display.as_ref().unwrap(),
+        );
     }
 }
 

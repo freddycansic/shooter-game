@@ -1,10 +1,10 @@
-use crate::input::Input;
-
-use crate::camera::camera;
-use crate::camera::camera::Camera;
 use cgmath::{InnerSpace, Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
+
+use crate::camera::camera;
+use crate::camera::camera::Camera;
+use crate::input::Input;
 
 #[derive(Serialize, Deserialize)]
 pub struct FpsCamera {

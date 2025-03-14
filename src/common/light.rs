@@ -1,7 +1,8 @@
-use crate::colors::{Color, ColorExt};
 use cgmath::Point3;
 use glium::implement_vertex;
 use serde::{Deserialize, Serialize};
+
+use crate::colors::{Color, ColorExt};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Light {

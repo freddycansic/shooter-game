@@ -1,15 +1,17 @@
-use crate::texture::texture;
-use crate::texture::texture::TextureLoadError;
+use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
 use glium::Display;
 use memoize::memoize;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
-use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::texture::texture;
+use crate::texture::texture::TextureLoadError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Texture2D {
