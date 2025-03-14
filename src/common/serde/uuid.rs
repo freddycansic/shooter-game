@@ -1,6 +1,7 @@
+use std::fmt::Formatter;
+
 use serde::de::{Error, Visitor};
 use serde::{Deserializer, Serializer};
-use std::fmt::Formatter;
 use uuid::Uuid;
 
 pub fn serialize<S>(uuid: &Uuid, serializer: S) -> Result<S::Ok, S::Error>

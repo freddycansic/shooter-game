@@ -1,13 +1,14 @@
-use cgmath::Point3;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
+use cgmath::Point3;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
-use egui_glium::egui_winit::winit::event_loop::EventLoop;
 use egui_glium::EguiGlium;
+use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
 use log::info;
 use palette::Srgb;
@@ -16,11 +17,13 @@ use petgraph::stable_graph::NodeIndex;
 use petgraph::visit::{Bfs, IntoNodeReferences};
 use petgraph::Direction;
 use rfd::FileDialog;
-use winit::event::{Event, MouseButton, WindowEvent};
-use winit::event_loop::ControlFlow;
+use winit::application::ApplicationHandler;
+use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::KeyCode;
+use winit::window::Window;
 
-use app::Application;
+use common::application::Application;
 use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
@@ -33,7 +36,6 @@ use common::scene::Background;
 use common::terrain::Terrain;
 use common::texture::{Cubemap, Texture2D};
 use common::*;
-use context::OpenGLContext;
 use input::Input;
 use scene::Scene;
 
@@ -72,20 +74,22 @@ pub struct Editor {
     scene: Scene,
     camera: OrbitalCamera,
     renderer: Renderer,
-    opengl_context: OpenGLContext,
     gui: EguiGlium,
     state: FrameState,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
 }
 
-impl Editor {
-    pub fn new(event_loop: &EventLoop<()>) -> Self {
+impl Application for Editor {
+    fn new(
+        window: &Window,
+        display: &Display<WindowSurface>,
+        event_loop: &ActiveEventLoop,
+    ) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
-        let opengl_context = OpenGLContext::new("We glium teapot now", false, event_loop);
 
         let mut scene = Scene {
             lines: vec![
@@ -114,12 +118,12 @@ impl Editor {
                     &Material {
                         diffuse: Texture2D::load(
                             PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
-                            &opengl_context.display,
+                            display,
                         )
                         .unwrap(),
-                        ..Material::default(&opengl_context.display).unwrap()
+                        ..Material::default(display).unwrap()
                     },
-                    &opengl_context.display,
+                    display,
                 )
                 .unwrap(),
             ),
@@ -129,21 +133,14 @@ impl Editor {
         let camera = OrbitalCamera::default();
 
         let mut model_instance = ModelInstance::from(
-            Model::load(
-                PathBuf::from("assets/models/cube.glb"),
-                &opengl_context.display,
-            )
-            .unwrap(),
+            Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
         );
         model_instance.material = Some(Material {
-            diffuse: Texture2D::load(
-                PathBuf::from("assets/textures/container.png"),
-                &opengl_context.display,
-            )
-            .unwrap(),
+            diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
+                .unwrap(),
             specular: Texture2D::load(
                 PathBuf::from("assets/textures/container_specular.png"),
-                &opengl_context.display,
+                display,
             )
             .unwrap(),
         });
@@ -157,7 +154,7 @@ impl Editor {
         // scene.graph.add_edge(child1, grandchild1, ());
         // scene.graph.add_edge(child1, grandchild2, ());
 
-        let renderer = Renderer::new(&opengl_context.display).unwrap();
+        let renderer = Renderer::new(display).unwrap();
 
         scene.lights.push(Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -184,12 +181,7 @@ impl Editor {
 
         let input = Input::new();
 
-        let gui = EguiGlium::new(
-            ViewportId::ROOT,
-            &opengl_context.display,
-            &opengl_context.window,
-            event_loop,
-        );
+        let gui = EguiGlium::new(ViewportId::ROOT, display, window, event_loop);
 
         let state = FrameState {
             last_frame_end: Instant::now(),
@@ -205,7 +197,6 @@ impl Editor {
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
         Self {
-            opengl_context,
             scene,
             renderer,
             input,
@@ -216,75 +207,69 @@ impl Editor {
             camera,
         }
     }
-}
 
-impl Application for Editor {
-    fn run(mut self, event_loop: EventLoop<()>) {
-        event_loop
-            .run(move |event, event_loop_window_target| {
-                event_loop_window_target.set_control_flow(ControlFlow::Poll);
-                self.input
-                    .process_event(self.opengl_context.window.id(), &event);
+    fn window_event(
+        &mut self,
+        event: WindowEvent,
+        event_loop: &ActiveEventLoop,
+        window: &Window,
+        display: &Display<WindowSurface>,
+    ) {
+        self.input.process_window_event(&event);
 
-                match event {
-                    Event::WindowEvent {
-                        event: window_event,
-                        window_id,
-                    } if window_id == self.opengl_context.window.id() => {
-                        match &window_event {
-                            WindowEvent::CloseRequested => event_loop_window_target.exit(),
-                            WindowEvent::Resized(new_size) => {
-                                self.opengl_context
-                                    .display
-                                    .resize((new_size.width, new_size.height));
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(new_size) => {
+                display.resize((new_size.width, new_size.height));
 
-                                self.camera.set_aspect_ratio(
-                                    new_size.width as f32 / new_size.height as f32,
-                                );
-                            }
-                            WindowEvent::RedrawRequested => {
-                                if self.input.key_pressed(KeyCode::Escape) {
-                                    event_loop_window_target.exit();
-                                }
-
-                                self.update();
-                                self.render();
-
-                                self.state.update_statistics();
-                            }
-                            _ => (),
-                        };
-
-                        let event_response = self
-                            .gui
-                            .on_event(&self.opengl_context.window, &window_event);
-
-                        if event_response.repaint {
-                            self.opengl_context.window.request_redraw();
-                        }
-                    }
-                    Event::AboutToWait => self.opengl_context.window.request_redraw(),
-                    _ => (),
+                self.camera
+                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+            }
+            WindowEvent::RedrawRequested => {
+                if self.input.key_pressed(KeyCode::Escape) {
+                    event_loop.exit();
                 }
-            })
-            .unwrap();
+
+                self.update(window, display);
+                self.render(window, display);
+
+                self.state.update_statistics();
+            }
+            _ => (),
+        };
+
+        let gui_event_response = self.gui.on_event(window, &event);
+
+        if gui_event_response.repaint {
+            window.request_redraw();
+        }
     }
 
-    fn update(&mut self) {
+    fn device_event(
+        &mut self,
+        device_event: DeviceEvent,
+        event_loop: &ActiveEventLoop,
+        window: &Window,
+        display: &Display<WindowSurface>,
+    ) {
+        self.input.process_device_event(device_event);
+    }
+}
+
+impl Editor {
+    fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(scene_string) => {
-                    self.scene =
-                        Scene::from_string(&scene_string, &self.opengl_context.display).unwrap()
+                    self.scene = Scene::from_string(&scene_string, display).unwrap()
                 }
                 EngineEvent::ImportModel(model_path) => self
                     .scene
-                    .import_model(model_path.as_path(), &self.opengl_context.display)
+                    .import_model(model_path.as_path(), display)
                     .unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                    self.scene.background = Background::HDRI(
-                        Cubemap::load(hdri_directory_path, &self.opengl_context.display).unwrap(),
-                    )
+                    self.scene.background =
+                        Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
                 }
             }
         }
@@ -296,25 +281,25 @@ impl Application for Editor {
 
         if self.state.is_moving_camera {
             self.camera.update(&self.input, self.state.deltatime as f32);
-            self.opengl_context.capture_cursor();
-            self.opengl_context.window.set_cursor_visible(false);
-            self.opengl_context.center_cursor();
+            self.capture_cursor(window);
+            window.set_cursor_visible(false);
+            self.center_cursor(window);
         } else {
-            self.opengl_context.release_cursor();
-            self.opengl_context.window.set_cursor_visible(true);
+            self.release_cursor(window);
+            window.set_cursor_visible(true);
         }
 
         self.input.reset_internal_state();
 
         if self.state.frame_count % 5 == 0 {
-            self.opengl_context.window.set_title(
+            window.set_title(
                 format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
             );
         }
     }
 
-    fn render(&mut self) {
-        let window_size = self.opengl_context.window.inner_size();
+    fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
+        let window_size = window.inner_size();
         if window_size.width == 0 || window_size.height == 0 {
             return;
         }
@@ -324,14 +309,14 @@ impl Application for Editor {
         // self.scene.graph[node_indices[0]].transform.rotation =
         //     Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
 
-        let mut target = self.opengl_context.display.draw();
+        let mut target = display.draw();
         {
             self.scene.render(
                 &mut self.renderer,
                 &self.camera.view(),
                 &self.camera.projection(),
                 self.camera.position(),
-                &self.opengl_context.display,
+                display,
                 &mut target,
             );
 
@@ -339,19 +324,19 @@ impl Application for Editor {
                 self.renderer.render_lights(
                     &self.scene.lights,
                     &(self.camera.projection() * self.camera.view()),
-                    &self.opengl_context.display,
+                    display,
                     &mut target,
                 );
             }
 
-            self.render_gui();
-            self.gui.paint(&self.opengl_context.display, &mut target);
+            self.render_gui(window);
+            self.gui.paint(display, &mut target);
         }
         target.finish().unwrap();
     }
 
-    fn render_gui(&mut self) {
-        self.gui.run(&self.opengl_context.window, |ctx| {
+    fn render_gui(&mut self, window: &Window) {
+        self.gui.run(window, |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {

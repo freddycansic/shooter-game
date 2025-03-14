@@ -1,16 +1,11 @@
-mod game;
-mod player;
+use winit::window::WindowAttributes;
 
-use common::app::Application;
+use common::application::Application;
+use common::run;
 use game::Game;
-use winit::event_loop::EventLoop;
+
+mod game;
 
 fn main() {
-    // Winit is dodgey on Wayland, prefer to use Xwayland
-    std::env::set_var("WINIT_UNIX_BACKEND", "x11");
-
-    let event_loop = EventLoop::new().expect("Failed to create event loop");
-
-    let game = Game::new(&event_loop);
-    game.run(event_loop);
+    run::run::<Game>(WindowAttributes::default());
 }

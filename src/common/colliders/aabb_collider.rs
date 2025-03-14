@@ -1,5 +1,6 @@
-use crate::colliders::collider::Collider;
 use cgmath::Vector3;
+
+use crate::colliders::collider::Collider;
 
 #[derive(Clone)]
 pub struct AABBCollider {

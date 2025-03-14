@@ -1,4 +1,4 @@
-pub mod app;
+pub mod application;
 pub mod camera;
 pub mod colors;
 pub mod context;
@@ -10,6 +10,7 @@ pub mod line;
 pub mod maths;
 pub mod models;
 pub mod renderer;
+pub mod run;
 pub mod scene;
 pub mod serde;
 pub mod terrain;

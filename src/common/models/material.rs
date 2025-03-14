@@ -1,9 +1,11 @@
-use crate::texture::Texture2D;
+use std::sync::Arc;
+
 use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
+use crate::texture::Texture2D;
 
 #[derive(Serialize, Deserialize, Clone, Eq, Hash, PartialEq)]
 pub struct Material {

@@ -1,5 +1,7 @@
-use crate::texture::texture;
-use crate::texture::texture::TextureLoadError;
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CubeLayer;
@@ -7,10 +9,10 @@ use glium::uniforms::MagnifySamplerFilter;
 use glium::{BlitTarget, Display, Surface, Texture2d};
 use memoize::memoize;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::texture::texture;
+use crate::texture::texture::TextureLoadError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Cubemap {

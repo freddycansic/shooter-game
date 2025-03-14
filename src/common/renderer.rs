@@ -1,12 +1,6 @@
-use crate::colors::ColorExt;
-use crate::light::{Light, ShaderLight};
-use crate::line::{Line, LinePoint};
-use crate::models::primitives::SimplePoint;
-use crate::models::{primitives, Model};
-use crate::models::{Material, ModelInstance};
-use crate::terrain::Terrain;
-use crate::texture::Cubemap;
-use crate::{context, maths};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use cgmath::{Matrix3, Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
@@ -18,8 +12,16 @@ use glium::{
 };
 use itertools::Itertools;
 use petgraph::stable_graph::NodeReferences;
-use std::collections::HashMap;
-use std::sync::Arc;
+
+use crate::colors::ColorExt;
+use crate::light::{Light, ShaderLight};
+use crate::line::{Line, LinePoint};
+use crate::models::primitives::SimplePoint;
+use crate::models::{primitives, Model};
+use crate::models::{Material, ModelInstance};
+use crate::terrain::Terrain;
+use crate::texture::Cubemap;
+use crate::{context, maths};
 
 pub struct Renderer {
     default_program: Program,
