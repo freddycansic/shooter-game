@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cgmath::{Matrix3, Matrix4, Point3};
+use cgmath::{Matrix3, Matrix4, Point3, Vector2};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
@@ -19,6 +19,7 @@ use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
 use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
 use crate::{context, maths};
@@ -34,6 +35,9 @@ pub struct Renderer {
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
 
     terrain_program: Program,
+
+    quad_program: Program,
+    quad_vertex_buffer: VertexBuffer<QuadVertex>,
 }
 
 impl Renderer {
@@ -73,8 +77,18 @@ impl Renderer {
             display,
         )?;
 
+        let quad_program = context::new_program(
+            "assets/shaders/quad/quad.vert",
+            "assets/shaders/quad/quad.frag",
+            Some("assets/shaders/quad/quad.geom"),
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
+
+        // Idk why 64
+        let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 1)?;
 
         Ok(Self {
             default_program,
@@ -84,6 +98,8 @@ impl Renderer {
             lines_program,
             line_vertex_buffers: HashMap::new(),
             terrain_program,
+            quad_program,
+            quad_vertex_buffer,
         })
     }
 
@@ -179,6 +195,42 @@ impl Renderer {
                 },
             )
             .unwrap()
+    }
+
+    pub fn render_quads(&mut self, quads: &[Quad], target: &mut Frame) {
+        if quads.is_empty() {
+            return;
+        }
+
+        let quad_vertices = quads
+            .iter()
+            .cloned()
+            .into_iter()
+            .map(QuadVertex::from)
+            .collect_vec();
+
+        self.quad_vertex_buffer.write(&quad_vertices);
+
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
+        // TODO group on textures
+        let uniforms = uniform! {
+            diffuse_texture: Sampler(quads.first().unwrap().texture.inner_texture.as_ref().unwrap(), sample_behaviour)
+        };
+
+        target
+            .draw(
+                &self.quad_vertex_buffer,
+                NoIndices(PrimitiveType::Points),
+                &self.quad_program,
+                &uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
     }
 
     pub fn render_skybox(

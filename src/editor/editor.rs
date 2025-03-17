@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use cgmath::Point3;
+use cgmath::{Point2, Point3, Vector2};
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use egui_glium::EguiGlium;
@@ -31,6 +31,7 @@ use common::light::Light;
 use common::line::Line;
 use common::models::ModelInstance;
 use common::models::{Material, Model};
+use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Background;
 use common::terrain::Terrain;
@@ -112,40 +113,40 @@ impl Application for Editor {
                     2,
                 ),
             ],
-            terrain: Some(
-                Terrain::load(
-                    &PathBuf::from("assets/terrain/terrain_heightmap.png"),
-                    &Material {
-                        diffuse: Texture2D::load(
-                            PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
-                            display,
-                        )
-                        .unwrap(),
-                        ..Material::default(display).unwrap()
-                    },
-                    display,
-                )
-                .unwrap(),
-            ),
+            // terrain: Some(
+            //     Terrain::load(
+            //         &PathBuf::from("assets/terrain/terrain_heightmap.png"),
+            //         &Material {
+            //             diffuse: Texture2D::load(
+            //                 PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
+            //                 display,
+            //             )
+            //             .unwrap(),
+            //             ..Material::default(display).unwrap()
+            //         },
+            //         display,
+            //     )
+            //     .unwrap(),
+            // ),
             ..Default::default()
         };
 
         let camera = OrbitalCamera::default();
 
-        let mut model_instance = ModelInstance::from(
-            Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
-        );
-        model_instance.material = Some(Material {
-            diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
-                .unwrap(),
-            specular: Texture2D::load(
-                PathBuf::from("assets/textures/container_specular.png"),
-                display,
-            )
-            .unwrap(),
-        });
+        // let mut model_instance = ModelInstance::from(
+        //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
+        // );
+        // model_instance.material = Some(Material {
+        //     diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
+        //         .unwrap(),
+        //     specular: Texture2D::load(
+        //         PathBuf::from("assets/textures/container_specular.png"),
+        //         display,
+        //     )
+        //     .unwrap(),
+        // });
 
-        scene.graph.add_node(model_instance.clone());
+        // scene.graph.add_node(model_instance.clone());
         // let child1 = scene.graph.add_node(model_instance.clone());
         // scene.graph.add_edge(root1, child1, ());
         //
@@ -159,6 +160,12 @@ impl Application for Editor {
         scene.lights.push(Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
+        });
+
+        scene.quads.push(Quad {
+            position: Point2::new(0.1, 0.1),
+            size: Vector2::new(0.2, 0.2),
+            texture: Texture2D::default_diffuse(display).unwrap(),
         });
 
         // let size = 10;
@@ -248,9 +255,9 @@ impl Application for Editor {
     fn device_event(
         &mut self,
         device_event: DeviceEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
+        _event_loop: &ActiveEventLoop,
+        _window: &Window,
+        _display: &Display<WindowSurface>,
     ) {
         self.input.process_device_event(device_event);
     }

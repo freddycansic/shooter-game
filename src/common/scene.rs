@@ -17,6 +17,7 @@ use crate::light::Light;
 use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
+use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::terrain::Terrain;
 use crate::texture::{Cubemap, Texture2D};
@@ -41,6 +42,7 @@ pub struct Scene {
     pub background: Background,
     pub lights: Vec<Light>,
     pub terrain: Option<Terrain>,
+    pub quads: Vec<Quad>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -50,6 +52,7 @@ impl Scene {
         Self {
             graph: StableDiGraph::new(),
             lines: vec![],
+            quads: vec![],
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
@@ -97,6 +100,10 @@ impl Scene {
 
         if let Background::HDRI(cubemap) = scene.background {
             scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
+        }
+
+        for quad in scene.quads.iter_mut() {
+            quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
         }
 
         Ok(scene)
@@ -161,6 +168,8 @@ impl Scene {
         }
 
         renderer.render_lines(&self.lines, &view_projection, display, target);
+
+        renderer.render_quads(&self.quads, target);
     }
 }
 
