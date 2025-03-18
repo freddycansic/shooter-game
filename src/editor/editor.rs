@@ -162,11 +162,18 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        scene.quads.push(Quad {
-            position: Point2::new(0.1, 0.1),
-            size: Vector2::new(0.2, 0.2),
-            texture: Texture2D::default_diffuse(display).unwrap(),
-        });
+        scene.quads.extend_from_slice(&[
+            Quad {
+                position: Point2::new(0.1, 0.1),
+                size: Vector2::new(0.2, 0.2),
+                texture: Texture2D::default_diffuse(display).unwrap(),
+            },
+            Quad {
+                position: Point2::new(-1.0, -1.0),
+                size: Vector2::new(1.0, 1.0),
+                texture: Texture2D::default_diffuse(display).unwrap(),
+            },
+        ]);
 
         // let size = 10;
         // let model_instance = ModelInstance::from(

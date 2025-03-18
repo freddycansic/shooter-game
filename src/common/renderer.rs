@@ -88,7 +88,7 @@ impl Renderer {
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
         // Idk why 64
-        let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 1)?;
+        let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
 
         Ok(Self {
             default_program,
@@ -197,19 +197,33 @@ impl Renderer {
             .unwrap()
     }
 
-    pub fn render_quads(&mut self, quads: &[Quad], target: &mut Frame) {
+    pub fn render_quads(
+        &mut self,
+        quads: &[Quad],
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
         if quads.is_empty() {
             return;
         }
 
-        let quad_vertices = quads
-            .iter()
-            .cloned()
-            .into_iter()
-            .map(QuadVertex::from)
-            .collect_vec();
+        let quad_vertices = quads.iter().into_group_map_by(|quad| quad.texture);
+        for (texture, quads) in quad_vertices {
+            // TODO
+        }
 
-        self.quad_vertex_buffer.write(&quad_vertices);
+        if self.quad_vertex_buffer.len() < quads.len() {
+            self.quad_vertex_buffer =
+                VertexBuffer::empty_dynamic(display, self.quad_vertex_buffer.len() * 2).unwrap();
+        }
+
+        // Drop mutable borrow so that immutable borrow may occur later
+        {
+            let mut write_mapping = self.quad_vertex_buffer.map_write();
+            for (i, quad_vertex) in quads.iter().cloned().into_iter().enumerate() {
+                write_mapping.set(i, QuadVertex::from(quad_vertex));
+            }
+        }
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
@@ -224,7 +238,7 @@ impl Renderer {
 
         target
             .draw(
-                &self.quad_vertex_buffer,
+                self.quad_vertex_buffer.slice(0..quads.len()).unwrap(),
                 NoIndices(PrimitiveType::Points),
                 &self.quad_program,
                 &uniforms,

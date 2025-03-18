@@ -169,7 +169,7 @@ impl Scene {
 
         renderer.render_lines(&self.lines, &view_projection, display, target);
 
-        renderer.render_quads(&self.quads, target);
+        renderer.render_quads(&self.quads, display, target);
     }
 }
 
