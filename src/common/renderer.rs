@@ -12,6 +12,7 @@ use glium::{
 };
 use itertools::Itertools;
 use petgraph::stable_graph::NodeReferences;
+use uuid::Uuid;
 
 use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
@@ -37,7 +38,7 @@ pub struct Renderer {
     terrain_program: Program,
 
     quad_program: Program,
-    quad_vertex_buffer: VertexBuffer<QuadVertex>,
+    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
 }
 
 impl Renderer {
@@ -88,7 +89,7 @@ impl Renderer {
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
         // Idk why 64
-        let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
+        // let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
 
         Ok(Self {
             default_program,
@@ -99,7 +100,7 @@ impl Renderer {
             line_vertex_buffers: HashMap::new(),
             terrain_program,
             quad_program,
-            quad_vertex_buffer,
+            quad_vertex_buffers: HashMap::new(),
         })
     }
 
@@ -207,44 +208,89 @@ impl Renderer {
             return;
         }
 
-        let quad_vertices = quads.iter().into_group_map_by(|quad| quad.texture);
-        for (texture, quads) in quad_vertices {
-            // TODO
-        }
-
-        if self.quad_vertex_buffer.len() < quads.len() {
-            self.quad_vertex_buffer =
-                VertexBuffer::empty_dynamic(display, self.quad_vertex_buffer.len() * 2).unwrap();
-        }
-
-        // Drop mutable borrow so that immutable borrow may occur later
-        {
-            let mut write_mapping = self.quad_vertex_buffer.map_write();
-            for (i, quad_vertex) in quads.iter().cloned().into_iter().enumerate() {
-                write_mapping.set(i, QuadVertex::from(quad_vertex));
-            }
-        }
-
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
             magnify_filter: MagnifySamplerFilter::Nearest,
             ..SamplerBehavior::default()
         };
 
-        // TODO group on textures
-        let uniforms = uniform! {
-            diffuse_texture: Sampler(quads.first().unwrap().texture.inner_texture.as_ref().unwrap(), sample_behaviour)
-        };
-
-        target
-            .draw(
-                self.quad_vertex_buffer.slice(0..quads.len()).unwrap(),
-                NoIndices(PrimitiveType::Points),
-                &self.quad_program,
-                &uniforms,
-                &DrawParameters::default(),
+        let grouped_quads = quads
+            .iter()
+            .cloned()
+            .into_group_map_by(|quad| quad.texture.clone());
+        let grouped_quad_vertices = grouped_quads.into_iter().map(|(texture, quads)| {
+            (
+                texture,
+                quads.into_iter().map(QuadVertex::from).collect_vec(),
             )
-            .unwrap();
+        });
+
+        const INITIAL_VERTEX_BUFFER_SIZE: u32 = 128;
+        for (texture, quad_vertices) in grouped_quad_vertices {
+            if let Some(quad_vertex_buffer) = self.quad_vertex_buffers.get_mut(&texture.uuid) {
+                // If the allocated vertex buffer is too small, then double the size
+                if quad_vertex_buffer.len() < quad_vertices.len() {
+                    *quad_vertex_buffer = context::new_sized_dynamic_vertex_buffer_with_data(
+                        display,
+                        quad_vertex_buffer.len() * 2,
+                        &quad_vertices,
+                    )
+                    .unwrap();
+                // If it is big enough then write quads
+                } else {
+                    quad_vertex_buffer
+                        .slice_mut(..quad_vertices.len())
+                        .unwrap()
+                        .write(&quad_vertices);
+                }
+            // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
+            } else {
+                // Smallest 2^x above current len
+                // Example
+                // quad_vertices.len() = 150
+                // 100.log2() = ~7.23
+                // 7.23.ceil() = 8
+                // 2.pow(8) = 256
+                // min_size = 256.max(INITIAL_VERTEX_BUFFER_SIZE [128]) = 256
+                let x = (quad_vertices.len() as f64).log2().ceil() as u32;
+                let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE);
+
+                self.quad_vertex_buffers.insert(
+                    texture.uuid,
+                    context::new_sized_dynamic_vertex_buffer_with_data(
+                        display,
+                        min_size as usize,
+                        &quad_vertices,
+                    )
+                    .unwrap(),
+                );
+            }
+
+            let uniforms = uniform! {
+                diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour)
+            };
+
+            target
+                .draw(
+                    self.quad_vertex_buffers
+                        .get(&texture.uuid)
+                        .unwrap()
+                        .slice(0..quad_vertices.len())
+                        .unwrap(),
+                    NoIndices(PrimitiveType::Points),
+                    &self.quad_program,
+                    &uniforms,
+                    &DrawParameters {
+                        depth: Depth {
+                            test: DepthTest::IfLessOrEqual,
+                            write: true,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
     }
 
     pub fn render_skybox(

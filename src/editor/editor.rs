@@ -173,6 +173,12 @@ impl Application for Editor {
                 size: Vector2::new(1.0, 1.0),
                 texture: Texture2D::default_diffuse(display).unwrap(),
             },
+            Quad {
+                position: Point2::new(-0.7, -0.7),
+                size: Vector2::new(1.0, 1.0),
+                texture: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
+                    .unwrap(),
+            },
         ]);
 
         // let size = 10;
