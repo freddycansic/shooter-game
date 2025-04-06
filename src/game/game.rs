@@ -1,3 +1,4 @@
+use cgmath::{Point2, Vector2};
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -12,8 +13,10 @@ use common::application::Application;
 use common::camera::Camera;
 use common::debug;
 use common::input::Input;
+use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Scene;
+use common::texture::Texture2D;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -59,7 +62,7 @@ impl Application for Game {
         debug::set_up_logging();
 
         let renderer = Renderer::new(display).unwrap();
-        let scene =
+        let mut scene =
             Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
 
         // scene.camera = scene.starting_camera.clone();
@@ -70,6 +73,13 @@ impl Application for Game {
             -Vector3::new(3.0, 0.2, 3.0).normalize(),
             inner_size.width as f32 / inner_size.height as f32,
         );*/
+
+        scene.quads.push(Quad {
+            position: Point2::new(0.1, 0.1),
+            size: Vector2::new(0.2, 0.2),
+            texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
+                .unwrap(),
+        });
 
         let state = FrameState::default();
         let input = Input::new();
