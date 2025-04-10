@@ -7,7 +7,9 @@ layout(location = 2) in int layer;
 out vec2 vs_out_size;
 
 void main() {
-    float factor = 0.001;
-    gl_Position = vec4(position, float(-layer) * factor, 1.0);
+    // Add 50 to the layer so that 0 starts at -50
+    // Then layer 1 would equate to -49
+    // and layer -1 would equate to -51
+    gl_Position = vec4(position, float(-(layer + 50)), 1.0);
     vs_out_size = size;
 }

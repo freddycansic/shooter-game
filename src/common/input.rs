@@ -1,8 +1,7 @@
 use cgmath::{Vector2, Zero};
 use log::warn;
 use winit::dpi::PhysicalPosition;
-use winit::event::{DeviceEvent, Event, MouseButton, MouseScrollDelta, WindowEvent};
-use winit::window::WindowId;
+use winit::event::{DeviceEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::{
     event::{ElementState, KeyEvent},
     keyboard::{KeyCode, NativeKeyCode, PhysicalKey},

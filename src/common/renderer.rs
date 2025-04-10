@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cgmath::{Matrix3, Matrix4, Point3, Vector2};
+use cgmath::{Matrix3, Matrix4, Point3, Rad};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
@@ -26,6 +26,9 @@ use crate::texture::Cubemap;
 use crate::{context, maths};
 
 pub struct Renderer {
+    orthograhic_projection: Matrix4<f32>,
+    perspective_projection: Matrix4<f32>,
+
     default_program: Program,
 
     skybox_program: Program,
@@ -42,7 +45,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(display: &Display<WindowSurface>) -> Result<Self> {
+    pub fn new(
+        window_width: f32,
+        window_height: f32,
+        display: &Display<WindowSurface>,
+    ) -> Result<Self> {
         let default_program = context::new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
@@ -92,6 +99,20 @@ impl Renderer {
         // let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
 
         Ok(Self {
+            orthograhic_projection: cgmath::ortho(
+                0.0,
+                window_width,
+                0.0,
+                window_height,
+                0.01,
+                100.0,
+            ),
+            perspective_projection: cgmath::perspective(
+                Rad(std::f32::consts::FRAC_PI_2),
+                window_width / window_height,
+                0.01,
+                100.0,
+            ),
             default_program,
             skybox_program,
             light_program,
@@ -104,10 +125,22 @@ impl Renderer {
         })
     }
 
+    pub fn update_projection_matrices(&mut self, window_width: f32, window_height: f32) {
+        self.orthograhic_projection =
+            cgmath::ortho(0.0, window_width, 0.0, window_height, 0.01, 100.0);
+
+        self.perspective_projection = cgmath::perspective(
+            Rad(std::f32::consts::FRAC_PI_2),
+            window_width / window_height,
+            0.01,
+            100.0,
+        );
+    }
+
     pub fn render_model_instances(
         &mut self,
         model_instances: NodeReferences<ModelInstance>,
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         camera_position: Point3<f32>,
         lights: &[Light],
         display: &Display<WindowSurface>,
@@ -115,7 +148,7 @@ impl Renderer {
     ) {
         let batched_instances = Self::batch_model_instances(model_instances, display);
 
-        let vp = maths::raw_matrix(*camera_view_projection);
+        let vp = maths::raw_matrix(self.perspective_projection * view);
         let camera_position = <[f32; 3]>::from(camera_position);
 
         let sample_behaviour = SamplerBehavior {
@@ -164,7 +197,7 @@ impl Renderer {
     pub fn render_terrain(
         &mut self,
         terrain: &Terrain,
-        view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         camera_position: Point3<f32>,
         target: &mut Frame,
     ) {
@@ -175,7 +208,7 @@ impl Renderer {
         };
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
             camera_position: <[f32; 3]>::from(camera_position),
             diffuse_texture: Sampler(terrain.material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0
         };
@@ -267,7 +300,8 @@ impl Renderer {
             }
 
             let uniforms = uniform! {
-                diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour)
+                diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
+                projection: maths::raw_matrix(self.orthograhic_projection.clone())
             };
 
             target
@@ -293,16 +327,10 @@ impl Renderer {
         }
     }
 
-    pub fn render_skybox(
-        &mut self,
-        cubemap: &Cubemap,
-        view: &Matrix4<f32>,
-        projection: &Matrix4<f32>,
-        target: &mut Frame,
-    ) {
+    pub fn render_skybox(&mut self, cubemap: &Cubemap, view: &Matrix4<f32>, target: &mut Frame) {
         // Strip translation from view matrix = skybox is always in the same place
         let view = Matrix4::from(Matrix3::from_cols(view.x.xyz(), view.y.xyz(), view.z.xyz()));
-        let view_projection = projection * view;
+        let vp = self.perspective_projection * view;
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
@@ -311,7 +339,7 @@ impl Renderer {
         };
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(view_projection),
+            vp: maths::raw_matrix(vp),
             skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
         };
 
@@ -329,7 +357,7 @@ impl Renderer {
     pub fn render_lines(
         &mut self,
         lines: &[Line],
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -342,7 +370,7 @@ impl Renderer {
         self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*camera_view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
         };
 
         for (width, line_points) in self.line_vertex_buffers.iter() {
@@ -364,7 +392,7 @@ impl Renderer {
     pub fn render_lights(
         &mut self,
         lights: &[Light],
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -380,7 +408,7 @@ impl Renderer {
         let light_instance_buffer = VertexBuffer::new(display, &shader_lights).unwrap();
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*camera_view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
         };
 
         target

@@ -132,7 +132,6 @@ impl Scene {
         &mut self,
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
-        projection: &Matrix4<f32>,
         camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -148,15 +147,13 @@ impl Scene {
                         .into(),
                     1.0,
                 );
-                renderer.render_skybox(cubemap, view, projection, target);
+                renderer.render_skybox(cubemap, view, target);
             }
         }
 
-        let view_projection = projection * view;
-
         renderer.render_model_instances(
             self.graph.node_references(),
-            &view_projection,
+            view,
             camera_position,
             &self.lights,
             display,
@@ -164,10 +161,10 @@ impl Scene {
         );
 
         if let Some(terrain) = &self.terrain {
-            renderer.render_terrain(terrain, &view_projection, camera_position, target);
+            renderer.render_terrain(terrain, view, camera_position, target);
         }
 
-        renderer.render_lines(&self.lines, &view_projection, display, target);
+        renderer.render_lines(&self.lines, view, display, target);
 
         renderer.render_quads(&self.quads, display, target);
     }

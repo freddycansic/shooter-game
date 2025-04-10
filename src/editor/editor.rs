@@ -17,9 +17,8 @@ use petgraph::stable_graph::NodeIndex;
 use petgraph::visit::{Bfs, IntoNodeReferences};
 use petgraph::Direction;
 use rfd::FileDialog;
-use winit::application::ApplicationHandler;
-use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event::{DeviceEvent, MouseButton, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
@@ -34,7 +33,6 @@ use common::models::{Material, Model};
 use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Background;
-use common::terrain::Terrain;
 use common::texture::{Cubemap, Texture2D};
 use common::*;
 use input::Input;
@@ -133,16 +131,16 @@ impl Application for Editor {
 
         scene.quads.extend_from_slice(&[
             Quad {
-                position: Point2::new(0.1, 0.1),
-                size: Vector2::new(0.2, 0.2),
+                position: Point2::new(400.0, 300.0),
+                size: Vector2::new(50.0, 50.0),
                 texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: -10,
+                layer: 1,
             },
             Quad {
                 position: Point2::new(-1.0, -1.0),
                 size: Vector2::new(1.0, 1.0),
                 texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: -10,
+                layer: 1,
             },
             Quad {
                 position: Point2::new(-0.7, -0.7),
@@ -177,7 +175,9 @@ impl Application for Editor {
         // scene.graph.add_edge(child1, grandchild1, ());
         // scene.graph.add_edge(child1, grandchild2, ());
 
-        let renderer = Renderer::new(display).unwrap();
+        let inner_size = window.inner_size();
+        let renderer =
+            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
 
         scene.lights.push(Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -245,8 +245,8 @@ impl Application for Editor {
             WindowEvent::Resized(new_size) => {
                 display.resize((new_size.width, new_size.height));
 
-                self.camera
-                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+                self.renderer
+                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
                 if self.input.key_pressed(KeyCode::Escape) {
@@ -337,7 +337,6 @@ impl Editor {
             self.scene.render(
                 &mut self.renderer,
                 &self.camera.view(),
-                &self.camera.projection(),
                 self.camera.position(),
                 display,
                 &mut target,
@@ -346,7 +345,7 @@ impl Editor {
             if self.state.gui.render_lights {
                 self.renderer.render_lights(
                     &self.scene.lights,
-                    &(self.camera.projection() * self.camera.view()),
+                    &self.camera.view(),
                     display,
                     &mut target,
                 );

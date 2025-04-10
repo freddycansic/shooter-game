@@ -61,7 +61,9 @@ impl Application for Game {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
-        let renderer = Renderer::new(display).unwrap();
+        let inner_size = window.inner_size();
+        let renderer =
+            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
         let mut scene =
             Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
 
@@ -77,6 +79,7 @@ impl Application for Game {
         scene.quads.push(Quad {
             position: Point2::new(0.1, 0.1),
             size: Vector2::new(0.2, 0.2),
+            layer: 0,
             texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
                 .unwrap(),
         });
@@ -106,9 +109,8 @@ impl Application for Game {
             WindowEvent::Resized(new_size) => {
                 display.resize((new_size.width, new_size.height));
 
-                self.scene
-                    .camera
-                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+                self.renderer
+                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
                 if self.input.key_pressed(KeyCode::Escape) {
@@ -161,7 +163,6 @@ impl Game {
             self.scene.render(
                 &mut self.renderer,
                 &self.scene.camera.view(),
-                &self.scene.camera.projection(),
                 self.scene.camera.position(),
                 display,
                 &mut target,

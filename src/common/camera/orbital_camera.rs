@@ -1,7 +1,6 @@
 use cgmath::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 
-use crate::camera::camera;
 use crate::camera::camera::Camera;
 use crate::input::Input;
 
@@ -10,19 +9,17 @@ pub struct OrbitalCamera {
     pub target: Point3<f32>,
     pub radius: f32,
 
-    projection: Matrix4<f32>,
     position: Point3<f32>,
     yaw: f32,
     pitch: f32,
 }
 
 impl OrbitalCamera {
-    fn new(target: Point3<f32>, radius: f32, ratio: f32) -> Self {
+    fn new(target: Point3<f32>, radius: f32) -> Self {
         Self {
             position: Point3::new(radius, 0.0, 0.0),
             radius,
             target,
-            projection: camera::perspective(ratio),
             yaw: 0.0,
             pitch: std::f32::consts::FRAC_PI_2,
         }
@@ -63,10 +60,6 @@ impl Camera for OrbitalCamera {
         self.update_position();
     }
 
-    fn set_aspect_ratio(&mut self, ratio: f32) {
-        self.projection = camera::perspective(ratio);
-    }
-
     fn position(&self) -> Point3<f32> {
         self.position
     }
@@ -74,14 +67,10 @@ impl Camera for OrbitalCamera {
     fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(self.position, self.target, Vector3::unit_y())
     }
-
-    fn projection(&self) -> Matrix4<f32> {
-        self.projection
-    }
 }
 
 impl Default for OrbitalCamera {
     fn default() -> Self {
-        Self::new(Point3::new(0.0, 0.0, 0.0), 5.0, 1920.0 / 1080.0)
+        Self::new(Point3::new(0.0, 0.0, 0.0), 5.0)
     }
 }
