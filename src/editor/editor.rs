@@ -143,9 +143,9 @@ impl Application for Editor {
                 layer: 1,
             },
             Quad {
-                position: Point2::new(-0.7, -0.7),
-                size: Vector2::new(1.0, 1.0),
-                texture: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
+                position: Point2::new(200.0, 200.0),
+                size: Vector2::new(100.0, 100.0),
+                texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
                     .unwrap(),
                 layer: 1,
             },

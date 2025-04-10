@@ -7,8 +7,8 @@ use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    VertexBuffer,
+    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
+    Surface, VertexBuffer,
 };
 use itertools::Itertools;
 use petgraph::stable_graph::NodeReferences;
@@ -320,6 +320,7 @@ impl Renderer {
                             write: true,
                             ..Default::default()
                         },
+                        blend: Blend::alpha_blending(),
                         ..Default::default()
                     },
                 )

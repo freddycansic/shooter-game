@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
-use winit::event::{DeviceEvent, WindowEvent};
+use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
@@ -139,7 +139,8 @@ impl Application for Game {
 
 impl Game {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        self.state.is_moving_camera = true;
+        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
+            || self.input.key_down(KeyCode::Space);
 
         if self.state.is_moving_camera {
             self.scene
