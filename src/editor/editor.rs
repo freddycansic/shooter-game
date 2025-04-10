@@ -3,7 +3,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use cgmath::Point3;
+use cgmath::{Point2, Point3, Vector2};
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use egui_glium::EguiGlium;
@@ -17,9 +17,8 @@ use petgraph::stable_graph::NodeIndex;
 use petgraph::visit::{Bfs, IntoNodeReferences};
 use petgraph::Direction;
 use rfd::FileDialog;
-use winit::application::ApplicationHandler;
-use winit::event::{DeviceEvent, Event, MouseButton, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event::{DeviceEvent, MouseButton, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
@@ -31,9 +30,9 @@ use common::light::Light;
 use common::line::Line;
 use common::models::ModelInstance;
 use common::models::{Material, Model};
+use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Background;
-use common::terrain::Terrain;
 use common::texture::{Cubemap, Texture2D};
 use common::*;
 use input::Input;
@@ -112,40 +111,62 @@ impl Application for Editor {
                     2,
                 ),
             ],
-            terrain: Some(
-                Terrain::load(
-                    &PathBuf::from("assets/terrain/terrain_heightmap.png"),
-                    &Material {
-                        diffuse: Texture2D::load(
-                            PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
-                            display,
-                        )
-                        .unwrap(),
-                        ..Material::default(display).unwrap()
-                    },
-                    display,
-                )
-                .unwrap(),
-            ),
+            // terrain: Some(
+            //     Terrain::load(
+            //         &PathBuf::from("assets/terrain/terrain_heightmap.png"),
+            //         &Material {
+            //             diffuse: Texture2D::load(
+            //                 PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
+            //                 display,
+            //             )
+            //             .unwrap(),
+            //             ..Material::default(display).unwrap()
+            //         },
+            //         display,
+            //     )
+            //     .unwrap(),
+            // ),
             ..Default::default()
         };
 
+        scene.quads.extend_from_slice(&[
+            Quad {
+                position: Point2::new(400.0, 300.0),
+                size: Vector2::new(50.0, 50.0),
+                texture: Texture2D::default_diffuse(display).unwrap(),
+                layer: 1,
+            },
+            Quad {
+                position: Point2::new(-1.0, -1.0),
+                size: Vector2::new(1.0, 1.0),
+                texture: Texture2D::default_diffuse(display).unwrap(),
+                layer: 1,
+            },
+            Quad {
+                position: Point2::new(200.0, 200.0),
+                size: Vector2::new(100.0, 100.0),
+                texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
+                    .unwrap(),
+                layer: 1,
+            },
+        ]);
+
         let camera = OrbitalCamera::default();
 
-        let mut model_instance = ModelInstance::from(
-            Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
-        );
-        model_instance.material = Some(Material {
-            diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
-                .unwrap(),
-            specular: Texture2D::load(
-                PathBuf::from("assets/textures/container_specular.png"),
-                display,
-            )
-            .unwrap(),
-        });
+        // let mut model_instance = ModelInstance::from(
+        //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
+        // );
+        // model_instance.material = Some(Material {
+        //     diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
+        //         .unwrap(),
+        //     specular: Texture2D::load(
+        //         PathBuf::from("assets/textures/container_specular.png"),
+        //         display,
+        //     )
+        //     .unwrap(),
+        // });
 
-        scene.graph.add_node(model_instance.clone());
+        // scene.graph.add_node(model_instance.clone());
         // let child1 = scene.graph.add_node(model_instance.clone());
         // scene.graph.add_edge(root1, child1, ());
         //
@@ -154,7 +175,9 @@ impl Application for Editor {
         // scene.graph.add_edge(child1, grandchild1, ());
         // scene.graph.add_edge(child1, grandchild2, ());
 
-        let renderer = Renderer::new(display).unwrap();
+        let inner_size = window.inner_size();
+        let renderer =
+            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
 
         scene.lights.push(Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -222,8 +245,8 @@ impl Application for Editor {
             WindowEvent::Resized(new_size) => {
                 display.resize((new_size.width, new_size.height));
 
-                self.camera
-                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+                self.renderer
+                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
                 if self.input.key_pressed(KeyCode::Escape) {
@@ -248,9 +271,9 @@ impl Application for Editor {
     fn device_event(
         &mut self,
         device_event: DeviceEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
+        _event_loop: &ActiveEventLoop,
+        _window: &Window,
+        _display: &Display<WindowSurface>,
     ) {
         self.input.process_device_event(device_event);
     }
@@ -314,7 +337,6 @@ impl Editor {
             self.scene.render(
                 &mut self.renderer,
                 &self.camera.view(),
-                &self.camera.projection(),
                 self.camera.position(),
                 display,
                 &mut target,
@@ -323,7 +345,7 @@ impl Editor {
             if self.state.gui.render_lights {
                 self.renderer.render_lights(
                     &self.scene.lights,
-                    &(self.camera.projection() * self.camera.view()),
+                    &self.camera.view(),
                     display,
                     &mut target,
                 );

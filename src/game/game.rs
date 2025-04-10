@@ -1,9 +1,10 @@
+use cgmath::{Point2, Vector2};
 use std::path::PathBuf;
 use std::time::Instant;
 
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
-use winit::event::{DeviceEvent, WindowEvent};
+use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
@@ -12,8 +13,10 @@ use common::application::Application;
 use common::camera::Camera;
 use common::debug;
 use common::input::Input;
+use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Scene;
+use common::texture::Texture2D;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -58,8 +61,10 @@ impl Application for Game {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
-        let renderer = Renderer::new(display).unwrap();
-        let scene =
+        let inner_size = window.inner_size();
+        let renderer =
+            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
+        let mut scene =
             Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
 
         // scene.camera = scene.starting_camera.clone();
@@ -70,6 +75,14 @@ impl Application for Game {
             -Vector3::new(3.0, 0.2, 3.0).normalize(),
             inner_size.width as f32 / inner_size.height as f32,
         );*/
+
+        scene.quads.push(Quad {
+            position: Point2::new(0.1, 0.1),
+            size: Vector2::new(0.2, 0.2),
+            layer: 0,
+            texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
+                .unwrap(),
+        });
 
         let state = FrameState::default();
         let input = Input::new();
@@ -96,9 +109,8 @@ impl Application for Game {
             WindowEvent::Resized(new_size) => {
                 display.resize((new_size.width, new_size.height));
 
-                self.scene
-                    .camera
-                    .set_aspect_ratio(new_size.width as f32 / new_size.height as f32);
+                self.renderer
+                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
                 if self.input.key_pressed(KeyCode::Escape) {
@@ -127,7 +139,8 @@ impl Application for Game {
 
 impl Game {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        self.state.is_moving_camera = true;
+        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
+            || self.input.key_down(KeyCode::Space);
 
         if self.state.is_moving_camera {
             self.scene
@@ -151,7 +164,6 @@ impl Game {
             self.scene.render(
                 &mut self.renderer,
                 &self.scene.camera.view(),
-                &self.scene.camera.projection(),
                 self.scene.camera.position(),
                 display,
                 &mut target,

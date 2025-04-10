@@ -2,13 +2,11 @@ use cgmath::{InnerSpace, Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
-use crate::camera::camera;
 use crate::camera::camera::Camera;
 use crate::input::Input;
 
 #[derive(Serialize, Deserialize)]
 pub struct FpsCamera {
-    projection: Matrix4<f32>,
     position: Point3<f32>,
     yaw: f32,
     pitch: f32,
@@ -16,10 +14,9 @@ pub struct FpsCamera {
 }
 
 impl FpsCamera {
-    fn new(position: Point3<f32>, ratio: f32) -> Self {
+    fn new(position: Point3<f32>) -> Self {
         Self {
             position,
-            projection: camera::perspective(ratio),
             yaw: 0.0,
             pitch: std::f32::consts::FRAC_PI_2,
             looking_direction: Vector3::unit_x(),
@@ -74,10 +71,6 @@ impl Camera for FpsCamera {
         }
     }
 
-    fn set_aspect_ratio(&mut self, ratio: f32) {
-        self.projection = camera::perspective(ratio);
-    }
-
     fn position(&self) -> Point3<f32> {
         self.position
     }
@@ -89,14 +82,10 @@ impl Camera for FpsCamera {
             Vector3::unit_y(),
         )
     }
-
-    fn projection(&self) -> Matrix4<f32> {
-        self.projection
-    }
 }
 
 impl Default for FpsCamera {
     fn default() -> Self {
-        Self::new(Point3::new(0.0, 0.0, 0.0), 1920.0 / 1080.0)
+        Self::new(Point3::new(0.0, 0.0, 0.0))
     }
 }

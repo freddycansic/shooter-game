@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cgmath::{Matrix3, Matrix4, Point3};
+use cgmath::{Matrix3, Matrix4, Point3, Rad};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    VertexBuffer,
+    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
+    Surface, VertexBuffer,
 };
 use itertools::Itertools;
 use petgraph::stable_graph::NodeReferences;
+use uuid::Uuid;
 
 use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
@@ -19,11 +20,15 @@ use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
 use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
 use crate::{context, maths};
 
 pub struct Renderer {
+    orthograhic_projection: Matrix4<f32>,
+    perspective_projection: Matrix4<f32>,
+
     default_program: Program,
 
     skybox_program: Program,
@@ -34,10 +39,17 @@ pub struct Renderer {
     line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
 
     terrain_program: Program,
+
+    quad_program: Program,
+    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
 }
 
 impl Renderer {
-    pub fn new(display: &Display<WindowSurface>) -> Result<Self> {
+    pub fn new(
+        window_width: f32,
+        window_height: f32,
+        display: &Display<WindowSurface>,
+    ) -> Result<Self> {
         let default_program = context::new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
@@ -73,10 +85,34 @@ impl Renderer {
             display,
         )?;
 
+        let quad_program = context::new_program(
+            "assets/shaders/quad/quad.vert",
+            "assets/shaders/quad/quad.frag",
+            Some("assets/shaders/quad/quad.geom"),
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
+        // Idk why 64
+        // let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
+
         Ok(Self {
+            orthograhic_projection: cgmath::ortho(
+                0.0,
+                window_width,
+                0.0,
+                window_height,
+                0.01,
+                100.0,
+            ),
+            perspective_projection: cgmath::perspective(
+                Rad(std::f32::consts::FRAC_PI_2),
+                window_width / window_height,
+                0.01,
+                100.0,
+            ),
             default_program,
             skybox_program,
             light_program,
@@ -84,13 +120,27 @@ impl Renderer {
             lines_program,
             line_vertex_buffers: HashMap::new(),
             terrain_program,
+            quad_program,
+            quad_vertex_buffers: HashMap::new(),
         })
+    }
+
+    pub fn update_projection_matrices(&mut self, window_width: f32, window_height: f32) {
+        self.orthograhic_projection =
+            cgmath::ortho(0.0, window_width, 0.0, window_height, 0.01, 100.0);
+
+        self.perspective_projection = cgmath::perspective(
+            Rad(std::f32::consts::FRAC_PI_2),
+            window_width / window_height,
+            0.01,
+            100.0,
+        );
     }
 
     pub fn render_model_instances(
         &mut self,
         model_instances: NodeReferences<ModelInstance>,
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         camera_position: Point3<f32>,
         lights: &[Light],
         display: &Display<WindowSurface>,
@@ -98,7 +148,7 @@ impl Renderer {
     ) {
         let batched_instances = Self::batch_model_instances(model_instances, display);
 
-        let vp = maths::raw_matrix(*camera_view_projection);
+        let vp = maths::raw_matrix(self.perspective_projection * view);
         let camera_position = <[f32; 3]>::from(camera_position);
 
         let sample_behaviour = SamplerBehavior {
@@ -147,7 +197,7 @@ impl Renderer {
     pub fn render_terrain(
         &mut self,
         terrain: &Terrain,
-        view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         camera_position: Point3<f32>,
         target: &mut Frame,
     ) {
@@ -158,7 +208,7 @@ impl Renderer {
         };
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
             camera_position: <[f32; 3]>::from(camera_position),
             diffuse_texture: Sampler(terrain.material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0
         };
@@ -181,16 +231,107 @@ impl Renderer {
             .unwrap()
     }
 
-    pub fn render_skybox(
+    pub fn render_quads(
         &mut self,
-        cubemap: &Cubemap,
-        view: &Matrix4<f32>,
-        projection: &Matrix4<f32>,
+        quads: &[Quad],
+        display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
+        if quads.is_empty() {
+            return;
+        }
+
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
+        let grouped_quads = quads
+            .iter()
+            .cloned()
+            .into_group_map_by(|quad| quad.texture.clone());
+        let grouped_quad_vertices = grouped_quads.into_iter().map(|(texture, quads)| {
+            (
+                texture,
+                quads.into_iter().map(QuadVertex::from).collect_vec(),
+            )
+        });
+
+        const INITIAL_VERTEX_BUFFER_SIZE: u32 = 128;
+        for (texture, quad_vertices) in grouped_quad_vertices {
+            if let Some(quad_vertex_buffer) = self.quad_vertex_buffers.get_mut(&texture.uuid) {
+                // If the allocated vertex buffer is too small, then double the size
+                if quad_vertex_buffer.len() < quad_vertices.len() {
+                    *quad_vertex_buffer = context::new_sized_dynamic_vertex_buffer_with_data(
+                        display,
+                        quad_vertex_buffer.len() * 2,
+                        &quad_vertices,
+                    )
+                    .unwrap();
+                // If it is big enough then write quads
+                } else {
+                    quad_vertex_buffer
+                        .slice_mut(..quad_vertices.len())
+                        .unwrap()
+                        .write(&quad_vertices);
+                }
+            // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
+            } else {
+                // Smallest 2^x above current len
+                // Example
+                // quad_vertices.len() = 150
+                // 100.log2() = ~7.23
+                // 7.23.ceil() = 8
+                // 2.pow(8) = 256
+                // min_size = 256.max(INITIAL_VERTEX_BUFFER_SIZE [128]) = 256
+                let x = (quad_vertices.len() as f64).log2().ceil() as u32;
+                let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE);
+
+                self.quad_vertex_buffers.insert(
+                    texture.uuid,
+                    context::new_sized_dynamic_vertex_buffer_with_data(
+                        display,
+                        min_size as usize,
+                        &quad_vertices,
+                    )
+                    .unwrap(),
+                );
+            }
+
+            let uniforms = uniform! {
+                diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
+                projection: maths::raw_matrix(self.orthograhic_projection.clone())
+            };
+
+            target
+                .draw(
+                    self.quad_vertex_buffers
+                        .get(&texture.uuid)
+                        .unwrap()
+                        .slice(0..quad_vertices.len())
+                        .unwrap(),
+                    NoIndices(PrimitiveType::Points),
+                    &self.quad_program,
+                    &uniforms,
+                    &DrawParameters {
+                        depth: Depth {
+                            test: DepthTest::IfLessOrEqual,
+                            write: true,
+                            ..Default::default()
+                        },
+                        blend: Blend::alpha_blending(),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
+    }
+
+    pub fn render_skybox(&mut self, cubemap: &Cubemap, view: &Matrix4<f32>, target: &mut Frame) {
         // Strip translation from view matrix = skybox is always in the same place
         let view = Matrix4::from(Matrix3::from_cols(view.x.xyz(), view.y.xyz(), view.z.xyz()));
-        let view_projection = projection * view;
+        let vp = self.perspective_projection * view;
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
@@ -199,7 +340,7 @@ impl Renderer {
         };
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(view_projection),
+            vp: maths::raw_matrix(vp),
             skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
         };
 
@@ -217,7 +358,7 @@ impl Renderer {
     pub fn render_lines(
         &mut self,
         lines: &[Line],
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -230,7 +371,7 @@ impl Renderer {
         self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*camera_view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
         };
 
         for (width, line_points) in self.line_vertex_buffers.iter() {
@@ -252,7 +393,7 @@ impl Renderer {
     pub fn render_lights(
         &mut self,
         lights: &[Light],
-        camera_view_projection: &Matrix4<f32>,
+        view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -268,7 +409,7 @@ impl Renderer {
         let light_instance_buffer = VertexBuffer::new(display, &shader_lights).unwrap();
 
         let uniforms = uniform! {
-            vp: maths::raw_matrix(*camera_view_projection),
+            vp: maths::raw_matrix(self.perspective_projection * view),
         };
 
         target

@@ -3,7 +3,7 @@ use std::fs;
 use color_eyre::Result;
 use glium::backend::glutin::SimpleWindowBuilder;
 use glium::glutin::surface::WindowSurface;
-use glium::{Display, Program};
+use glium::{Display, Program, Vertex, VertexBuffer};
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -95,4 +95,18 @@ pub fn new_program(
         fragment_source.as_str(),
         geometry_source.as_deref(),
     )?)
+}
+
+pub fn new_sized_dynamic_vertex_buffer_with_data<T: Copy + Vertex>(
+    display: &Display<WindowSurface>,
+    size: usize,
+    data: &[T],
+) -> Result<VertexBuffer<T>> {
+    assert!(size >= data.len());
+
+    let mut vertex_buffer = VertexBuffer::<T>::empty_dynamic(display, size)?;
+
+    vertex_buffer.slice_mut(..data.len()).unwrap().write(data);
+
+    Ok(vertex_buffer)
 }

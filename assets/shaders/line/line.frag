@@ -1,6 +1,6 @@
 #version 450
 
-layout (location = 0) out vec4 out_color;
+layout(location = 0) out vec4 out_color;
 
 in VS_OUT {
     vec3 color;

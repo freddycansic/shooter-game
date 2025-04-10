@@ -17,6 +17,7 @@ use crate::light::Light;
 use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
+use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::terrain::Terrain;
 use crate::texture::{Cubemap, Texture2D};
@@ -41,6 +42,7 @@ pub struct Scene {
     pub background: Background,
     pub lights: Vec<Light>,
     pub terrain: Option<Terrain>,
+    pub quads: Vec<Quad>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -50,6 +52,7 @@ impl Scene {
         Self {
             graph: StableDiGraph::new(),
             lines: vec![],
+            quads: vec![],
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
@@ -99,6 +102,10 @@ impl Scene {
             scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
         }
 
+        for quad in scene.quads.iter_mut() {
+            quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
+        }
+
         Ok(scene)
     }
 
@@ -125,7 +132,6 @@ impl Scene {
         &mut self,
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
-        projection: &Matrix4<f32>,
         camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -141,15 +147,13 @@ impl Scene {
                         .into(),
                     1.0,
                 );
-                renderer.render_skybox(cubemap, view, projection, target);
+                renderer.render_skybox(cubemap, view, target);
             }
         }
 
-        let view_projection = projection * view;
-
         renderer.render_model_instances(
             self.graph.node_references(),
-            &view_projection,
+            view,
             camera_position,
             &self.lights,
             display,
@@ -157,10 +161,12 @@ impl Scene {
         );
 
         if let Some(terrain) = &self.terrain {
-            renderer.render_terrain(terrain, &view_projection, camera_position, target);
+            renderer.render_terrain(terrain, view, camera_position, target);
         }
 
-        renderer.render_lines(&self.lines, &view_projection, display, target);
+        renderer.render_lines(&self.lines, view, display, target);
+
+        renderer.render_quads(&self.quads, display, target);
     }
 }
 
