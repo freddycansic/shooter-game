@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::{Material, Model};
 use crate::transform::Transform;
+use crate::ui::selectable::Selectable;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Selectable)]
 pub struct ModelInstance {
     pub model: Arc<Model>,
     pub name: String,

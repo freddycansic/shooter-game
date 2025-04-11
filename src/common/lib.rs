@@ -17,3 +17,4 @@ pub mod serde;
 pub mod terrain;
 pub mod texture;
 pub mod transform;
+pub mod ui;

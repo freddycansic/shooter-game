@@ -17,6 +17,7 @@ use petgraph::stable_graph::NodeIndex;
 use petgraph::visit::{Bfs, IntoNodeReferences};
 use petgraph::Direction;
 use rfd::FileDialog;
+use ui::selectable::Selectable;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -129,27 +130,18 @@ impl Application for Editor {
             ..Default::default()
         };
 
-        scene.quads.extend_from_slice(&[
-            Quad {
-                position: Point2::new(400.0, 300.0),
-                size: Vector2::new(50.0, 50.0),
-                texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: 1,
-            },
-            Quad {
-                position: Point2::new(-1.0, -1.0),
-                size: Vector2::new(1.0, 1.0),
-                texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: 1,
-            },
-            Quad {
-                position: Point2::new(200.0, 200.0),
-                size: Vector2::new(100.0, 100.0),
-                texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
-                    .unwrap(),
-                layer: 1,
-            },
-        ]);
+        scene.quads.add_node(Quad::new(
+            Point2::new(400.0, 300.0),
+            Vector2::new(50.0, 50.0),
+            Texture2D::default_diffuse(display).unwrap(),
+            1,
+        ));
+        scene.quads.add_node(Quad::new(
+            Point2::new(200.0, 200.0),
+            Vector2::new(100.0, 100.0),
+            Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
+            1,
+        ));
 
         let camera = OrbitalCamera::default();
 
@@ -511,14 +503,14 @@ fn make_collapsing_header(
     if children.is_empty() {
         ui.indent(id, |ui| {
             if ui.selectable_label(false, model_name).clicked() {
-                graph[node_index].selected = !graph[node_index].selected;
+                graph[node_index].toggle_selected();
             }
         });
     } else {
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
             .show_header(ui, |ui| {
                 if ui.selectable_label(false, model_name).clicked() {
-                    graph[node_index].selected = !graph[node_index].selected;
+                    graph[node_index].toggle_selected();
                 }
             })
             .body(|ui| {

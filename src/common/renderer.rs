@@ -11,6 +11,7 @@ use glium::{
     Surface, VertexBuffer,
 };
 use itertools::Itertools;
+use petgraph::prelude::StableDiGraph;
 use petgraph::stable_graph::NodeReferences;
 use uuid::Uuid;
 
@@ -233,11 +234,11 @@ impl Renderer {
 
     pub fn render_quads(
         &mut self,
-        quads: &[Quad],
+        quads: &StableDiGraph<Quad, ()>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        if quads.is_empty() {
+        if quads.node_count() == 0 {
             return;
         }
 
@@ -248,9 +249,10 @@ impl Renderer {
         };
 
         let grouped_quads = quads
-            .iter()
+            .node_weights()
             .cloned()
             .into_group_map_by(|quad| quad.texture.clone());
+
         let grouped_quad_vertices = grouped_quads.into_iter().map(|(texture, quads)| {
             (
                 texture,
