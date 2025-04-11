@@ -7,8 +7,8 @@ use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
-    Surface, VertexBuffer,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+    implement_vertex, uniform,
 };
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
@@ -19,8 +19,8 @@ use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
-use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::models::{Model, primitives};
 use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
@@ -317,11 +317,7 @@ impl Renderer {
                     &self.quad_program,
                     &uniforms,
                     &DrawParameters {
-                        depth: Depth {
-                            test: DepthTest::IfLessOrEqual,
-                            write: true,
-                            ..Default::default()
-                        },
+                        // Depth buffer is disabled so that they appear on top
                         blend: Blend::alpha_blending(),
                         ..Default::default()
                     },

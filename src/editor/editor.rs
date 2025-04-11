@@ -4,20 +4,20 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use cgmath::{Point2, Point3, Vector2};
-use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
+use egui_glium::egui_winit::egui::{self, WidgetText};
+use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
 use palette::Srgb;
+use petgraph::Direction;
 use petgraph::prelude::StableDiGraph;
 use petgraph::stable_graph::NodeIndex;
 use petgraph::visit::{Bfs, IntoNodeReferences};
-use petgraph::Direction;
 use rfd::FileDialog;
-use ui::selectable::Selectable;
+use ui::ui_item::UiItem;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -29,8 +29,6 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
-use common::models::ModelInstance;
-use common::models::{Material, Model};
 use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Background;
@@ -330,18 +328,10 @@ impl Editor {
                 &mut self.renderer,
                 &self.camera.view(),
                 self.camera.position(),
+                self.state.gui.render_lights,
                 display,
                 &mut target,
             );
-
-            if self.state.gui.render_lights {
-                self.renderer.render_lights(
-                    &self.scene.lights,
-                    &self.camera.view(),
-                    display,
-                    &mut target,
-                );
-            }
 
             self.render_gui(window);
             self.gui.paint(display, &mut target);
@@ -489,12 +479,11 @@ impl Editor {
     }
 }
 
-fn make_collapsing_header(
-    ui: &mut Ui,
-    graph: &mut StableDiGraph<ModelInstance, ()>,
-    node_index: NodeIndex,
-) {
-    let model_name = graph[node_index].name.clone();
+fn make_collapsing_header<T>(ui: &mut Ui, graph: &mut StableDiGraph<T, ()>, node_index: NodeIndex)
+where
+    T: UiItem,
+{
+    let model_name = graph[node_index].name();
     let children = graph
         .neighbors_directed(node_index, Direction::Outgoing)
         .collect_vec();

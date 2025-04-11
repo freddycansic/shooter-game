@@ -133,6 +133,7 @@ impl Scene {
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
         camera_position: Point3<f32>,
+        debug: bool,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -166,6 +167,11 @@ impl Scene {
 
         renderer.render_lines(&self.lines, view, display, target);
 
+        if debug {
+            renderer.render_lights(&self.lights, view, display, target);
+        }
+
+        // Render quads last so they stay on top
         renderer.render_quads(&self.quads, display, target);
     }
 }
