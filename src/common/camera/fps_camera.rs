@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Matrix4, Point3, Vector3};
+use rapier3d::na::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
@@ -19,7 +19,7 @@ impl FpsCamera {
             position,
             yaw: 0.0,
             pitch: std::f32::consts::FRAC_PI_2,
-            looking_direction: Vector3::unit_x(),
+            looking_direction: Vector3::new(1.0, 0.0, 0.0),
         }
     }
 }
@@ -48,7 +48,7 @@ impl Camera for FpsCamera {
         )
         .normalize();
 
-        let left_direction = self.looking_direction.cross(Vector3::unit_y());
+        let left_direction = self.looking_direction.cross(&Vector3::new(0.0, 1.0, 0.0));
         let forward_direction =
             Vector3::new(self.looking_direction.x, 0.0, self.looking_direction.z).normalize();
 
@@ -77,9 +77,9 @@ impl Camera for FpsCamera {
 
     fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(
-            self.position,
-            self.position + self.looking_direction,
-            Vector3::unit_y(),
+            &self.position,
+            &(self.position + self.looking_direction),
+            &Vector3::new(0.0, 1.0, 0.0),
         )
     }
 }

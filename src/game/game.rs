@@ -1,9 +1,9 @@
-use cgmath::{Point2, Vector2};
 use std::path::PathBuf;
 use std::time::Instant;
 
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use rapier3d::na::{Point2, Vector2};
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;

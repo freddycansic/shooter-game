@@ -1,4 +1,4 @@
-use cgmath::{Matrix3, Matrix4};
+use rapier3d::na::Matrix4;
 
 pub fn linear_map(
     x: f32,
@@ -14,12 +14,30 @@ pub fn raw_matrix(matrix: Matrix4<f32>) -> [[f32; 4]; 4] {
     <[[f32; 4]; 4]>::from(matrix)
 }
 
+pub fn perspective_matrix_from_window_size(window_width: f32, window_height: f32) -> Matrix4<f32> {
+    Matrix4::new_perspective(
+        window_width / window_height,
+        std::f32::consts::FRAC_PI_2,
+        0.01,
+        100.0,
+    )
+}
+
+pub fn orthographic_matrix_from_window_size(window_width: f32, window_height: f32) -> Matrix4<f32> {
+    Matrix4::new_orthographic(0.0, window_width, 0.0, window_height, 0.01, 100.0)
+}
+
 pub trait Matrix4Ext {
-    fn to_matrix3(self) -> Matrix3<f32>;
+    // This function removes the w components of a 4x4 matrix, and sets the diagonal on the 4th row to 1
+    fn stripped_w(self) -> Self;
 }
 
 impl Matrix4Ext for Matrix4<f32> {
-    fn to_matrix3(self) -> Matrix3<f32> {
-        Matrix3::from_cols(self.x.xyz(), self.y.xyz(), self.z.xyz())
+    fn stripped_w(self) -> Self {
+        let mut stripped = self.fixed_resize::<3, 3>(0.0).fixed_resize::<4, 4>(0.0);
+
+        stripped[(3, 3)] = 1.0;
+
+        stripped
     }
 }

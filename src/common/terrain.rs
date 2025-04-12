@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use cgmath::Vector3;
 use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{implement_vertex, Display, VertexBuffer};
 use itertools::Itertools;
+use rapier3d::na::Vector3;
 use serde::{Deserialize, Serialize};
 
 use crate::import;
@@ -69,11 +69,11 @@ impl Terrain {
 
                 let triangle_1_perp_1 = position_right - position;
                 let triangle_1_perp_2 = position_below - position;
-                let triangle_1_normal = -triangle_1_perp_1.cross(triangle_1_perp_2);
+                let triangle_1_normal = -triangle_1_perp_1.cross(&triangle_1_perp_2);
 
                 let triangle_2_perp_1 = position_right - position_right_below;
                 let triangle_2_perp_2 = position_below - position_right_below;
-                let triangle_2_normal = triangle_2_perp_1.cross(triangle_2_perp_2);
+                let triangle_2_normal = triangle_2_perp_1.cross(&triangle_2_perp_2);
 
                 vertices.push(TerrainVertex {
                     position: (position + offset).into(),

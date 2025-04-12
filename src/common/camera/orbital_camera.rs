@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Point3, Vector3};
+use rapier3d::na::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::camera::Camera;
@@ -65,7 +65,7 @@ impl Camera for OrbitalCamera {
     }
 
     fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(self.position, self.target, Vector3::unit_y())
+        Matrix4::look_at_rh(&self.position, &self.target, &Vector3::new(0.0, 1.0, 0.0))
     }
 }
 
