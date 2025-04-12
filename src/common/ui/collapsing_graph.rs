@@ -36,7 +36,7 @@ fn collapsing_graph_inner<T>(ui: &mut Ui, graph: &mut StableDiGraph<T, ()>, node
 where
     T: UiItem,
 {
-    let model_name = graph[node_index].name();
+    let name = graph[node_index].name();
     let children = graph
         .neighbors_directed(node_index, Direction::Outgoing)
         .collect_vec();
@@ -45,7 +45,7 @@ where
     if children.is_empty() {
         ui.indent(id, |ui| {
             if ui
-                .selectable_label(graph[node_index].selected(), model_name)
+                .selectable_label(graph[node_index].selected(), name)
                 .clicked()
             {
                 graph[node_index].toggle_selected();
@@ -55,7 +55,7 @@ where
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
             .show_header(ui, |ui| {
                 if ui
-                    .selectable_label(graph[node_index].selected(), model_name)
+                    .selectable_label(graph[node_index].selected(), name)
                     .clicked()
                 {
                     graph[node_index].toggle_selected();
