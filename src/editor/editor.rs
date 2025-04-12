@@ -4,18 +4,12 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use cgmath::{Point2, Point3, Vector2};
-use egui_glium::egui_winit::egui;
-use egui_glium::egui_winit::egui::{Align, Button, Ui, ViewportId};
+use egui_glium::egui_winit::egui::{self, Align, Button, Ui, ViewportId};
 use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
-use itertools::Itertools;
 use log::info;
 use palette::Srgb;
-use petgraph::prelude::StableDiGraph;
-use petgraph::stable_graph::NodeIndex;
-use petgraph::visit::{Bfs, IntoNodeReferences};
-use petgraph::Direction;
 use rfd::FileDialog;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -28,8 +22,6 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
-use common::models::ModelInstance;
-use common::models::{Material, Model};
 use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Background;
@@ -129,27 +121,18 @@ impl Application for Editor {
             ..Default::default()
         };
 
-        scene.quads.extend_from_slice(&[
-            Quad {
-                position: Point2::new(400.0, 300.0),
-                size: Vector2::new(50.0, 50.0),
-                texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: 1,
-            },
-            Quad {
-                position: Point2::new(-1.0, -1.0),
-                size: Vector2::new(1.0, 1.0),
-                texture: Texture2D::default_diffuse(display).unwrap(),
-                layer: 1,
-            },
-            Quad {
-                position: Point2::new(200.0, 200.0),
-                size: Vector2::new(100.0, 100.0),
-                texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
-                    .unwrap(),
-                layer: 1,
-            },
-        ]);
+        // scene.quads.add_node(Quad::new(
+        //     Point2::new(400.0, 300.0),
+        //     Vector2::new(50.0, 50.0),
+        //     Texture2D::default_diffuse(display).unwrap(),
+        //     1,
+        // ));
+        // scene.quads.add_node(Quad::new(
+        //     Point2::new(200.0, 200.0),
+        //     Vector2::new(100.0, 100.0),
+        //     Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
+        //     1,
+        // ));
 
         let camera = OrbitalCamera::default();
 
@@ -338,18 +321,10 @@ impl Editor {
                 &mut self.renderer,
                 &self.camera.view(),
                 self.camera.position(),
+                self.state.gui.render_lights,
                 display,
                 &mut target,
             );
-
-            if self.state.gui.render_lights {
-                self.renderer.render_lights(
-                    &self.scene.lights,
-                    &self.camera.view(),
-                    display,
-                    &mut target,
-                );
-            }
 
             self.render_gui(window);
             self.gui.paint(display, &mut target);
@@ -436,31 +411,27 @@ impl Editor {
                 });
             });
 
-            egui::SidePanel::left("left_panel").show(ctx, |ui| {
-                let top_level_nodes = self
-                    .scene
-                    .graph
-                    .node_references()
-                    .filter(|(node_index, _)| {
-                        self.scene
-                            .graph
-                            .neighbors_directed(*node_index, Direction::Incoming)
-                            .count()
-                            == 0
-                    })
-                    .map(|(node_index, _)| node_index)
-                    .collect_vec();
-
-                for (i, node) in top_level_nodes.iter().enumerate() {
-                    let mut bfs = Bfs::new(&self.scene.graph, *node);
-
-                    ui.push_id(i, |ui| {
-                        if let Some(next) = bfs.next(&self.scene.graph) {
-                            make_collapsing_header(ui, &mut self.scene.graph, next);
+            egui::SidePanel::left("left_panel")
+                .default_width(100.0)
+                .show(ctx, |ui| {
+                    ui.collapsing("Models", |ui| {
+                        if self.scene.graph.node_count() == 0 {
+                            ui.label("There are no models in the scene.");
+                        } else {
+                            ui::collapsing_graph(ui, &mut self.scene.graph);
                         }
                     });
-                }
-            });
+
+                    ui.add(egui::Separator::default().horizontal());
+
+                    ui.collapsing("Quads", |ui| {
+                        if self.scene.quads.node_count() == 0 {
+                            ui.label("There are no quads in the scene.");
+                        } else {
+                            ui::collapsing_graph(ui, &mut self.scene.quads);
+                        }
+                    });
+                });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
                 ui.collapsing("Background", |ui| {
@@ -494,37 +465,5 @@ impl Editor {
                 });
             });
         });
-    }
-}
-
-fn make_collapsing_header(
-    ui: &mut Ui,
-    graph: &mut StableDiGraph<ModelInstance, ()>,
-    node_index: NodeIndex,
-) {
-    let model_name = graph[node_index].name.clone();
-    let children = graph
-        .neighbors_directed(node_index, Direction::Outgoing)
-        .collect_vec();
-    let id = ui.make_persistent_id(node_index);
-
-    if children.is_empty() {
-        ui.indent(id, |ui| {
-            if ui.selectable_label(false, model_name).clicked() {
-                graph[node_index].selected = !graph[node_index].selected;
-            }
-        });
-    } else {
-        egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
-            .show_header(ui, |ui| {
-                if ui.selectable_label(false, model_name).clicked() {
-                    graph[node_index].selected = !graph[node_index].selected;
-                }
-            })
-            .body(|ui| {
-                for child in children.into_iter() {
-                    make_collapsing_header(ui, graph, child);
-                }
-            });
     }
 }

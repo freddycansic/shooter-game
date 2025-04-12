@@ -76,13 +76,12 @@ impl Application for Game {
             inner_size.width as f32 / inner_size.height as f32,
         );*/
 
-        scene.quads.push(Quad {
-            position: Point2::new(0.1, 0.1),
-            size: Vector2::new(0.2, 0.2),
-            layer: 0,
-            texture: Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display)
-                .unwrap(),
-        });
+        scene.quads.add_node(Quad::new(
+            Point2::new(0.1, 0.1),
+            Vector2::new(0.2, 0.2),
+            Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
+            0,
+        ));
 
         let state = FrameState::default();
         let input = Input::new();
@@ -165,6 +164,7 @@ impl Game {
                 &mut self.renderer,
                 &self.scene.camera.view(),
                 self.scene.camera.position(),
+                false,
                 display,
                 &mut target,
             );

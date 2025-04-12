@@ -6,7 +6,7 @@ in VS_OUT {
     vec3 normal;
 } vs_in;
 
-layout (location = 0) out vec4 out_color;
+layout(location = 0) out vec4 out_color;
 
 uniform sampler2D diffuse_texture;
 uniform sampler2D specular_texture;
@@ -37,5 +37,5 @@ void main() {
     vec4 diffuse_color = texture(diffuse_texture, vs_in.tex_coord);
 
     out_color = diffuse_color * vec4((ambient + diffuse + specular), 1.0);
-    //    out_color = vec4(1.0, 1.0, 1.0, 1.0);
+    // out_color = vec4(1.0, 1.0, 1.0, 1.0);
 }

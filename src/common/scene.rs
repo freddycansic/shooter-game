@@ -42,7 +42,7 @@ pub struct Scene {
     pub background: Background,
     pub lights: Vec<Light>,
     pub terrain: Option<Terrain>,
-    pub quads: Vec<Quad>,
+    pub quads: StableDiGraph<Quad, ()>,
     #[serde(skip)]
     pub lines: Vec<Line>,
 }
@@ -52,7 +52,7 @@ impl Scene {
         Self {
             graph: StableDiGraph::new(),
             lines: vec![],
-            quads: vec![],
+            quads: StableDiGraph::new(),
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
@@ -102,7 +102,7 @@ impl Scene {
             scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
         }
 
-        for quad in scene.quads.iter_mut() {
+        for quad in scene.quads.node_weights_mut() {
             quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
         }
 
@@ -133,6 +133,7 @@ impl Scene {
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
         camera_position: Point3<f32>,
+        debug: bool,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -166,6 +167,11 @@ impl Scene {
 
         renderer.render_lines(&self.lines, view, display, target);
 
+        if debug {
+            renderer.render_lights(&self.lights, view, display, target);
+        }
+
+        // Render quads last so they stay on top
         renderer.render_quads(&self.quads, display, target);
     }
 }

@@ -21,18 +21,34 @@ path = "src/editor/main.rs"
 name = "game"
 path = "src/game/main.rs"
 
+
 [dependencies]
 # Pull from master branch as bytemuck is not supported on stable
-cgmath = { git = "https://github.com/rustgd/cgmath.git", features = ["swizzle", "bytemuck", "serde"] }
+cgmath = { git = "https://github.com/rustgd/cgmath.git", features = [
+    "swizzle",
+    "bytemuck",
+    "serde",
+] }
 # Remove wasm-bindgen feature cause not using web
-chrono = { version = "0.4.31", default-features = false, features = ["alloc", "std", "clock"] }
+chrono = { version = "0.4.31", default-features = false, features = [
+    "alloc",
+    "std",
+    "clock",
+] }
 color-eyre = "0.6.2"
 fern = { version = "0.7.1", features = ["colored"] }
 gltf = "1.4.0"
 itertools = "0.14.0"
 log = "0.4.20"
-image = { version = "0.25.1", default-features = false, features = ["png", "jpeg"] }
-palette = { version = "0.7.5", default-features = false, features = ["named", "std", "serializing"] }
+image = { version = "0.25.1", default-features = false, features = [
+    "png",
+    "jpeg",
+] }
+palette = { version = "0.7.5", default-features = false, features = [
+    "named",
+    "std",
+    "serializing",
+] }
 glium = "0.36"
 egui_glium = "0.31.0"
 winit = "0.30.5"
@@ -41,7 +57,12 @@ serde_json = "1.0.116"
 rfd = "0.15.2"
 memoize = "0.5.1"
 uuid = { version = "1.8.0", features = ["v4", "fast-rng"] }
-petgraph = { version = "0.7.1", default-features = false, features = ["serde-1", "stable_graph"] }
+petgraph = { version = "0.7.1", default-features = false, features = [
+    "serde-1",
+    "stable_graph",
+] }
+shooter-game-macros = { version = "0.1.0", path = "shooter-game-macros" }
+
 
 [dev-dependencies]
 fastrand = "2.3.0"

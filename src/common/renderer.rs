@@ -7,10 +7,11 @@ use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
-    Surface, VertexBuffer,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+    implement_vertex, uniform,
 };
 use itertools::Itertools;
+use petgraph::prelude::StableDiGraph;
 use petgraph::stable_graph::NodeReferences;
 use uuid::Uuid;
 
@@ -18,8 +19,8 @@ use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::models::primitives::SimplePoint;
-use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::models::{Model, primitives};
 use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
@@ -233,11 +234,11 @@ impl Renderer {
 
     pub fn render_quads(
         &mut self,
-        quads: &[Quad],
+        quads: &StableDiGraph<Quad, ()>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        if quads.is_empty() {
+        if quads.node_count() == 0 {
             return;
         }
 
@@ -248,9 +249,10 @@ impl Renderer {
         };
 
         let grouped_quads = quads
-            .iter()
+            .node_weights()
             .cloned()
             .into_group_map_by(|quad| quad.texture.clone());
+
         let grouped_quad_vertices = grouped_quads.into_iter().map(|(texture, quads)| {
             (
                 texture,
@@ -315,11 +317,7 @@ impl Renderer {
                     &self.quad_program,
                     &uniforms,
                     &DrawParameters {
-                        depth: Depth {
-                            test: DepthTest::IfLessOrEqual,
-                            write: true,
-                            ..Default::default()
-                        },
+                        // Depth buffer is disabled so that they appear on top
                         blend: Blend::alpha_blending(),
                         ..Default::default()
                     },
