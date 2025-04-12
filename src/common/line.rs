@@ -1,7 +1,7 @@
-use cgmath::Point3;
 use glium::implement_vertex;
 use log::warn;
 use palette::Srgb;
+use rapier3d::na::Point3;
 
 #[derive(Clone)]
 pub struct Line {

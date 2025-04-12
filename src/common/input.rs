@@ -1,5 +1,5 @@
-use cgmath::{Vector2, Zero};
 use log::warn;
+use rapier3d::na::Vector2;
 use winit::dpi::PhysicalPosition;
 use winit::event::{DeviceEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::{
@@ -39,8 +39,8 @@ impl Input {
             key_states: [KeyState::Released; NUM_KEYS],
             mouse_button_states: [KeyState::Released; NUM_MOUSE_BUTTONS],
             last_cursor_position: None,
-            window_offset: Vector2::zero(),
-            device_offset: Vector2::zero(),
+            window_offset: Vector2::zeros(),
+            device_offset: Vector2::zeros(),
             mouse_wheel_offset: 0.0,
         }
     }
@@ -99,8 +99,8 @@ impl Input {
             }
         }
 
-        self.window_offset = Vector2::zero();
-        self.device_offset = Vector2::zero();
+        self.window_offset = Vector2::zeros();
+        self.device_offset = Vector2::zeros();
         self.mouse_wheel_offset = 0.0;
     }
 

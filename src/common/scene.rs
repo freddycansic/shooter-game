@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use cgmath::{Matrix4, Point3};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoNodeReferences;
+use rapier3d::na::{Matrix4, Point3};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
@@ -139,13 +139,11 @@ impl Scene {
     ) {
         match &self.background {
             Background::Color(color) => {
-                target.clear_color_and_depth(color.to_rgb_vector4().into(), 1.0)
+                target.clear_color_and_depth(color.to_rgb_components_tuple(), 1.0)
             }
             Background::HDRI(cubemap) => {
                 target.clear_color_and_depth(
-                    Color::from_named(palette::named::WHITE)
-                        .to_rgb_vector4()
-                        .into(),
+                    Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
                     1.0,
                 );
                 renderer.render_skybox(cubemap, view, target);

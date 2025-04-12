@@ -1,5 +1,5 @@
-use cgmath::{Vector3, Vector4};
 use palette::{FromColor, IntoColor, Lch, ShiftHue, Srgb};
+use rapier3d::na::{Vector3, Vector4};
 
 pub type Color = Lch;
 
@@ -8,6 +8,7 @@ pub trait ColorExt {
     fn from_named(color: Srgb<u8>) -> Self;
     fn to_rgb_vector4(self) -> Vector4<f32>;
     fn to_rgb_vector3(self) -> Vector3<f32>;
+    fn to_rgb_components_tuple(self) -> (f32, f32, f32, f32);
 }
 
 impl ColorExt for Color {
@@ -30,5 +31,16 @@ impl ColorExt for Color {
         let rgb: Srgb = self.into_color();
 
         Vector3::new(rgb.red, rgb.green, rgb.blue)
+    }
+
+    fn to_rgb_components_tuple(self) -> (f32, f32, f32, f32) {
+        let vector_components = self.to_rgb_vector4();
+
+        (
+            vector_components[0],
+            vector_components[1],
+            vector_components[2],
+            vector_components[3],
+        )
     }
 }

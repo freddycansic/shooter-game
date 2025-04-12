@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Point3};
+use rapier3d::na::{Matrix4, Point3};
 
 use crate::input::Input;
 

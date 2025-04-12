@@ -1,26 +1,27 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cgmath::{Matrix3, Matrix4, Point3, Rad};
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
-    implement_vertex, uniform,
+    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
+    Surface, VertexBuffer,
 };
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use petgraph::stable_graph::NodeReferences;
+use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
 use crate::colors::ColorExt;
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
+use crate::maths::Matrix4Ext;
 use crate::models::primitives::SimplePoint;
+use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
-use crate::models::{Model, primitives};
 use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
@@ -100,19 +101,13 @@ impl Renderer {
         // let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
 
         Ok(Self {
-            orthograhic_projection: cgmath::ortho(
-                0.0,
+            perspective_projection: maths::perspective_matrix_from_window_size(
                 window_width,
-                0.0,
                 window_height,
-                0.01,
-                100.0,
             ),
-            perspective_projection: cgmath::perspective(
-                Rad(std::f32::consts::FRAC_PI_2),
-                window_width / window_height,
-                0.01,
-                100.0,
+            orthograhic_projection: maths::orthographic_matrix_from_window_size(
+                window_width,
+                window_height,
             ),
             default_program,
             skybox_program,
@@ -127,15 +122,11 @@ impl Renderer {
     }
 
     pub fn update_projection_matrices(&mut self, window_width: f32, window_height: f32) {
-        self.orthograhic_projection =
-            cgmath::ortho(0.0, window_width, 0.0, window_height, 0.01, 100.0);
+        self.perspective_projection =
+            maths::perspective_matrix_from_window_size(window_width, window_height);
 
-        self.perspective_projection = cgmath::perspective(
-            Rad(std::f32::consts::FRAC_PI_2),
-            window_width / window_height,
-            0.01,
-            100.0,
-        );
+        self.orthograhic_projection =
+            maths::orthographic_matrix_from_window_size(window_width, window_height);
     }
 
     pub fn render_model_instances(
@@ -328,8 +319,8 @@ impl Renderer {
 
     pub fn render_skybox(&mut self, cubemap: &Cubemap, view: &Matrix4<f32>, target: &mut Frame) {
         // Strip translation from view matrix = skybox is always in the same place
-        let view = Matrix4::from(Matrix3::from_cols(view.x.xyz(), view.y.xyz(), view.z.xyz()));
-        let vp = self.perspective_projection * view;
+        let stripped_view = view.stripped_w();
+        let vp = self.perspective_projection * stripped_view;
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
