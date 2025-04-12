@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::{Material, Model};
 use crate::transform::Transform;
 use crate::ui;
-use crate::ui::ui_item::UiItem;
+use crate::ui::UiItem;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ModelInstance {

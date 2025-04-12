@@ -1,4 +1,4 @@
-use crate::ui::ui_item::UiItem;
+use crate::ui::UiItem;
 use crate::{texture::Texture2D, ui};
 use cgmath::{Point2, Vector2};
 use egui_glium::egui_winit::egui::WidgetText;

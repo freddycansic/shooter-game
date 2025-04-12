@@ -164,6 +164,7 @@ impl Game {
                 &mut self.renderer,
                 &self.scene.camera.view(),
                 self.scene.camera.position(),
+                false,
                 display,
                 &mut target,
             );
