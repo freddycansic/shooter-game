@@ -44,14 +44,20 @@ where
 
     if children.is_empty() {
         ui.indent(id, |ui| {
-            if ui.selectable_label(false, model_name).clicked() {
+            if ui
+                .selectable_label(graph[node_index].selected(), model_name)
+                .clicked()
+            {
                 graph[node_index].toggle_selected();
             }
         });
     } else {
         egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, false)
             .show_header(ui, |ui| {
-                if ui.selectable_label(false, model_name).clicked() {
+                if ui
+                    .selectable_label(graph[node_index].selected(), model_name)
+                    .clicked()
+                {
                     graph[node_index].toggle_selected();
                 }
             })
