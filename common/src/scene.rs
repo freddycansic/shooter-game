@@ -6,7 +6,6 @@ use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
-use petgraph::visit::IntoNodeReferences;
 use rapier3d::na::{Matrix4, Point3};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};

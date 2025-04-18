@@ -12,8 +12,6 @@ use glium::{
 };
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
-use petgraph::stable_graph::NodeReferences;
-use petgraph::visit::IntoNodeReferences;
 use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
@@ -362,23 +360,47 @@ impl Renderer {
             return;
         }
 
-        let batched_lines = Self::batch_lines(lines);
+        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
 
-        self.write_lines_to_vertex_buffers(display, batched_lines);
+        for line in lines.iter() {
+            let line_points = vec![
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p1),
+                    color: *line.color.as_ref(),
+                },
+                LinePoint {
+                    position: <[f32; 3]>::from(line.p2),
+                    color: *line.color.as_ref(),
+                },
+            ];
+
+            batched_lines
+                .entry(line.width)
+                .and_modify(|lines| lines.extend(&line_points))
+                .or_insert(line_points);
+        }
+
+        // self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
             vp: maths::raw_matrix(self.perspective_projection * view),
         };
 
-        for (width, line_points) in self.line_vertex_buffers.iter() {
+        for (width, line_points) in batched_lines {
+            Self::copy_into_buffers(display, width, &line_points, &mut self.line_vertex_buffers);
+
             target
                 .draw(
-                    line_points,
+                    self.line_vertex_buffers
+                        .get(&width)
+                        .unwrap()
+                        .slice(0..line_points.len())
+                        .unwrap(),
                     NoIndices(PrimitiveType::LinesList),
                     &self.lines_program,
                     &uniforms,
                     &DrawParameters {
-                        line_width: Some(*width as f32),
+                        line_width: Some(width as f32),
                         ..DrawParameters::default()
                     },
                 )
@@ -477,45 +499,6 @@ impl Renderer {
                 .unwrap(),
             );
         }
-    }
-
-    fn write_lines_to_vertex_buffers(
-        &mut self,
-        display: &Display<WindowSurface>,
-        batched_lines: HashMap<u8, Vec<LinePoint>>,
-    ) {
-        for (width, lines) in batched_lines.iter() {
-            if self.line_vertex_buffers.contains_key(width) {
-                self.line_vertex_buffers.get(width).unwrap().write(lines);
-            } else {
-                self.line_vertex_buffers
-                    .insert(*width, VertexBuffer::dynamic(display, lines).unwrap());
-            }
-        }
-    }
-
-    fn batch_lines(lines: &[Line]) -> HashMap<u8, Vec<LinePoint>> {
-        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
-
-        for line in lines.iter() {
-            let line_points = vec![
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p1),
-                    color: *line.color.as_ref(),
-                },
-                LinePoint {
-                    position: <[f32; 3]>::from(line.p2),
-                    color: *line.color.as_ref(),
-                },
-            ];
-
-            batched_lines
-                .entry(line.width)
-                .and_modify(|lines| lines.extend(&line_points))
-                .or_insert(line_points);
-        }
-
-        batched_lines
     }
 }
 
