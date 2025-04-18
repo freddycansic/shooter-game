@@ -12,6 +12,7 @@ use glium::{
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use petgraph::stable_graph::NodeReferences;
+use petgraph::visit::IntoNodeReferences;
 use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
@@ -97,9 +98,6 @@ impl Renderer {
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
-        // Idk why 64
-        // let quad_vertex_buffer = VertexBuffer::empty_dynamic(display, 64)?;
-
         Ok(Self {
             perspective_projection: maths::perspective_matrix_from_window_size(
                 window_width,
@@ -131,14 +129,45 @@ impl Renderer {
 
     pub fn render_model_instances(
         &mut self,
-        model_instances: NodeReferences<ModelInstance>,
+        model_instances: &StableDiGraph<ModelInstance, ()>,
         view: &Matrix4<f32>,
         camera_position: Point3<f32>,
         lights: &[Light],
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        let batched_instances = Self::batch_model_instances(model_instances, display);
+        let default_material = Material::default(display).unwrap();
+
+        let batched_instances = model_instances
+            .node_weights()
+            .into_group_map_by(|model_instance| {
+                let model = &model_instance.model;
+                let material = match &model_instance.material {
+                    Some(material) => &material,
+                    None => &default_material,
+                };
+                (model, material)
+            })
+            .into_iter()
+            .map(|((model, material), model_instances)| {
+                (
+                    model,
+                    material,
+                    VertexBuffer::new(
+                        display,
+                        &model_instances
+                            .iter()
+                            .map(|model_instance| Instance {
+                                transform: maths::raw_matrix(Matrix4::from(
+                                    model_instance.transform.clone(),
+                                )),
+                            })
+                            .collect_vec(),
+                    )
+                    .unwrap(),
+                )
+            })
+            .collect_vec();
 
         let vp = maths::raw_matrix(self.perspective_projection * view);
         let camera_position = <[f32; 3]>::from(camera_position);
@@ -457,57 +486,8 @@ impl Renderer {
                 .and_modify(|lines| lines.extend(&line_points))
                 .or_insert(line_points);
         }
+
         batched_lines
-    }
-
-    /// Batches instances with the same models and texture
-    #[allow(clippy::mutable_key_type)]
-    fn batch_model_instances(
-        model_instances: NodeReferences<ModelInstance>,
-        display: &Display<WindowSurface>,
-    ) -> Vec<(Arc<Model>, Material, VertexBuffer<Instance>)> {
-        let instance_map = Self::group_instances_on_model_and_texture(model_instances, display);
-
-        instance_map
-            .into_iter()
-            .map(|((model, texture), instances)| {
-                (
-                    model,
-                    texture,
-                    // TODO cache vertex buffers and write over them on next frame
-                    VertexBuffer::new(display, &instances).unwrap(),
-                )
-            })
-            .collect_vec()
-    }
-
-    #[allow(clippy::mutable_key_type)]
-    fn group_instances_on_model_and_texture(
-        model_instances: NodeReferences<ModelInstance>,
-        display: &Display<WindowSurface>,
-    ) -> HashMap<(Arc<Model>, Material), Vec<Instance>> {
-        let mut instance_map = HashMap::<(Arc<Model>, Material), Vec<Instance>>::new();
-
-        for (_, model_instance) in model_instances {
-            if model_instance.model.meshes.lock().unwrap().is_some() {
-                let transform_matrix = Matrix4::from(model_instance.transform.clone());
-
-                let instance = Instance {
-                    transform: maths::raw_matrix(transform_matrix),
-                };
-
-                let material = match &model_instance.material {
-                    Some(material) => material.clone(),
-                    None => Material::default(display).unwrap().clone(),
-                };
-
-                instance_map
-                    .entry((model_instance.model.clone(), material))
-                    .or_insert(vec![instance])
-                    .push(instance);
-            }
-        }
-        instance_map
     }
 }
 

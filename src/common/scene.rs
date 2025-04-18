@@ -151,7 +151,7 @@ impl Scene {
         }
 
         renderer.render_model_instances(
-            self.graph.node_references(),
+            &self.graph,
             view,
             camera_position,
             &self.lights,

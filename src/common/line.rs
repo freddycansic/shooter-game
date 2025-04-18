@@ -26,7 +26,7 @@ impl Line {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct LinePoint {
     pub position: [f32; 3],
     pub color: [f32; 3],
