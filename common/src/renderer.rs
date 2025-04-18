@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::Arc;
 
 use color_eyre::Result;
@@ -6,8 +7,8 @@ use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    implement_vertex, uniform, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
-    Surface, VertexBuffer,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
+    VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
@@ -21,8 +22,8 @@ use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::models::primitives::SimplePoint;
-use crate::models::{primitives, Model};
 use crate::models::{Material, ModelInstance};
+use crate::models::{Model, primitives};
 use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
@@ -33,6 +34,7 @@ pub struct Renderer {
     perspective_projection: Matrix4<f32>,
 
     default_program: Program,
+    model_instance_buffers: HashMap<(Arc<Model>, Material), VertexBuffer<Instance>>,
 
     skybox_program: Program,
     light_program: Program,
@@ -44,7 +46,7 @@ pub struct Renderer {
     terrain_program: Program,
 
     quad_program: Program,
-    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
+    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,)
 }
 
 impl Renderer {
@@ -108,6 +110,7 @@ impl Renderer {
                 window_height,
             ),
             default_program,
+            model_instance_buffers: HashMap::new(),
             skybox_program,
             light_program,
             cube_vertex_buffer,
@@ -280,46 +283,13 @@ impl Renderer {
             )
         });
 
-        const INITIAL_VERTEX_BUFFER_SIZE: u32 = 128;
         for (texture, quad_vertices) in grouped_quad_vertices {
-            if let Some(quad_vertex_buffer) = self.quad_vertex_buffers.get_mut(&texture.uuid) {
-                // If the allocated vertex buffer is too small, then double the size
-                if quad_vertex_buffer.len() < quad_vertices.len() {
-                    *quad_vertex_buffer = context::new_sized_dynamic_vertex_buffer_with_data(
-                        display,
-                        quad_vertex_buffer.len() * 2,
-                        &quad_vertices,
-                    )
-                    .unwrap();
-                // If it is big enough then write quads
-                } else {
-                    quad_vertex_buffer
-                        .slice_mut(..quad_vertices.len())
-                        .unwrap()
-                        .write(&quad_vertices);
-                }
-            // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
-            } else {
-                // Smallest 2^x above current len
-                // Example
-                // quad_vertices.len() = 150
-                // 100.log2() = ~7.23
-                // 7.23.ceil() = 8
-                // 2.pow(8) = 256
-                // min_size = 256.max(INITIAL_VERTEX_BUFFER_SIZE [128]) = 256
-                let x = (quad_vertices.len() as f64).log2().ceil() as u32;
-                let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE);
-
-                self.quad_vertex_buffers.insert(
-                    texture.uuid,
-                    context::new_sized_dynamic_vertex_buffer_with_data(
-                        display,
-                        min_size as usize,
-                        &quad_vertices,
-                    )
-                    .unwrap(),
-                );
-            }
+            Self::copy_into_buffers(
+                display,
+                texture.uuid,
+                &quad_vertices,
+                &mut self.quad_vertex_buffers,
+            );
 
             let uniforms = uniform! {
                 diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
@@ -449,6 +419,56 @@ impl Renderer {
                 },
             )
             .unwrap();
+    }
+
+    fn copy_into_buffers<T, V>(
+        display: &Display<WindowSurface>,
+        key: T,
+        vertices: &Vec<V>,
+        vertex_buffers: &mut HashMap<T, VertexBuffer<V>>,
+    ) where
+        T: Hash + Eq,
+        V: Copy + Vertex,
+    {
+        if let Some(quad_vertex_buffer) = vertex_buffers.get_mut(&key) {
+            // If the allocated vertex buffer is too small, then double the size
+            if quad_vertex_buffer.len() < vertices.len() {
+                *quad_vertex_buffer = context::new_sized_dynamic_vertex_buffer_with_data(
+                    display,
+                    quad_vertex_buffer.len() * 2,
+                    vertices,
+                )
+                .unwrap();
+            // If it is big enough then write quads
+            } else {
+                quad_vertex_buffer
+                    .slice_mut(..vertices.len())
+                    .unwrap()
+                    .write(vertices);
+            }
+        // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
+        } else {
+            // Smallest 2^x above current len
+            // Example
+            // quad_vertices.len() = 150
+            // 100.log2() = ~7.23
+            // 7.23.ceil() = 8
+            // 2.pow(8) = 256
+            // min_size = 256.max(INITIAL_VERTEX_BUFFER_SIZE [128]) = 256
+            let x = (vertices.len() as f64).log2().ceil() as u32;
+            const INITIAL_VERTEX_BUFFER_SIZE: u32 = 128;
+            let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE);
+
+            vertex_buffers.insert(
+                key,
+                context::new_sized_dynamic_vertex_buffer_with_data(
+                    display,
+                    min_size as usize,
+                    vertices,
+                )
+                .unwrap(),
+            );
+        }
     }
 
     fn write_lines_to_vertex_buffers(

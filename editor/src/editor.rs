@@ -3,14 +3,16 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
+use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use log::info;
 use palette::Srgb;
-use rapier3d::na::Point3;
+use quad::Quad;
+use rapier3d::na::{Point2, Point3, Vector2};
 use rfd::FileDialog;
+use texture::Texture2D;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -120,18 +122,18 @@ impl Application for Editor {
             ..Default::default()
         };
 
-        // scene.quads.add_node(Quad::new(
-        //     Point2::new(400.0, 300.0),
-        //     Vector2::new(50.0, 50.0),
-        //     Texture2D::default_diffuse(display).unwrap(),
-        //     1,
-        // ));
-        // scene.quads.add_node(Quad::new(
-        //     Point2::new(200.0, 200.0),
-        //     Vector2::new(100.0, 100.0),
-        //     Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
-        //     1,
-        // ));
+        scene.quads.add_node(Quad::new(
+            Point2::new(400.0, 300.0),
+            Vector2::new(50.0, 50.0),
+            Texture2D::default_diffuse(display).unwrap(),
+            1,
+        ));
+        scene.quads.add_node(Quad::new(
+            Point2::new(200.0, 200.0),
+            Vector2::new(100.0, 100.0),
+            Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
+            1,
+        ));
 
         let camera = OrbitalCamera::default();
 
