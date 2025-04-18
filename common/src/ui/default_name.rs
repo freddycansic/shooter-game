@@ -1,4 +1,4 @@
-use shooter_game_macros::default_name_generator;
+use proc_macros::default_name_generator;
 
 // DO NOT REMOVE! This import is used by the macro expansion
 use std::sync::atomic::{AtomicU64, Ordering};

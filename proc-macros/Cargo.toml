@@ -1,5 +1,5 @@
 [package]
-name = "shooter-game-macros"
+name = "proc-macros"
 version = "0.1.0"
 edition = "2024"
 

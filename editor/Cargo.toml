@@ -1,0 +1,26 @@
+[package]
+name = "editor"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "editor"
+path = "src/main.rs"
+
+[dependencies]
+common = { path = "../common" }
+color-eyre = "0.6.2"
+palette = { version = "0.7.5", default-features = false, features = [
+    "named",
+    "std",
+    "serializing",
+] }
+rfd = "0.15.2"
+winit = "0.30.5"
+log = "0.4.20"
+rapier3d = { version = "0.24.0", features = [
+    "simd-nightly",
+    "serde-serialize",
+] }
+glium = "0.36"
+egui_glium = "0.31.0"
