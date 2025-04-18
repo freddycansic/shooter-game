@@ -21,12 +21,14 @@ use uuid::Uuid;
 use crate::maths;
 use crate::models::model_vertex::ModelVertex;
 
+#[derive(Debug)]
 pub struct Primitive {
     pub vertex_buffer: VertexBuffer<ModelVertex>,
     pub index_buffer: IndexBuffer<u16>,
 }
 
 // TODO could move all vertices / indices into one buffer and then have an offset into this for each primitive
+#[derive(Debug)]
 pub struct Mesh {
     pub name: Option<String>,
     pub primitives: Vec<Primitive>,
@@ -53,7 +55,7 @@ impl fmt::Display for ModelLoadError {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
     #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,

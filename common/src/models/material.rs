@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use color_eyre::eyre::Result;
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use serde::{Deserialize, Serialize};
 
 use crate::texture::Texture2D;
 
-#[derive(Serialize, Deserialize, Clone, Eq, Hash, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Eq, Hash, PartialEq, Debug)]
 pub struct Material {
     pub diffuse: Arc<Texture2D>,
     pub specular: Arc<Texture2D>,

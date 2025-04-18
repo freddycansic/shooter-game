@@ -46,7 +46,7 @@ pub struct Renderer {
     terrain_program: Program,
 
     quad_program: Program,
-    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,)
+    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
 }
 
 impl Renderer {
@@ -144,30 +144,25 @@ impl Renderer {
         let batched_instances = model_instances
             .node_weights()
             .into_group_map_by(|model_instance| {
-                let model = &model_instance.model;
+                let model = model_instance.model.clone();
                 let material = match &model_instance.material {
-                    Some(material) => &material,
-                    None => &default_material,
+                    Some(material) => material.clone(),
+                    None => default_material.clone(),
                 };
                 (model, material)
             })
             .into_iter()
-            .map(|((model, material), model_instances)| {
+            .map(|(key, model_instances)| {
                 (
-                    model,
-                    material,
-                    VertexBuffer::new(
-                        display,
-                        &model_instances
-                            .iter()
-                            .map(|model_instance| Instance {
-                                transform: maths::raw_matrix(Matrix4::from(
-                                    model_instance.transform.clone(),
-                                )),
-                            })
-                            .collect_vec(),
-                    )
-                    .unwrap(),
+                    key,
+                    model_instances
+                        .iter()
+                        .map(|model_instance| Instance {
+                            transform: maths::raw_matrix(Matrix4::from(
+                                model_instance.transform.clone(),
+                            )),
+                        })
+                        .collect_vec(),
                 )
             })
             .collect_vec();
@@ -181,7 +176,14 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        for (model, material, instance_buffer) in batched_instances {
+        for ((model, material), instances) in batched_instances {
+            Self::copy_into_buffers(
+                display,
+                (model.clone(), material.clone()),
+                &instances,
+                &mut self.model_instance_buffers,
+            );
+
             let uniforms = uniform! {
                 vp: vp,
                 camera_position: camera_position,
@@ -192,13 +194,19 @@ impl Renderer {
                 specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
             };
 
-            for mesh in model.meshes.lock().unwrap().iter().flatten() {
+            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
                 for primitive in mesh.primitives.iter() {
                     target
                         .draw(
                             (
                                 &primitive.vertex_buffer,
-                                instance_buffer.per_instance().unwrap(),
+                                self.model_instance_buffers
+                                    .get(&(model.clone(), material.clone()))
+                                    .unwrap()
+                                    .slice(0..instances.len())
+                                    .unwrap()
+                                    .per_instance()
+                                    .unwrap(),
                             ),
                             &primitive.index_buffer,
                             &self.default_program,
@@ -271,17 +279,17 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        let grouped_quads = quads
+        let grouped_quad_vertices = quads
             .node_weights()
             .cloned()
-            .into_group_map_by(|quad| quad.texture.clone());
-
-        let grouped_quad_vertices = grouped_quads.into_iter().map(|(texture, quads)| {
-            (
-                texture,
-                quads.into_iter().map(QuadVertex::from).collect_vec(),
-            )
-        });
+            .into_group_map_by(|quad| quad.texture.clone())
+            .into_iter()
+            .map(|(texture, quads)| {
+                (
+                    texture,
+                    quads.into_iter().map(QuadVertex::from).collect_vec(),
+                )
+            });
 
         for (texture, quad_vertices) in grouped_quad_vertices {
             Self::copy_into_buffers(
@@ -511,7 +519,7 @@ impl Renderer {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct Instance {
     transform: [[f32; 4]; 4],
 }

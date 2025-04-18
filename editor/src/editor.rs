@@ -8,9 +8,10 @@ use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
+use models::{Model, ModelInstance};
 use palette::Srgb;
 use quad::Quad;
-use rapier3d::na::{Point2, Point3, Vector2};
+use rapier3d::na::{Point2, Point3, Vector2, Vector3};
 use rfd::FileDialog;
 use texture::Texture2D;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
@@ -122,18 +123,18 @@ impl Application for Editor {
             ..Default::default()
         };
 
-        scene.quads.add_node(Quad::new(
-            Point2::new(400.0, 300.0),
-            Vector2::new(50.0, 50.0),
-            Texture2D::default_diffuse(display).unwrap(),
-            1,
-        ));
-        scene.quads.add_node(Quad::new(
-            Point2::new(200.0, 200.0),
-            Vector2::new(100.0, 100.0),
-            Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
-            1,
-        ));
+        // scene.quads.add_node(Quad::new(
+        //     Point2::new(400.0, 300.0),
+        //     Vector2::new(50.0, 50.0),
+        //     Texture2D::default_diffuse(display).unwrap(),
+        //     1,
+        // ));
+        // scene.quads.add_node(Quad::new(
+        //     Point2::new(200.0, 200.0),
+        //     Vector2::new(100.0, 100.0),
+        //     Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
+        //     1,
+        // ));
 
         let camera = OrbitalCamera::default();
 
@@ -170,18 +171,14 @@ impl Application for Editor {
 
         // let size = 10;
         // let model_instance = ModelInstance::from(
-        //     Model::load(
-        //         PathBuf::from("assets/models/cube.glb"),
-        //         &opengl_context.display,
-        //     )
-        //     .unwrap(),
+        //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
         // );
-        //
+
         // for x in -(size / 2)..(size / 2) {
         //     for y in -(size / 2)..(size / 2) {
         //         let mut m = model_instance.clone();
         //         m.transform.translation = Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0);
-        //
+
         //         scene.graph.add_node(m);
         //     }
         // }
