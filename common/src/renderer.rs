@@ -2,12 +2,13 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use color_eyre::Result;
+use glium::draw_parameters::{PolygonOffset, Stencil};
 use glium::glutin::surface::WindowSurface;
 use glium::index::{NoIndices, PrimitiveType};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
-    VertexBuffer, implement_vertex, uniform,
+    BackfaceCullingMode, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
+    StencilTest, Surface, Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use gxhash::{HashMap, HashMapExt};
 use itertools::Itertools;
@@ -30,6 +31,8 @@ use crate::{context, maths};
 pub struct Renderer {
     orthograhic_projection: Matrix4<f32>,
     perspective_projection: Matrix4<f32>,
+
+    outline_program: Program,
 
     default_program: Program,
     model_instance_buffers: HashMap<(Arc<Model>, Material), VertexBuffer<Instance>>,
@@ -95,6 +98,13 @@ impl Renderer {
             display,
         )?;
 
+        let outline_program = context::new_program(
+            "assets/shaders/outline/outline.vert",
+            "assets/shaders/outline/outline.frag",
+            None,
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
@@ -107,6 +117,7 @@ impl Renderer {
                 window_width,
                 window_height,
             ),
+            outline_program,
             default_program,
             model_instance_buffers: HashMap::new(),
             skybox_program,
@@ -190,6 +201,11 @@ impl Renderer {
                 specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
             };
 
+            let outline_uniforms = uniform! {
+                vp: vp,
+                outlining: 0.1_f32
+            };
+
             for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
                 for primitive in mesh.primitives.iter() {
                     target
@@ -213,6 +229,46 @@ impl Renderer {
                                     write: true,
                                     ..Default::default()
                                 },
+                                stencil: Stencil {
+                                    test_clockwise: StencilTest::AlwaysPass,
+                                    reference_value_clockwise: 1,
+                                    write_mask_clockwise: 0xFF,
+                                    ..Default::default()
+                                },
+                                backface_culling: BackfaceCullingMode::CullClockwise,
+                                ..DrawParameters::default()
+                            },
+                        )
+                        .unwrap();
+
+                    target
+                        .draw(
+                            (
+                                &primitive.vertex_buffer,
+                                self.model_instance_buffers
+                                    .get(&(model.clone(), material.clone()))
+                                    .unwrap()
+                                    .slice(0..instances.len())
+                                    .unwrap()
+                                    .per_instance()
+                                    .unwrap(),
+                            ),
+                            &primitive.index_buffer,
+                            &self.outline_program,
+                            &outline_uniforms,
+                            &DrawParameters {
+                                depth: Depth {
+                                    test: DepthTest::IfLessOrEqual,
+                                    write: false,
+                                    ..Default::default()
+                                },
+                                stencil: Stencil {
+                                    test_clockwise: StencilTest::IfNotEqual { mask: 0xFF },
+                                    reference_value_clockwise: 1,
+                                    write_mask_clockwise: 0x00,
+                                    ..Default::default()
+                                },
+                                backface_culling: BackfaceCullingMode::CullClockwise,
                                 ..DrawParameters::default()
                             },
                         )

@@ -137,13 +137,12 @@ impl Scene {
         target: &mut Frame,
     ) {
         match &self.background {
-            Background::Color(color) => {
-                target.clear_color_and_depth(color.to_rgb_components_tuple(), 1.0)
-            }
+            Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
             Background::HDRI(cubemap) => {
-                target.clear_color_and_depth(
+                target.clear_all(
                     Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
                     1.0,
+                    0,
                 );
                 renderer.render_skybox(cubemap, view, target);
             }
