@@ -47,6 +47,7 @@ rapier3d = { version = "0.24.0", features = [
     "simd-nightly",
     "serde-serialize",
 ] }
+gxhash = "3.5.0"
 
 
 [dev-dependencies]

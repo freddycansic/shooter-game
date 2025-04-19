@@ -8,8 +8,9 @@ use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
+use models::{Model, ModelInstance};
 use palette::Srgb;
-use rapier3d::na::{Point2, Point3, Vector2, Vector3};
+use rapier3d::na::{Point2, Point3, Translation3, Vector2, Vector3};
 use rfd::FileDialog;
 use texture::Texture2D;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
@@ -167,7 +168,7 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        // let size = 10;
+        // let size = 100;
         // let model_instance = ModelInstance::from(
         //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
         // );
@@ -175,7 +176,8 @@ impl Application for Editor {
         // for x in -(size / 2)..(size / 2) {
         //     for y in -(size / 2)..(size / 2) {
         //         let mut m = model_instance.clone();
-        //         m.transform.translation = Vector3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0);
+        //         m.transform
+        //             .set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
 
         //         scene.graph.add_node(m);
         //     }
@@ -294,6 +296,7 @@ impl Editor {
         self.input.reset_internal_state();
 
         if self.state.frame_count % 5 == 0 {
+            info!("{} FPS", self.state.fps);
             window.set_title(
                 format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
             );

@@ -149,6 +149,10 @@ impl Scene {
             }
         }
 
+        for model_instance in self.graph.node_weights_mut() {
+            model_instance.transform.compute_transform_matrix();
+        }
+
         renderer.render_model_instances(
             &self.graph,
             view,

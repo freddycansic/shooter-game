@@ -12,6 +12,7 @@ use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
 use gltf::{Accessor, Semantic};
+use gxhash::GxHasher;
 use itertools::Itertools;
 use log::{debug, info, warn};
 use memoize::memoize;
@@ -126,7 +127,11 @@ impl Eq for Model {}
 
 impl Hash for Model {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uuid.hash(state)
+        let mut hasher = GxHasher::default();
+        self.uuid.hash(&mut hasher);
+
+        let result = hasher.finish();
+        state.write_u64(result);
     }
 }
 

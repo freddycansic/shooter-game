@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use color_eyre::Result;
+use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-use glium::Display;
+use gxhash::GxHasher;
 use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -44,11 +45,15 @@ fn solid_grey_texture(
     height: u32,
     display: &Display<WindowSurface>,
 ) -> Result<Arc<Texture2D>, TextureLoadError> {
-    let opengl_texture = CompressedTexture2d::new(
-        display,
-        vec![vec![(value / 255, value / 255, value / 255); height as usize]; width as usize],
-    )
-    .map_err(TextureLoadError::CreateTextureError)?;
+    let opengl_texture =
+        CompressedTexture2d::new(display, vec![
+            vec![
+                (value / 255, value / 255, value / 255);
+                height as usize
+            ];
+            width as usize
+        ])
+        .map_err(TextureLoadError::CreateTextureError)?;
 
     Ok(Arc::new(Texture2D {
         inner_texture: Some(opengl_texture),
@@ -83,6 +88,10 @@ impl Eq for Texture2D {}
 
 impl Hash for Texture2D {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uuid.hash(state)
+        let mut hasher = GxHasher::default();
+        self.uuid.hash(&mut hasher);
+
+        let result = hasher.finish();
+        state.write_u64(result);
     }
 }

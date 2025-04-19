@@ -14,6 +14,10 @@ pub fn raw_matrix(matrix: Matrix4<f32>) -> [[f32; 4]; 4] {
     <[[f32; 4]; 4]>::from(matrix)
 }
 
+pub fn raw_identity_matrix() -> [[f32; 4]; 4] {
+    raw_matrix(Matrix4::identity())
+}
+
 pub fn perspective_matrix_from_window_size(window_width: f32, window_height: f32) -> Matrix4<f32> {
     Matrix4::new_perspective(
         window_width / window_height,

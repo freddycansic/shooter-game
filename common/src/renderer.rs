@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -10,6 +9,7 @@ use glium::{
     Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
     VertexBuffer, implement_vertex, uniform,
 };
+use gxhash::{HashMap, HashMapExt};
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use rapier3d::na::{Matrix4, Point3};
@@ -156,9 +156,7 @@ impl Renderer {
                     model_instances
                         .iter()
                         .map(|model_instance| Instance {
-                            transform: maths::raw_matrix(Matrix4::from(
-                                model_instance.transform.clone(),
-                            )),
+                            transform: model_instance.transform.matrix(),
                         })
                         .collect_vec(),
                 )
@@ -379,8 +377,6 @@ impl Renderer {
                 .and_modify(|lines| lines.extend(&line_points))
                 .or_insert(line_points);
         }
-
-        // self.write_lines_to_vertex_buffers(display, batched_lines);
 
         let uniforms = uniform! {
             vp: maths::raw_matrix(self.perspective_projection * view),

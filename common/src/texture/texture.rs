@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use gxhash::HashSet;
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::PathBuf;
