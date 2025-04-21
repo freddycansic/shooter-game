@@ -1,4 +1,5 @@
-use palette::{FromColor, IntoColor, Lch, ShiftHue, Srgb};
+use image::Rgb;
+use palette::{FromColor, IntoColor, LabHue, Lch, ShiftHue, Srgb, rgb::Rgba};
 use rapier3d::na::{Vector3, Vector4};
 
 pub type Color = Lch;
@@ -10,6 +11,12 @@ pub trait ColorExt {
     fn to_rgb_vector3(self) -> Vector3<f32>;
     fn to_rgb_components_tuple(self) -> (f32, f32, f32, f32);
 }
+
+pub const SELECTED: Color = Color::new_const(
+    73.90410404549763,
+    75.77322477206486,
+    LabHue::new(69.0500156411789),
+);
 
 impl ColorExt for Color {
     fn shift_hue_by_time(&self, time: f32) -> Color {

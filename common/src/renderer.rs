@@ -20,7 +20,7 @@ use petgraph::prelude::StableDiGraph;
 use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
-use crate::colors::ColorExt;
+use crate::colors::{self, ColorExt};
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
@@ -265,7 +265,7 @@ impl Renderer {
 
         let dilate_uniforms = uniform! {
             mask_texture: mask_texture,
-            outline_color: [1.0_f32, 0.0_f32, 0.0_f32],
+            outline_color: <[f32; 3]>::from(colors::SELECTED.to_rgb_vector3()),
             outline_radius: 2
         };
 
@@ -293,7 +293,10 @@ impl Renderer {
                 },
                 &self.fullscreen_quad_program,
                 &fullscreen_quad_uniforms,
-                &DrawParameters::default(),
+                &DrawParameters {
+                    blend: Blend::alpha_blending(),
+                    ..DrawParameters::default()
+                },
             )
             .unwrap();
 
