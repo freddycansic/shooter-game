@@ -3,12 +3,16 @@ use std::sync::Arc;
 
 use color_eyre::Result;
 use glium::draw_parameters::{PolygonOffset, Stencil};
+use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
-use glium::index::{NoIndices, PrimitiveType};
+use glium::index::{IndicesSource, NoIndices, PrimitiveType};
+use glium::texture::{MipmapsOption, StencilTexture2d, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
+use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    BackfaceCullingMode, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program,
-    StencilTest, Surface, Vertex, VertexBuffer, implement_vertex, uniform,
+    BackfaceCullingMode, Blend, BlitMask, BlitTarget, Depth, DepthTest, Display, DrawParameters,
+    Frame, PolygonMode, Program, Rect, StencilOperation, StencilTest, Surface, Vertex,
+    VertexBuffer, implement_vertex, uniform,
 };
 use gxhash::{HashMap, HashMapExt};
 use itertools::Itertools;
@@ -48,6 +52,9 @@ pub struct Renderer {
 
     quad_program: Program,
     quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
+
+    fullscreen_quad_program: Program,
+    solid_color_program: Program,
 }
 
 impl Renderer {
@@ -105,6 +112,20 @@ impl Renderer {
             display,
         )?;
 
+        let fullscreen_quad_program = context::new_program(
+            "assets/shaders/fullscreen_quad/fullscreen_quad.vert",
+            "assets/shaders/fullscreen_quad/fullscreen_quad.frag",
+            None,
+            display,
+        )?;
+
+        let solid_color_program = context::new_program(
+            "assets/shaders/solid_color/solid_color.vert",
+            "assets/shaders/solid_color/solid_color.frag",
+            None,
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
@@ -128,6 +149,8 @@ impl Renderer {
             terrain_program,
             quad_program,
             quad_vertex_buffers: HashMap::new(),
+            fullscreen_quad_program,
+            solid_color_program,
         })
     }
 
@@ -183,6 +206,97 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
+        let solid_color_uniforms = uniform! {
+            vp: vp,
+        };
+
+        let dimensions = target.get_dimensions();
+        let mask_texture = Texture2d::empty_with_format(
+            display,
+            UncompressedFloatFormat::U8,
+            MipmapsOption::NoMipmap,
+            dimensions.0,
+            dimensions.1,
+        )
+        .unwrap();
+        let mut framebuffer = SimpleFrameBuffer::new(display, &mask_texture).unwrap();
+
+        for ((model, material), instances) in batched_instances.iter() {
+            Self::copy_into_buffers(
+                display,
+                (model.clone(), material.clone()),
+                &instances,
+                &mut self.model_instance_buffers,
+            );
+
+            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
+                for primitive in mesh.primitives.iter() {
+                    framebuffer
+                        .draw(
+                            (
+                                &primitive.vertex_buffer,
+                                self.model_instance_buffers
+                                    .get(&(model.clone(), material.clone()))
+                                    .unwrap()
+                                    .slice(0..instances.len())
+                                    .unwrap()
+                                    .per_instance()
+                                    .unwrap(),
+                            ),
+                            &primitive.index_buffer,
+                            &self.solid_color_program,
+                            &solid_color_uniforms,
+                            &DrawParameters::default(),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+
+        let dilated_texture = Texture2d::empty_with_format(
+            display,
+            UncompressedFloatFormat::U8U8U8U8,
+            MipmapsOption::NoMipmap,
+            dimensions.0,
+            dimensions.1,
+        )
+        .unwrap();
+        let mut dilate_framebuffer = SimpleFrameBuffer::new(display, &dilated_texture).unwrap();
+
+        let dilate_uniforms = uniform! {
+            mask_texture: mask_texture,
+            outline_color: [1.0_f32, 0.0_f32, 0.0_f32],
+            outline_radius: 2
+        };
+
+        dilate_framebuffer
+            .draw(
+                EmptyVertexAttributes { len: 4 },
+                IndicesSource::NoIndices {
+                    primitives: PrimitiveType::TriangleStrip,
+                },
+                &self.outline_program,
+                &dilate_uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
+
+        let fullscreen_quad_uniforms = uniform! {
+            fullscreen_quad_texture: dilated_texture,
+        };
+
+        target
+            .draw(
+                EmptyVertexAttributes { len: 4 },
+                IndicesSource::NoIndices {
+                    primitives: PrimitiveType::TriangleStrip,
+                },
+                &self.fullscreen_quad_program,
+                &fullscreen_quad_uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
+
         for ((model, material), instances) in batched_instances {
             Self::copy_into_buffers(
                 display,
@@ -199,11 +313,6 @@ impl Renderer {
                 light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
                 diffuse_texture: Sampler(material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0,
                 specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
-            };
-
-            let outline_uniforms = uniform! {
-                vp: vp,
-                outlining: 0.1_f32
             };
 
             for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
@@ -227,45 +336,6 @@ impl Renderer {
                                 depth: Depth {
                                     test: DepthTest::IfLess,
                                     write: true,
-                                    ..Default::default()
-                                },
-                                stencil: Stencil {
-                                    test_clockwise: StencilTest::AlwaysPass,
-                                    reference_value_clockwise: 1,
-                                    write_mask_clockwise: 0xFF,
-                                    ..Default::default()
-                                },
-                                backface_culling: BackfaceCullingMode::CullClockwise,
-                                ..DrawParameters::default()
-                            },
-                        )
-                        .unwrap();
-
-                    target
-                        .draw(
-                            (
-                                &primitive.vertex_buffer,
-                                self.model_instance_buffers
-                                    .get(&(model.clone(), material.clone()))
-                                    .unwrap()
-                                    .slice(0..instances.len())
-                                    .unwrap()
-                                    .per_instance()
-                                    .unwrap(),
-                            ),
-                            &primitive.index_buffer,
-                            &self.outline_program,
-                            &outline_uniforms,
-                            &DrawParameters {
-                                depth: Depth {
-                                    test: DepthTest::IfLessOrEqual,
-                                    write: false,
-                                    ..Default::default()
-                                },
-                                stencil: Stencil {
-                                    test_clockwise: StencilTest::IfNotEqual { mask: 0xFF },
-                                    reference_value_clockwise: 1,
-                                    write_mask_clockwise: 0x00,
                                     ..Default::default()
                                 },
                                 backface_culling: BackfaceCullingMode::CullClockwise,
