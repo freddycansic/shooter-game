@@ -168,7 +168,7 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        // let size = 100;
+        // let size = 10;
         // let model_instance = ModelInstance::from(
         //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
         // );
