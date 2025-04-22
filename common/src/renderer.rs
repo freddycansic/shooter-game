@@ -2,20 +2,23 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use color_eyre::Result;
+use fxhash::{FxBuildHasher, FxHashMap};
+use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
-use glium::index::{NoIndices, PrimitiveType};
+use glium::index::{IndicesSource, NoIndices, PrimitiveType};
+use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
+use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
-    VertexBuffer, implement_vertex, uniform,
+    BackfaceCullingMode, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
 };
-use gxhash::{HashMap, HashMapExt};
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
-use crate::colors::ColorExt;
+use crate::colors::{self, ColorExt};
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
@@ -31,20 +34,25 @@ pub struct Renderer {
     orthograhic_projection: Matrix4<f32>,
     perspective_projection: Matrix4<f32>,
 
+    outline_program: Program,
+
     default_program: Program,
-    model_instance_buffers: HashMap<(Arc<Model>, Material), VertexBuffer<Instance>>,
+    model_instance_buffers: FxHashMap<(Arc<Model>, Material, bool), VertexBuffer<Instance>>,
 
     skybox_program: Program,
     light_program: Program,
     cube_vertex_buffer: VertexBuffer<SimplePoint>,
 
     lines_program: Program,
-    line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
+    line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
 
     terrain_program: Program,
 
     quad_program: Program,
-    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
+    quad_vertex_buffers: FxHashMap<Uuid, VertexBuffer<QuadVertex>>,
+
+    fullscreen_quad_program: Program,
+    solid_color_program: Program,
 }
 
 impl Renderer {
@@ -95,8 +103,31 @@ impl Renderer {
             display,
         )?;
 
+        let outline_program = context::new_program(
+            "assets/shaders/outline/outline.vert",
+            "assets/shaders/outline/outline.frag",
+            None,
+            display,
+        )?;
+
+        let fullscreen_quad_program = context::new_program(
+            "assets/shaders/fullscreen_quad/fullscreen_quad.vert",
+            "assets/shaders/fullscreen_quad/fullscreen_quad.frag",
+            None,
+            display,
+        )?;
+
+        let solid_color_program = context::new_program(
+            "assets/shaders/solid_color/solid_color.vert",
+            "assets/shaders/solid_color/solid_color.frag",
+            None,
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
+
+        let hasher = FxBuildHasher::new();
 
         Ok(Self {
             perspective_projection: maths::perspective_matrix_from_window_size(
@@ -107,16 +138,19 @@ impl Renderer {
                 window_width,
                 window_height,
             ),
+            outline_program,
             default_program,
-            model_instance_buffers: HashMap::new(),
+            model_instance_buffers: FxHashMap::with_hasher(hasher.clone()),
             skybox_program,
             light_program,
             cube_vertex_buffer,
             lines_program,
-            line_vertex_buffers: HashMap::new(),
+            line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
             terrain_program,
             quad_program,
-            quad_vertex_buffers: HashMap::new(),
+            quad_vertex_buffers: FxHashMap::with_hasher(hasher),
+            fullscreen_quad_program,
+            solid_color_program,
         })
     }
 
@@ -139,87 +173,25 @@ impl Renderer {
     ) {
         let default_material = Material::default(display).unwrap();
 
-        let batched_instances = model_instances
-            .node_weights()
-            .into_group_map_by(|model_instance| {
-                let model = model_instance.model.clone();
-                let material = match &model_instance.material {
-                    Some(material) => material.clone(),
-                    None => default_material.clone(),
-                };
-                (model, material)
-            })
-            .into_iter()
-            .map(|(key, model_instances)| {
-                (
-                    key,
-                    model_instances
-                        .iter()
-                        .map(|model_instance| Instance {
-                            transform: model_instance.transform.matrix(),
-                        })
-                        .collect_vec(),
-                )
-            })
-            .collect_vec();
+        let batched_instances = Self::batch_model_instances(model_instances, default_material);
 
         let vp = maths::raw_matrix(self.perspective_projection * view);
-        let camera_position = <[f32; 3]>::from(camera_position);
 
-        let sample_behaviour = SamplerBehavior {
-            minify_filter: MinifySamplerFilter::Nearest,
-            magnify_filter: MagnifySamplerFilter::Nearest,
-            ..SamplerBehavior::default()
-        };
+        let dimensions = target.get_dimensions();
 
-        for ((model, material), instances) in batched_instances {
-            Self::copy_into_buffers(
-                display,
-                (model.clone(), material.clone()),
-                &instances,
-                &mut self.model_instance_buffers,
-            );
+        let mask_texture = self.render_mask_texture(&batched_instances, dimensions, &vp, display);
 
-            let uniforms = uniform! {
-                vp: vp,
-                camera_position: camera_position,
-                // TODO temporary
-                light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
-                light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
-                diffuse_texture: Sampler(material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0,
-                specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
-            };
+        self.render_model_instances_color(
+            &batched_instances,
+            &vp,
+            lights,
+            camera_position,
+            display,
+            target,
+        );
 
-            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
-                for primitive in mesh.primitives.iter() {
-                    target
-                        .draw(
-                            (
-                                &primitive.vertex_buffer,
-                                self.model_instance_buffers
-                                    .get(&(model.clone(), material.clone()))
-                                    .unwrap()
-                                    .slice(0..instances.len())
-                                    .unwrap()
-                                    .per_instance()
-                                    .unwrap(),
-                            ),
-                            &primitive.index_buffer,
-                            &self.default_program,
-                            &uniforms,
-                            &DrawParameters {
-                                depth: Depth {
-                                    test: DepthTest::IfLess,
-                                    write: true,
-                                    ..Default::default()
-                                },
-                                ..DrawParameters::default()
-                            },
-                        )
-                        .unwrap();
-                }
-            }
-        }
+        let outline_texture = self.render_outline_texture(mask_texture, dimensions, display);
+        self.render_outline(outline_texture, target);
     }
 
     pub fn render_terrain(
@@ -297,7 +269,7 @@ impl Renderer {
 
             let uniforms = uniform! {
                 diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
-                projection: maths::raw_matrix(self.orthograhic_projection.clone())
+                projection: maths::raw_matrix(self.orthograhic_projection)
             };
 
             target
@@ -358,7 +330,7 @@ impl Renderer {
             return;
         }
 
-        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
+        let mut batched_lines = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
 
         for line in lines.iter() {
             let line_points = vec![
@@ -451,7 +423,7 @@ impl Renderer {
         display: &Display<WindowSurface>,
         key: T,
         vertices: &Vec<V>,
-        vertex_buffers: &mut HashMap<T, VertexBuffer<V>>,
+        vertex_buffers: &mut FxHashMap<T, VertexBuffer<V>>,
     ) where
         T: Hash + Eq,
         V: Copy + Vertex,
@@ -495,6 +467,229 @@ impl Renderer {
                 .unwrap(),
             );
         }
+    }
+
+    fn batch_model_instances(
+        model_instances: &StableDiGraph<ModelInstance, ()>,
+        default_material: Material,
+    ) -> Vec<((Arc<Model>, Material, bool), Vec<Instance>)> {
+        model_instances
+            .node_weights()
+            .into_group_map_by(|model_instance| {
+                let model = model_instance.model.clone();
+                let material = match &model_instance.material {
+                    Some(material) => material.clone(),
+                    None => default_material.clone(),
+                };
+                (model, material, model_instance.selected)
+            })
+            .into_iter()
+            .map(|(key, model_instances)| {
+                (
+                    key,
+                    model_instances
+                        .iter()
+                        .map(|model_instance| Instance {
+                            transform: model_instance.transform.matrix(),
+                        })
+                        .collect_vec(),
+                )
+            })
+            .collect_vec()
+    }
+
+    fn render_model_instances_color(
+        &mut self,
+        batched_instances: &[((Arc<Model>, Material, bool), Vec<Instance>)],
+        vp: &[[f32; 4]; 4],
+        lights: &[Light],
+        camera_position: Point3<f32>,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        let camera_position = <[f32; 3]>::from(camera_position);
+
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
+        // Draw regular color buffer
+        for ((model, material, selected), instances) in batched_instances.iter() {
+            Self::copy_into_buffers(
+                display,
+                (model.clone(), material.clone(), *selected),
+                instances,
+                &mut self.model_instance_buffers,
+            );
+
+            let uniforms = uniform! {
+                vp: vp.clone(),
+                camera_position: camera_position,
+                // TODO temporary
+                light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
+                light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
+                diffuse_texture: Sampler(material.diffuse.inner_texture.as_ref().unwrap(), sample_behaviour).0,
+                specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
+            };
+
+            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
+                for primitive in mesh.primitives.iter() {
+                    target
+                        .draw(
+                            (
+                                &primitive.vertex_buffer,
+                                self.model_instance_buffers
+                                    .get(&(model.clone(), material.clone(), *selected))
+                                    .unwrap()
+                                    .slice(0..instances.len())
+                                    .unwrap()
+                                    .per_instance()
+                                    .unwrap(),
+                            ),
+                            &primitive.index_buffer,
+                            &self.default_program,
+                            &uniforms,
+                            &DrawParameters {
+                                depth: Depth {
+                                    test: DepthTest::IfLess,
+                                    write: true,
+                                    ..Default::default()
+                                },
+                                backface_culling: BackfaceCullingMode::CullClockwise,
+                                ..DrawParameters::default()
+                            },
+                        )
+                        .unwrap();
+                }
+            }
+        }
+    }
+
+    fn render_mask_texture(
+        &mut self,
+        batched_instances: &[((Arc<Model>, Material, bool), Vec<Instance>)],
+        dimensions: (u32, u32),
+        vp: &[[f32; 4]; 4],
+        display: &Display<WindowSurface>,
+    ) -> Texture2d {
+        let mask_texture = Texture2d::empty_with_format(
+            display,
+            UncompressedFloatFormat::U8,
+            MipmapsOption::NoMipmap,
+            dimensions.0,
+            dimensions.1,
+        )
+        .unwrap();
+        let mut framebuffer = SimpleFrameBuffer::new(display, &mask_texture).unwrap();
+
+        let solid_color_uniforms = uniform! {
+            vp: vp.clone(),
+        };
+
+        // Only draw selected models into mask
+        for ((model, material, _), instances) in batched_instances
+            .iter()
+            .filter(|((_, _, selected), _)| *selected)
+        {
+            Self::copy_into_buffers(
+                display,
+                (model.clone(), material.clone(), true),
+                instances,
+                &mut self.model_instance_buffers,
+            );
+
+            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
+                for primitive in mesh.primitives.iter() {
+                    framebuffer
+                        .draw(
+                            (
+                                &primitive.vertex_buffer,
+                                self.model_instance_buffers
+                                    .get(&(model.clone(), material.clone(), true))
+                                    .unwrap()
+                                    .slice(0..instances.len())
+                                    .unwrap()
+                                    .per_instance()
+                                    .unwrap(),
+                            ),
+                            &primitive.index_buffer,
+                            &self.solid_color_program,
+                            &solid_color_uniforms,
+                            &DrawParameters::default(),
+                        )
+                        .unwrap();
+                }
+            }
+        }
+
+        mask_texture
+    }
+
+    fn render_outline(&mut self, outline_texture: Texture2d, target: &mut Frame) {
+        let fullscreen_quad_uniforms = uniform! {
+            fullscreen_quad_texture: outline_texture,
+        };
+
+        // Draw outline
+        target
+            .draw(
+                EmptyVertexAttributes { len: 4 },
+                IndicesSource::NoIndices {
+                    primitives: PrimitiveType::TriangleStrip,
+                },
+                &self.fullscreen_quad_program,
+                &fullscreen_quad_uniforms,
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::Overwrite,
+                        write: false,
+                        ..Default::default()
+                    },
+                    blend: Blend::alpha_blending(),
+                    ..DrawParameters::default()
+                },
+            )
+            .unwrap();
+    }
+
+    fn render_outline_texture(
+        &self,
+        mask_texture: Texture2d,
+        dimensions: (u32, u32),
+        display: &Display<WindowSurface>,
+    ) -> Texture2d {
+        // Dilate selection mask
+        let outline_texture = Texture2d::empty_with_format(
+            display,
+            UncompressedFloatFormat::U8U8U8U8,
+            MipmapsOption::NoMipmap,
+            dimensions.0,
+            dimensions.1,
+        )
+        .unwrap();
+        let mut outline_framebuffer = SimpleFrameBuffer::new(display, &outline_texture).unwrap();
+
+        let dilate_uniforms = uniform! {
+            mask_texture: mask_texture,
+            outline_color: <[f32; 3]>::from(colors::SELECTED.to_rgb_vector3()),
+            outline_radius: 2
+        };
+
+        outline_framebuffer
+            .draw(
+                EmptyVertexAttributes { len: 4 },
+                IndicesSource::NoIndices {
+                    primitives: PrimitiveType::TriangleStrip,
+                },
+                &self.outline_program,
+                &dilate_uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
+
+        outline_texture
     }
 }
 

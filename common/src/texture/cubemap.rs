@@ -1,4 +1,4 @@
-use gxhash::HashSet;
+use fxhash::FxHashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -68,7 +68,7 @@ fn load(
         .collect::<Result<Vec<Texture2d>, TextureLoadError>>()?;
 
     // Check each side is of the same dimension
-    let unique_cubemap_dimensions = HashSet::from_iter(
+    let unique_cubemap_dimensions = FxHashSet::from_iter(
         textures
             .iter()
             .map(|texture| (texture.width(), texture.height())),

@@ -1,4 +1,4 @@
-use rapier3d::na::{Matrix4, Similarity3, Translation3, UnitQuaternion, Vector3};
+use rapier3d::na::{Similarity3, Translation3, UnitQuaternion};
 use serde::{Deserialize, Serialize};
 
 use crate::maths;
