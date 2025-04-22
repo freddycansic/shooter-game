@@ -194,33 +194,6 @@ impl Renderer {
         self.render_outline(outline_texture, target);
     }
 
-    fn render_outline(&mut self, outline_texture: Texture2d, target: &mut Frame) {
-        let fullscreen_quad_uniforms = uniform! {
-            fullscreen_quad_texture: outline_texture,
-        };
-
-        // Draw outline
-        target
-            .draw(
-                EmptyVertexAttributes { len: 4 },
-                IndicesSource::NoIndices {
-                    primitives: PrimitiveType::TriangleStrip,
-                },
-                &self.fullscreen_quad_program,
-                &fullscreen_quad_uniforms,
-                &DrawParameters {
-                    depth: Depth {
-                        test: DepthTest::Overwrite,
-                        write: false,
-                        ..Default::default()
-                    },
-                    blend: Blend::alpha_blending(),
-                    ..DrawParameters::default()
-                },
-            )
-            .unwrap();
-    }
-
     pub fn render_terrain(
         &mut self,
         terrain: &Terrain,
@@ -652,6 +625,33 @@ impl Renderer {
         }
 
         mask_texture
+    }
+
+    fn render_outline(&mut self, outline_texture: Texture2d, target: &mut Frame) {
+        let fullscreen_quad_uniforms = uniform! {
+            fullscreen_quad_texture: outline_texture,
+        };
+
+        // Draw outline
+        target
+            .draw(
+                EmptyVertexAttributes { len: 4 },
+                IndicesSource::NoIndices {
+                    primitives: PrimitiveType::TriangleStrip,
+                },
+                &self.fullscreen_quad_program,
+                &fullscreen_quad_uniforms,
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::Overwrite,
+                        write: false,
+                        ..Default::default()
+                    },
+                    blend: Blend::alpha_blending(),
+                    ..DrawParameters::default()
+                },
+            )
+            .unwrap();
     }
 
     fn render_outline_texture(
