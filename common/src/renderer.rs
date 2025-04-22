@@ -3,16 +3,15 @@ use std::sync::Arc;
 
 use color_eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap};
-use glium::draw_parameters::{PolygonOffset, Stencil};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{IndicesSource, NoIndices, PrimitiveType};
-use glium::texture::{MipmapsOption, StencilTexture2d, Texture2d, UncompressedFloatFormat};
+use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    BackfaceCullingMode, Blend, BlitMask, BlitTarget, Depth, DepthTest, Display, DrawParameters,
-    Frame, PolygonMode, Program, Rect, StencilOperation, StencilTest, Surface, Vertex,
+    BackfaceCullingMode, Blend, Depth, DepthTest, Display, DrawParameters,
+    Frame, Program, Surface, Vertex,
     VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
@@ -231,7 +230,7 @@ impl Renderer {
             Self::copy_into_buffers(
                 display,
                 (model.clone(), material.clone(), true),
-                &instances,
+                instances,
                 &mut self.model_instance_buffers,
             );
 
@@ -264,7 +263,7 @@ impl Renderer {
             Self::copy_into_buffers(
                 display,
                 (model.clone(), material.clone(), *selected),
-                &instances,
+                instances,
                 &mut self.model_instance_buffers,
             );
 
@@ -440,7 +439,7 @@ impl Renderer {
 
             let uniforms = uniform! {
                 diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
-                projection: maths::raw_matrix(self.orthograhic_projection.clone())
+                projection: maths::raw_matrix(self.orthograhic_projection)
             };
 
             target

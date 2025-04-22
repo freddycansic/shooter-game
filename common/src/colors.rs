@@ -1,5 +1,4 @@
-use image::Rgb;
-use palette::{FromColor, IntoColor, LabHue, Lch, ShiftHue, Srgb, rgb::Rgba};
+use palette::{FromColor, IntoColor, LabHue, Lch, ShiftHue, Srgb};
 use rapier3d::na::{Vector3, Vector4};
 
 pub type Color = Lch;
@@ -13,9 +12,9 @@ pub trait ColorExt {
 }
 
 pub const SELECTED: Color = Color::new_const(
-    73.90410404549763,
-    75.77322477206486,
-    LabHue::new(69.0500156411789),
+    73.904_106,
+    75.773_224,
+    LabHue::new(69.050_02),
 );
 
 impl ColorExt for Color {
