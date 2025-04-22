@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use color_eyre::Result;
+use fxhash::FxHasher;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-use gxhash::GxHasher;
 use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -88,7 +88,7 @@ impl Eq for Texture2D {}
 
 impl Hash for Texture2D {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut hasher = GxHasher::default();
+        let mut hasher = FxHasher::default();
         self.uuid.hash(&mut hasher);
 
         let result = hasher.finish();

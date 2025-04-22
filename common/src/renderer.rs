@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use color_eyre::Result;
+use fxhash::{FxBuildHasher, FxHashMap};
 use glium::draw_parameters::{PolygonOffset, Stencil};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
@@ -14,7 +15,6 @@ use glium::{
     Frame, PolygonMode, Program, Rect, StencilOperation, StencilTest, Surface, Vertex,
     VertexBuffer, implement_vertex, uniform,
 };
-use gxhash::{HashMap, HashMapExt};
 use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use rapier3d::na::{Matrix4, Point3};
@@ -39,19 +39,19 @@ pub struct Renderer {
     outline_program: Program,
 
     default_program: Program,
-    model_instance_buffers: HashMap<(Arc<Model>, Material, bool), VertexBuffer<Instance>>,
+    model_instance_buffers: FxHashMap<(Arc<Model>, Material, bool), VertexBuffer<Instance>>,
 
     skybox_program: Program,
     light_program: Program,
     cube_vertex_buffer: VertexBuffer<SimplePoint>,
 
     lines_program: Program,
-    line_vertex_buffers: HashMap<u8, VertexBuffer<LinePoint>>,
+    line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
 
     terrain_program: Program,
 
     quad_program: Program,
-    quad_vertex_buffers: HashMap<Uuid, VertexBuffer<QuadVertex>>,
+    quad_vertex_buffers: FxHashMap<Uuid, VertexBuffer<QuadVertex>>,
 
     fullscreen_quad_program: Program,
     solid_color_program: Program,
@@ -129,6 +129,8 @@ impl Renderer {
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
+        let hasher = FxBuildHasher::new();
+
         Ok(Self {
             perspective_projection: maths::perspective_matrix_from_window_size(
                 window_width,
@@ -140,15 +142,15 @@ impl Renderer {
             ),
             outline_program,
             default_program,
-            model_instance_buffers: HashMap::new(),
+            model_instance_buffers: FxHashMap::with_hasher(hasher.clone()),
             skybox_program,
             light_program,
             cube_vertex_buffer,
             lines_program,
-            line_vertex_buffers: HashMap::new(),
+            line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
             terrain_program,
             quad_program,
-            quad_vertex_buffers: HashMap::new(),
+            quad_vertex_buffers: FxHashMap::with_hasher(hasher),
             fullscreen_quad_program,
             solid_color_program,
         })
@@ -499,7 +501,7 @@ impl Renderer {
             return;
         }
 
-        let mut batched_lines = HashMap::<u8, Vec<LinePoint>>::new();
+        let mut batched_lines = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
 
         for line in lines.iter() {
             let line_points = vec![
@@ -592,7 +594,7 @@ impl Renderer {
         display: &Display<WindowSurface>,
         key: T,
         vertices: &Vec<V>,
-        vertex_buffers: &mut HashMap<T, VertexBuffer<V>>,
+        vertex_buffers: &mut FxHashMap<T, VertexBuffer<V>>,
     ) where
         T: Hash + Eq,
         V: Copy + Vertex,

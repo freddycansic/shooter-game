@@ -1,4 +1,4 @@
-use gxhash::HashSet;
+use fxhash::FxHashSet;
 use std::fmt;
 use std::fmt::Formatter;
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ use crate::import::image::ImageLoadError;
 pub enum TextureLoadError {
     ImageLoadError(ImageLoadError),
     CreateTextureError(glium::texture::TextureCreationError),
-    CubemapDimensionError(HashSet<(u32, u32)>),
+    CubemapDimensionError(FxHashSet<(u32, u32)>),
     CubemapFramebufferError,
 }
 
