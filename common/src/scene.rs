@@ -20,6 +20,7 @@ use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::terrain::Terrain;
 use crate::texture::{Cubemap, Texture2D};
+use crate::physics::Physics;
 
 #[derive(PartialEq, Serialize, Deserialize)]
 pub enum Background {
@@ -44,6 +45,7 @@ pub struct Scene {
     pub quads: StableDiGraph<Quad, ()>,
     #[serde(skip)]
     pub lines: Vec<Line>,
+    pub physics: Physics,
 }
 
 impl Scene {
@@ -57,6 +59,7 @@ impl Scene {
             background: Background::default(),
             terrain: None,
             lights: vec![],
+            physics: Physics::default()
         }
     }
 

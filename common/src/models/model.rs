@@ -6,12 +6,15 @@ use std::sync::{Arc, Mutex};
 use std::{fmt, ptr};
 
 use color_eyre::Result;
+use color_eyre::eyre::ContextCompat;
 use fxhash::FxHasher;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use gltf::json::accessor::ComponentType;
+use gltf::mesh::Reader;
+use gltf::mesh::util::ReadIndices;
 use gltf::{Accessor, Semantic};
 use itertools::Itertools;
 use log::{debug, info, warn};
@@ -25,7 +28,7 @@ use crate::models::model_vertex::ModelVertex;
 #[derive(Debug)]
 pub struct Primitive {
     pub vertex_buffer: VertexBuffer<ModelVertex>,
-    pub index_buffer: IndexBuffer<u16>,
+    pub index_buffer: IndexBuffer<u32>,
 }
 
 // TODO could move all vertices / indices into one buffer and then have an offset into this for each primitive
@@ -39,6 +42,8 @@ pub struct Mesh {
 pub enum ModelLoadError {
     ModelDoesNotExist(PathBuf),
     CreateBufferError(PathBuf),
+    NoPositions(PathBuf),
+    NoIndices(PathBuf),
 }
 
 impl std::error::Error for ModelLoadError {}
@@ -51,6 +56,20 @@ impl fmt::Display for ModelLoadError {
             }
             Self::CreateBufferError(path) => {
                 write!(f, "Could not create buffers for the model \"{:?}\"", path)
+            }
+            Self::NoPositions(path) => {
+                write!(
+                    f,
+                    "Could not extract primitive vertex positions for the model {:?}",
+                    path
+                )
+            }
+            Self::NoIndices(path) => {
+                write!(
+                    f,
+                    "Could not extract primitive indices for the model {:?}",
+                    path
+                )
             }
         }
     }
@@ -80,21 +99,31 @@ impl Model {
         let (document, file_buffers, _images) = gltf::import(&self.path)
             .map_err(|_| ModelLoadError::ModelDoesNotExist(self.path.clone()))?;
 
-        let mut meshes = Vec::new();
-        for mesh in document.meshes() {
-            let mut primitives = Vec::new();
-            for primitive in mesh.primitives() {
-                primitives.push(
-                    Primitive::from(primitive, &file_buffers, display)
-                        .map_err(|_| ModelLoadError::CreateBufferError(self.path.clone()))?,
-                );
-            }
+        let meshes = document
+            .meshes()
+            .enumerate()
+            .map(|(mesh_index, mesh)| {
+                let primitives = mesh
+                    .primitives()
+                    .enumerate()
+                    .map(|(primitive_index, primitive)| {
+                        log::debug!("Loading mesh {} primitive {}", mesh_index, primitive_index);
 
-            meshes.push(Mesh {
-                name: mesh.name().map(str::to_owned),
-                primitives,
-            });
-        }
+                        Primitive::from_gltf_primitive(
+                            primitive,
+                            &file_buffers,
+                            display,
+                            self.path.clone(),
+                        )
+                    })
+                    .collect::<Result<Vec<Primitive>, ModelLoadError>>()?;
+
+                Ok(Mesh {
+                    name: mesh.name().map(str::to_owned),
+                    primitives,
+                })
+            })
+            .collect::<Result<Vec<Mesh>, ModelLoadError>>()?;
 
         *self.meshes.lock().unwrap() = Some(meshes);
 
@@ -136,169 +165,53 @@ impl Hash for Model {
 }
 
 impl Primitive {
-    fn from(
+    fn from_gltf_primitive(
         primitive: gltf::Primitive,
         file_buffers: &[Data],
         display: &Display<WindowSurface>,
-    ) -> Result<Self> {
-        let available_attributes = primitive
-            .attributes()
-            .map(|(semantic, _)| semantic)
+        path: PathBuf,
+    ) -> Result<Self, ModelLoadError> {
+        let reader = primitive.reader(|buffer| Some(&file_buffers[buffer.index()].0));
+
+        let positions = reader
+            .read_positions()
+            .ok_or(ModelLoadError::NoPositions(path.clone()))?;
+        let normals = reader.read_normals().unwrap();
+
+        // Primitives can have multiple "sets" of texture coordinates which can differ on whether they are being used for diffuse maps, specular etc.
+        // 0 is the standard place for diffuse maps
+        let tex_coords = reader.read_tex_coords(0).unwrap().into_f32();
+
+        let indices = reader
+            .read_indices()
+            .ok_or(ModelLoadError::NoIndices(path.clone()))?
+            .into_u32()
             .collect_vec();
 
-        debug!("Available attributes: {available_attributes:?}");
-
-        assert!(
-            available_attributes.contains(&Semantic::Positions),
-            "No position data for primitive!"
-        );
-
-        // TODO look into gltf::Reader::read_indices, vertices etc
-        let mut vertices = Self::extract_vertices(&primitive, file_buffers);
-        let indices = Self::extract_indices(&primitive, file_buffers);
-
-        // TODO understand tex coord set index
-        if !available_attributes.contains(&Semantic::TexCoords(0)) {
-            warn!("Mesh primitive does include texture coordinates! Generating...");
-            generate_tex_coords(&mut vertices);
+        if reader.read_tex_coords(1).is_some() {
+            log::warn!("There exists more than one set of texture coords for this primitive");
         }
 
-        let vertex_buffer = VertexBuffer::new(display, &vertices)?;
+        let num_vertices = primitive.attributes().next().unwrap().1.count();
+        let mut vertices = Vec::<ModelVertex>::with_capacity(num_vertices);
 
-        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices)?;
+        vertices.extend(positions.zip_eq(normals).zip_eq(tex_coords).map(
+            |((position, normal), tex_coord)| ModelVertex {
+                position,
+                normal,
+                tex_coord,
+            },
+        ));
+
+        let vertex_buffer = VertexBuffer::new(display, &vertices)
+            .map_err(|_| ModelLoadError::CreateBufferError(path.clone()))?;
+
+        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices)
+            .map_err(|_| ModelLoadError::CreateBufferError(path))?;
 
         Ok(Primitive {
             vertex_buffer,
             index_buffer,
         })
     }
-
-    fn extract_indices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<u16> {
-        let num_indices = primitive.indices().expect("No indices? Help, bad.").count();
-        // TODO allow differently sized indices
-        let mut indices = vec![0_u16; num_indices];
-
-        map_accessor_data_to_buffer(
-            &mut indices,
-            // No offset as indices are scalar
-            0,
-            &primitive.indices().unwrap(),
-            file_buffers,
-        );
-
-        indices
-    }
-
-    fn extract_vertices(primitive: &gltf::Primitive, file_buffers: &[Data]) -> Vec<ModelVertex> {
-        let num_vertices = primitive.attributes().next().unwrap().1.count();
-        let mut vertices = vec![ModelVertex::default(); num_vertices];
-
-        for (semantic, accessor) in primitive.attributes() {
-            match semantic {
-                Semantic::Positions => {
-                    map_accessor_data_to_buffer(
-                        &mut vertices,
-                        offset_of!(ModelVertex, position),
-                        &accessor,
-                        file_buffers,
-                    );
-                }
-                Semantic::Normals => {
-                    map_accessor_data_to_buffer(
-                        &mut vertices,
-                        offset_of!(ModelVertex, normal),
-                        &accessor,
-                        file_buffers,
-                    );
-                }
-                Semantic::TexCoords(0) => {
-                    map_accessor_data_to_buffer(
-                        &mut vertices,
-                        offset_of!(ModelVertex, tex_coord),
-                        &accessor,
-                        file_buffers,
-                    );
-                }
-                _ => unimplemented!("{semantic:?}"),
-            }
-        }
-
-        vertices
-    }
-}
-
-/// Fills the member, specified by the `byte_offset`, of each element of a given buffer from an `Accessor`
-fn map_accessor_data_to_buffer<T: Debug>(
-    destination_buffer: &mut [T],
-    byte_offset: usize,
-    accessor: &Accessor,
-    file_buffers: &[Data],
-) {
-    let buffer_view = accessor
-        .view()
-        .expect("Sparse accessor not yet implemented HELP");
-
-    let file_buffer = &file_buffers[buffer_view.buffer().index()];
-
-    let byte_stride = buffer_view
-        .stride()
-        .unwrap_or(calculate_bit_stride(accessor))
-        / 8;
-
-    let file_buffer_offset = buffer_view.offset();
-
-    for (index, element_start_index) in (file_buffer_offset
-        ..file_buffer_offset + buffer_view.length())
-        .step_by(byte_stride)
-        .enumerate()
-    {
-        unsafe {
-            // Cast to pointer to stop the borrow checker from freaking out then cast to u8
-            let current_destination_pointer: *mut u8 =
-                &mut destination_buffer[index] as *mut T as *mut u8;
-            let member_destination_pointer = current_destination_pointer.add(byte_offset);
-
-            // Extract slice from the loaded file buffer
-            let member_source_pointer: *const u8 = &file_buffer[element_start_index];
-
-            ptr::copy(
-                member_source_pointer,
-                member_destination_pointer,
-                byte_stride,
-            );
-        }
-    }
-}
-
-fn generate_tex_coords(vertices: &mut [ModelVertex]) {
-    let mut x_min = f32::MAX;
-    let mut x_max = f32::MIN;
-    let mut z_min = f32::MAX;
-    let mut z_max = f32::MIN;
-
-    for vertex in vertices.iter() {
-        x_min = x_min.min(vertex.position[0]);
-        x_max = x_max.max(vertex.position[0]);
-
-        z_min = z_min.min(vertex.position[2]);
-        z_max = x_max.max(vertex.position[2]);
-    }
-
-    // project texture coordinates on to xz plane over primitive
-    for vertex in vertices.iter_mut() {
-        let x_tex_coord = maths::linear_map(vertex.position[0], x_min, x_max, 0.0, 1.0);
-        let y_tex_coord = maths::linear_map(vertex.position[2], z_min, z_max, 0.0, 1.0);
-
-        vertex.tex_coord = [x_tex_coord, y_tex_coord];
-    }
-}
-
-fn calculate_bit_stride(accessor: &Accessor) -> usize {
-    let component_size = match accessor.data_type() {
-        ComponentType::U8 | ComponentType::I8 => 8,
-        ComponentType::U16 | ComponentType::I16 => 16,
-        ComponentType::U32 | ComponentType::F32 => 32,
-    };
-
-    accessor.dimensions().multiplicity() * component_size
 }
