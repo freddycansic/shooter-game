@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use egui_glium::egui_winit::egui::WidgetText;
 use serde::{Deserialize, Serialize};
+use rapier3d::prelude::ColliderSet;
 
 use crate::models::{Material, Model};
 use crate::transform::Transform;
@@ -17,6 +18,18 @@ pub struct ModelInstance {
     pub material: Option<Material>,
     #[serde(skip)]
     pub selected: bool,
+}
+
+impl ModelInstance {
+    fn new(model: Arc<Model>, collider_set: &mut ColliderSet) -> Self {
+        Self {
+            model,
+            name: ui::default_name::model(),
+            material: None,
+            transform: Transform::default(),
+            selected: false,
+        }
+    }
 }
 
 impl From<Arc<Model>> for ModelInstance {
