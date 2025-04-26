@@ -1,8 +1,6 @@
-use std::sync::Mutex;
 use std::{fmt, path::PathBuf, sync::Arc};
 
 use glium::{Display, glutin::surface::WindowSurface};
-use itertools::Itertools;
 use uuid::Uuid;
 
 use crate::models::Model;

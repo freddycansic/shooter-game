@@ -4,7 +4,6 @@ use std::sync::Arc;
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
-use itertools::Itertools;
 use petgraph::prelude::StableDiGraph;
 use rapier3d::na::{Matrix4, Point3};
 use rfd::FileDialog;
@@ -15,7 +14,6 @@ use crate::colors::{Color, ColorExt};
 use crate::import;
 use crate::light::Light;
 use crate::line::Line;
-use crate::models::Model;
 use crate::models::ModelInstance;
 use crate::physics::Physics;
 use crate::quad::Quad;
@@ -68,7 +66,7 @@ impl Scene {
 
         let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string)?;
 
-        Ok(serialized_scene.into_scene(display)?)
+        serialized_scene.into_scene(display)
     }
 
     // pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {

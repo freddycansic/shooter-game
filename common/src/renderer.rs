@@ -10,7 +10,7 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    BackfaceCullingMode, Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
     Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
@@ -525,7 +525,7 @@ impl Renderer {
             );
 
             let uniforms = uniform! {
-                vp: vp.clone(),
+                vp: *vp,
                 camera_position: camera_position,
                 // TODO temporary
                 light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
@@ -583,7 +583,7 @@ impl Renderer {
         let mut framebuffer = SimpleFrameBuffer::new(display, &mask_texture).unwrap();
 
         let solid_color_uniforms = uniform! {
-            vp: vp.clone(),
+            vp: *vp,
         };
 
         // Only draw selected models into mask

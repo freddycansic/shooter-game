@@ -1,4 +1,4 @@
-use std::{convert::identity, ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap};
@@ -16,7 +16,6 @@ use crate::{
     physics::Physics,
     quad::Quad,
     scene::{Background, Scene},
-    terrain::Terrain,
 };
 
 use super::{SerializedModel, SerializedModelInstance};
@@ -40,6 +39,7 @@ impl From<&Scene> for SerializedScene {
         let hasher = FxBuildHasher::new();
 
         let mut serialized_models = FxHashMap::<Uuid, SerializedModel>::with_hasher(hasher.clone());
+        // TODO
         // let mut serialized_materials = FxHashMap::with_hasher(hasher.clone());
 
         let serialized_model_instance_graph = value.graph.map(
