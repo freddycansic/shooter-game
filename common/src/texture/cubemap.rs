@@ -16,7 +16,6 @@ use crate::texture::texture::TextureLoadError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Cubemap {
-    #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,
     pub directory: PathBuf,
 

@@ -37,7 +37,7 @@ pub struct Renderer {
     outline_program: Program,
 
     default_program: Program,
-    model_instance_buffers: FxHashMap<(Arc<Model>, Material, bool), VertexBuffer<Instance>>,
+    model_instance_buffers: FxHashMap<(Arc<Model>, Arc<Material>, bool), VertexBuffer<Instance>>,
 
     skybox_program: Program,
     light_program: Program,
@@ -471,8 +471,8 @@ impl Renderer {
 
     fn batch_model_instances(
         model_instances: &StableDiGraph<ModelInstance, ()>,
-        default_material: Material,
-    ) -> Vec<((Arc<Model>, Material, bool), Vec<Instance>)> {
+        default_material: Arc<Material>,
+    ) -> Vec<((Arc<Model>, Arc<Material>, bool), Vec<Instance>)> {
         model_instances
             .node_weights()
             .into_group_map_by(|model_instance| {
@@ -500,7 +500,7 @@ impl Renderer {
 
     fn render_model_instances_color(
         &mut self,
-        batched_instances: &[((Arc<Model>, Material, bool), Vec<Instance>)],
+        batched_instances: &[((Arc<Model>, Arc<Material>, bool), Vec<Instance>)],
         vp: &[[f32; 4]; 4],
         lights: &[Light],
         camera_position: Point3<f32>,
@@ -534,42 +534,40 @@ impl Renderer {
                 specular_texture: Sampler(material.specular.inner_texture.as_ref().unwrap(), sample_behaviour).0,
             };
 
-            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
-                for primitive in mesh.primitives.iter() {
-                    target
-                        .draw(
-                            (
-                                &primitive.vertex_buffer,
-                                self.model_instance_buffers
-                                    .get(&(model.clone(), material.clone(), *selected))
-                                    .unwrap()
-                                    .slice(0..instances.len())
-                                    .unwrap()
-                                    .per_instance()
-                                    .unwrap(),
-                            ),
-                            &primitive.index_buffer,
-                            &self.default_program,
-                            &uniforms,
-                            &DrawParameters {
-                                depth: Depth {
-                                    test: DepthTest::IfLess,
-                                    write: true,
-                                    ..Default::default()
-                                },
-                                backface_culling: BackfaceCullingMode::CullClockwise,
-                                ..DrawParameters::default()
+            for primitive in model.primitives.iter() {
+                target
+                    .draw(
+                        (
+                            &primitive.vertex_buffer,
+                            self.model_instance_buffers
+                                .get(&(model.clone(), material.clone(), *selected))
+                                .unwrap()
+                                .slice(0..instances.len())
+                                .unwrap()
+                                .per_instance()
+                                .unwrap(),
+                        ),
+                        &primitive.index_buffer,
+                        &self.default_program,
+                        &uniforms,
+                        &DrawParameters {
+                            depth: Depth {
+                                test: DepthTest::IfLess,
+                                write: true,
+                                ..Default::default()
                             },
-                        )
-                        .unwrap();
-                }
+                            // backface_culling: BackfaceCullingMode::CullClockwise,
+                            ..DrawParameters::default()
+                        },
+                    )
+                    .unwrap();
             }
         }
     }
 
     fn render_mask_texture(
         &mut self,
-        batched_instances: &[((Arc<Model>, Material, bool), Vec<Instance>)],
+        batched_instances: &[((Arc<Model>, Arc<Material>, bool), Vec<Instance>)],
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
         display: &Display<WindowSurface>,
@@ -600,27 +598,25 @@ impl Renderer {
                 &mut self.model_instance_buffers,
             );
 
-            for mesh in model.clone().meshes.lock().unwrap().iter().flatten() {
-                for primitive in mesh.primitives.iter() {
-                    framebuffer
-                        .draw(
-                            (
-                                &primitive.vertex_buffer,
-                                self.model_instance_buffers
-                                    .get(&(model.clone(), material.clone(), true))
-                                    .unwrap()
-                                    .slice(0..instances.len())
-                                    .unwrap()
-                                    .per_instance()
-                                    .unwrap(),
-                            ),
-                            &primitive.index_buffer,
-                            &self.solid_color_program,
-                            &solid_color_uniforms,
-                            &DrawParameters::default(),
-                        )
-                        .unwrap();
-                }
+            for primitive in model.primitives.iter() {
+                framebuffer
+                    .draw(
+                        (
+                            &primitive.vertex_buffer,
+                            self.model_instance_buffers
+                                .get(&(model.clone(), material.clone(), true))
+                                .unwrap()
+                                .slice(0..instances.len())
+                                .unwrap()
+                                .per_instance()
+                                .unwrap(),
+                        ),
+                        &primitive.index_buffer,
+                        &self.solid_color_program,
+                        &solid_color_uniforms,
+                        &DrawParameters::default(),
+                    )
+                    .unwrap();
             }
         }
 

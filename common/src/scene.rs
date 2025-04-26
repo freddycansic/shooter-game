@@ -12,15 +12,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
+use crate::import;
 use crate::light::Light;
 use crate::line::Line;
 use crate::models::Model;
 use crate::models::ModelInstance;
+use crate::physics::Physics;
 use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::terrain::Terrain;
 use crate::texture::{Cubemap, Texture2D};
-use crate::physics::Physics;
 
 #[derive(PartialEq, Serialize, Deserialize)]
 pub enum Background {
@@ -34,7 +35,7 @@ impl Default for Background {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+// #[derive(Serialize, Deserialize)]
 pub struct Scene {
     pub title: String,
     pub camera: FpsCamera, // the camera state to be used when starting the game
@@ -43,7 +44,7 @@ pub struct Scene {
     pub lights: Vec<Light>,
     pub terrain: Option<Terrain>,
     pub quads: StableDiGraph<Quad, ()>,
-    #[serde(skip)]
+    // #[serde(skip)]
     pub lines: Vec<Line>,
     pub physics: Physics,
 }
@@ -59,73 +60,76 @@ impl Scene {
             background: Background::default(),
             terrain: None,
             lights: vec![],
-            physics: Physics::default()
+            physics: Physics::default(),
         }
     }
 
-    pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
-        Self::from_string(&std::fs::read_to_string(path)?, display)
-    }
+    // pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
+    //     Self::from_string(&std::fs::read_to_string(path)?, display)
+    // }
 
-    pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
-        let mut scene = serde_json::from_str::<Scene>(scene_string)?;
+    // pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
+    //     let mut scene = serde_json::from_str::<Scene>(scene_string)?;
 
-        let node_indices = scene.graph.node_indices().collect_vec();
+    //     let node_indices = scene.graph.node_indices().collect_vec();
 
-        // Load assets which require Display
-        for node_index in node_indices {
-            // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
-            if scene.graph[node_index]
-                .model
-                .meshes
-                .lock()
-                .unwrap()
-                .is_none()
-            {
-                scene.graph[node_index].model.load_meshes(display).unwrap()
-            }
+    //     // Load assets which require Display
+    //     for node_index in node_indices {
+    //         // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
+    //         // TODO
+    //         // if scene.graph[node_index]
+    //         //     .model
+    //         //     .meshes
+    //         //     .lock()
+    //         //     .unwrap()
+    //         //     .is_none()
+    //         // {
+    //         //     scene.graph[node_index].model.load_meshes(display).unwrap()
+    //         // }
 
-            if let Some(material) = scene.graph[node_index].material.as_mut() {
-                material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
-            }
-        }
+    //         // if let Some(material) = scene.graph[node_index].material.as_mut() {
+    //         //     material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
+    //         // }
+    //     }
 
-        // for (_, model_instance) in scene.graph.node_references() {
-        //     if model_instance.model.meshes.lock().unwrap().is_none() {
-        //         model_instance.model.load_meshes(display).unwrap()
-        //     }
-        //
-        //     if let Some(material) = model_instance.material.as_mut() {
-        //         material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
-        //     }
-        // }
+    //     // for (_, model_instance) in scene.graph.node_references() {
+    //     //     if model_instance.model.meshes.lock().unwrap().is_none() {
+    //     //         model_instance.model.load_meshes(display).unwrap()
+    //     //     }
+    //     //
+    //     //     if let Some(material) = model_instance.material.as_mut() {
+    //     //         material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
+    //     //     }
+    //     // }
 
-        if let Background::HDRI(cubemap) = scene.background {
-            scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
-        }
+    //     if let Background::HDRI(cubemap) = scene.background {
+    //         scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
+    //     }
 
-        for quad in scene.quads.node_weights_mut() {
-            quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
-        }
+    //     for quad in scene.quads.node_weights_mut() {
+    //         quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
+    //     }
 
-        Ok(scene)
-    }
+    //     Ok(scene)
+    // }
 
-    pub fn save_as(&self) {
-        let serialized = serde_json::to_string(self).unwrap();
+    // pub fn save_as(&self) {
+    //     let serialized = serde_json::to_string(self).unwrap();
 
-        std::thread::spawn(move || {
-            if let Some(save_path) = FileDialog::new().save_file() {
-                std::fs::write(save_path, serialized).unwrap();
-            }
-        });
-    }
+    //     std::thread::spawn(move || {
+    //         if let Some(save_path) = FileDialog::new().save_file() {
+    //             std::fs::write(save_path, serialized).unwrap();
+    //         }
+    //     });
+    // }
 
     /// Load a models and create an instance of it in the scene
     pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
-        let model = Model::load(path.to_path_buf(), display)?;
+        let models = import::gltf::load(path.to_path_buf(), display)?;
 
-        self.graph.add_node(ModelInstance::from(model));
+        for model in models {
+            self.graph.add_node(ModelInstance::from(model));
+        }
 
         Ok(())
     }
