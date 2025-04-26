@@ -20,10 +20,10 @@ use crate::models::ModelInstance;
 use crate::physics::Physics;
 use crate::quad::Quad;
 use crate::renderer::Renderer;
-use crate::terrain::Terrain;
-use crate::texture::{Cubemap, Texture2D};
+use crate::serde::SerializedScene;
+use crate::texture::Cubemap;
 
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize, Clone)]
 pub enum Background {
     Color(Color),
     HDRI(Arc<Cubemap>),
@@ -35,14 +35,13 @@ impl Default for Background {
     }
 }
 
-// #[derive(Serialize, Deserialize)]
 pub struct Scene {
     pub title: String,
     pub camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: StableDiGraph<ModelInstance, ()>,
     pub background: Background,
     pub lights: Vec<Light>,
-    pub terrain: Option<Terrain>,
+    // pub terrain: Option<Terrain>,
     pub quads: StableDiGraph<Quad, ()>,
     // #[serde(skip)]
     pub lines: Vec<Line>,
@@ -58,15 +57,19 @@ impl Scene {
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
-            terrain: None,
+            // terrain: None,
             lights: vec![],
             physics: Physics::default(),
         }
     }
 
-    // pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
-    //     Self::from_string(&std::fs::read_to_string(path)?, display)
-    // }
+    pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
+        let serialized_scene_string = std::fs::read_to_string(path)?;
+
+        let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string)?;
+
+        Ok(serialized_scene.into_scene(display)?)
+    }
 
     // pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
     //     let mut scene = serde_json::from_str::<Scene>(scene_string)?;
@@ -113,15 +116,17 @@ impl Scene {
     //     Ok(scene)
     // }
 
-    // pub fn save_as(&self) {
-    //     let serialized = serde_json::to_string(self).unwrap();
+    pub fn save_as(&self) {
+        let serialized_scene = SerializedScene::from(self);
 
-    //     std::thread::spawn(move || {
-    //         if let Some(save_path) = FileDialog::new().save_file() {
-    //             std::fs::write(save_path, serialized).unwrap();
-    //         }
-    //     });
-    // }
+        let serialized = serde_json::to_string(&serialized_scene).unwrap();
+
+        std::thread::spawn(move || {
+            if let Some(save_path) = FileDialog::new().save_file() {
+                std::fs::write(save_path, serialized).unwrap();
+            }
+        });
+    }
 
     /// Load a models and create an instance of it in the scene
     pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
@@ -168,9 +173,9 @@ impl Scene {
             target,
         );
 
-        if let Some(terrain) = &self.terrain {
-            renderer.render_terrain(terrain, view, camera_position, target);
-        }
+        // if let Some(terrain) = &self.terrain {
+        //     renderer.render_terrain(terrain, view, camera_position, target);
+        // }
 
         renderer.render_lines(&self.lines, view, display, target);
 

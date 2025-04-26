@@ -5,7 +5,7 @@ use winit::keyboard::KeyCode;
 use crate::camera::camera::Camera;
 use crate::input::Input;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FpsCamera {
     position: Point3<f32>,
     yaw: f32,
