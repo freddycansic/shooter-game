@@ -18,132 +18,22 @@ use gltf::mesh::util::ReadIndices;
 use gltf::{Accessor, Semantic};
 use itertools::Itertools;
 use log::{debug, info, warn};
-use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::maths;
+use crate::import::gltf::ModelLoadError;
 use crate::models::model_vertex::ModelVertex;
 
-#[derive(Debug)]
-pub struct Primitive {
-    pub vertex_buffer: VertexBuffer<ModelVertex>,
-    pub index_buffer: IndexBuffer<u32>,
-}
-
-// TODO could move all vertices / indices into one buffer and then have an offset into this for each primitive
-#[derive(Debug)]
-pub struct Mesh {
-    pub name: Option<String>,
-    pub primitives: Vec<Primitive>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ModelLoadError {
-    ModelDoesNotExist(PathBuf),
-    CreateBufferError(PathBuf),
-    NoPositions(PathBuf),
-    NoIndices(PathBuf),
-}
-
-impl std::error::Error for ModelLoadError {}
-
-impl fmt::Display for ModelLoadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::ModelDoesNotExist(path) => {
-                write!(f, "The model \"{:?}\" does not exist", path)
-            }
-            Self::CreateBufferError(path) => {
-                write!(f, "Could not create buffers for the model \"{:?}\"", path)
-            }
-            Self::NoPositions(path) => {
-                write!(
-                    f,
-                    "Could not extract primitive vertex positions for the model {:?}",
-                    path
-                )
-            }
-            Self::NoIndices(path) => {
-                write!(
-                    f,
-                    "Could not extract primitive indices for the model {:?}",
-                    path
-                )
-            }
-        }
-    }
-}
+use super::Primitive;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
-    #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,
-    pub path: PathBuf,
+    pub name: String,
     #[serde(skip)]
     // This is in a mutex for interior mutability
     // TODO figure out how to make this not like this
-    pub meshes: Mutex<Option<Vec<Mesh>>>,
-}
-
-impl Model {
-    pub fn load(
-        path: PathBuf,
-        display: &Display<WindowSurface>,
-    ) -> Result<Arc<Self>, ModelLoadError> {
-        load(path, display)
-    }
-
-    pub fn load_meshes(&self, display: &Display<WindowSurface>) -> Result<(), ModelLoadError> {
-        // TODO parse materials
-        let (document, file_buffers, _images) = gltf::import(&self.path)
-            .map_err(|_| ModelLoadError::ModelDoesNotExist(self.path.clone()))?;
-
-        let meshes = document
-            .meshes()
-            .enumerate()
-            .map(|(mesh_index, mesh)| {
-                let primitives = mesh
-                    .primitives()
-                    .enumerate()
-                    .map(|(primitive_index, primitive)| {
-                        log::debug!("Loading mesh {} primitive {}", mesh_index, primitive_index);
-
-                        Primitive::from_gltf_primitive(
-                            primitive,
-                            &file_buffers,
-                            display,
-                            self.path.clone(),
-                        )
-                    })
-                    .collect::<Result<Vec<Primitive>, ModelLoadError>>()?;
-
-                Ok(Mesh {
-                    name: mesh.name().map(str::to_owned),
-                    primitives,
-                })
-            })
-            .collect::<Result<Vec<Mesh>, ModelLoadError>>()?;
-
-        *self.meshes.lock().unwrap() = Some(meshes);
-
-        Ok(())
-    }
-}
-
-#[memoize(Ignore: display)]
-fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Model>, ModelLoadError> {
-    info!("Loading models {:?}...", path);
-
-    let model = Model {
-        uuid: Uuid::new_v4(),
-        path: path.clone(),
-        meshes: Mutex::new(None),
-    };
-
-    model.load_meshes(display)?;
-
-    Ok(Arc::new(model))
+    pub primitives: Vec<Primitive>,
 }
 
 impl PartialEq<Self> for Model {
@@ -165,7 +55,7 @@ impl Hash for Model {
 }
 
 impl Primitive {
-    fn from_gltf_primitive(
+    pub fn from_gltf_primitive(
         primitive: gltf::Primitive,
         file_buffers: &[Data],
         display: &Display<WindowSurface>,
@@ -212,6 +102,8 @@ impl Primitive {
         Ok(Primitive {
             vertex_buffer,
             index_buffer,
+            vertices,
+            indices,
         })
     }
 }

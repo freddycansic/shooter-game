@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::time::Instant;
 
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use rapier3d::na::{Point2, Vector2};
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -64,8 +64,9 @@ impl Application for Game {
         let inner_size = window.inner_size();
         let renderer =
             Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
-        let mut scene =
-            Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
+        // let mut scene =
+        //     Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
+        let mut scene = Scene::default();
 
         // scene.camera = scene.starting_camera.clone();
 

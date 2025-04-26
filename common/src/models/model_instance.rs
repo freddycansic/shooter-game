@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use egui_glium::egui_winit::egui::WidgetText;
-use serde::{Deserialize, Serialize};
 use rapier3d::prelude::ColliderSet;
 
 use crate::models::{Material, Model};
@@ -9,28 +8,26 @@ use crate::transform::Transform;
 use crate::ui;
 use crate::ui::UiItem;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub struct ModelInstance {
     pub model: Arc<Model>,
     pub name: String,
     pub transform: Transform,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub material: Option<Material>,
-    #[serde(skip)]
+    pub material: Option<Arc<Material>>,
     pub selected: bool,
 }
 
-impl ModelInstance {
-    fn new(model: Arc<Model>, collider_set: &mut ColliderSet) -> Self {
-        Self {
-            model,
-            name: ui::default_name::model(),
-            material: None,
-            transform: Transform::default(),
-            selected: false,
-        }
-    }
-}
+// impl ModelInstance {
+//     fn new(model: Arc<Model>, collider_set: &mut ColliderSet) -> Self {
+//         Self {
+//             model,
+//             name: ui::default_name::model(),
+//             material: None,
+//             transform: Transform::default(),
+//             selected: false,
+//         }
+//     }
+// }
 
 impl From<Arc<Model>> for ModelInstance {
     fn from(model: Arc<Model>) -> Self {

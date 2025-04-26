@@ -23,7 +23,7 @@ pub fn perspective_matrix_from_window_size(window_width: f32, window_height: f32
         window_width / window_height,
         std::f32::consts::FRAC_PI_2,
         0.01,
-        100.0,
+        2000.0,
     )
 }
 

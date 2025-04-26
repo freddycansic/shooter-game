@@ -16,7 +16,6 @@ use crate::texture::texture::TextureLoadError;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Texture2D {
-    #[serde(with = "crate::serde::uuid")]
     pub uuid: Uuid,
     pub path: PathBuf,
     #[serde(skip)]

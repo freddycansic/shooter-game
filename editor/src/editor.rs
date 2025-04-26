@@ -262,9 +262,9 @@ impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
-                EngineEvent::LoadScene(scene_string) => {
-                    self.scene = Scene::from_string(&scene_string, display).unwrap()
-                }
+                // EngineEvent::LoadScene(scene_string) => {
+                //     self.scene = Scene::from_string(&scene_string, display).unwrap()
+                // }
                 EngineEvent::ImportModel(model_path) => self
                     .scene
                     .import_model(model_path.as_path(), display)
@@ -273,6 +273,7 @@ impl Editor {
                     self.scene.background =
                         Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
                 }
+                _ => unimplemented!("Unimplemented engine event"),
             }
         }
 
@@ -360,11 +361,11 @@ impl Editor {
                                 ui.close_menu();
                             }
 
-                            if ui.add(Button::new("Save as")).clicked() {
-                                info!("Saving scene...");
-                                self.scene.save_as();
-                                ui.close_menu();
-                            }
+                            // if ui.add(Button::new("Save as")).clicked() {
+                            //     info!("Saving scene...");
+                            //     self.scene.save_as();
+                            //     ui.close_menu();
+                            // }
                         });
 
                         ui.menu_button("Scene", |ui| {
