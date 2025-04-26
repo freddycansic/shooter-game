@@ -1,11 +1,11 @@
 use rapier3d::prelude::{
-    CCDSolver, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters, IslandManager,
-    MultibodyJointSet, NarrowPhase, PhysicsPipeline, QueryPipeline, RigidBodySet, ColliderSet
+    CCDSolver, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters,
+    IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, QueryPipeline, RigidBodySet,
 };
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Physics {
     pub integration_pipeline: IntegrationParameters,
     pub island_manager: IslandManager,
@@ -17,10 +17,8 @@ pub struct Physics {
     pub query_pipeline: QueryPipeline,
     pub rigid_body_set: RigidBodySet,
     pub collider_set: ColliderSet,
-
-    #[serde(skip)]
-    pub physics_pipeline: PhysicsPipeline,
-
+    // #[serde(skip)]
+    // pub physics_pipeline: PhysicsPipeline,
     // pub physics_hooks:
     // pub event_handler
 }
@@ -31,7 +29,7 @@ impl Default for Physics {
             rigid_body_set: RigidBodySet::new(),
             collider_set: ColliderSet::new(),
             integration_pipeline: IntegrationParameters::default(),
-            physics_pipeline: PhysicsPipeline::new(),
+            // physics_pipeline: PhysicsPipeline::new(),
             island_manager: IslandManager::new(),
             broad_phase: DefaultBroadPhase::new(),
             narrow_phase: NarrowPhase::new(),

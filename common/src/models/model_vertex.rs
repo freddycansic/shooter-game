@@ -1,6 +1,7 @@
 use glium::implement_vertex;
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ModelVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],

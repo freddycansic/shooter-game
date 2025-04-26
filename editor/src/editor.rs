@@ -8,9 +8,11 @@ use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
+use models::{Model, ModelInstance};
 use palette::Srgb;
-use rapier3d::na::Point3;
+use rapier3d::na::{Point3, Translation3};
 use rfd::FileDialog;
+use serde::SerializedScene;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -166,20 +168,24 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        // let size = 10;
-        // let model_instance = ModelInstance::from(
-        //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
-        // );
+        let cube = import::gltf::load(PathBuf::from("assets/models/cube.glb"), display)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+        let model_instance = ModelInstance::from(cube);
 
-        // for x in -(size / 2)..(size / 2) {
-        //     for y in -(size / 2)..(size / 2) {
-        //         let mut m = model_instance.clone();
-        //         m.transform
-        //             .set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
+        let size = 10;
 
-        //         scene.graph.add_node(m);
-        //     }
-        // }
+        for x in -(size / 2)..(size / 2) {
+            for y in -(size / 2)..(size / 2) {
+                let mut m = model_instance.clone();
+                m.transform
+                    .set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
+
+                scene.graph.add_node(m);
+            }
+        }
 
         let input = Input::new();
 
@@ -262,9 +268,12 @@ impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
-                // EngineEvent::LoadScene(scene_string) => {
-                //     self.scene = Scene::from_string(&scene_string, display).unwrap()
-                // }
+                EngineEvent::LoadScene(serialized_scene_string) => {
+                    let serialized_scene =
+                        serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
+
+                    self.scene = serialized_scene.into_scene(display).unwrap();
+                }
                 EngineEvent::ImportModel(model_path) => self
                     .scene
                     .import_model(model_path.as_path(), display)
@@ -352,6 +361,8 @@ impl Editor {
                                         .set_directory("/")
                                         .pick_file()
                                     {
+                                        log::info!("Loading scene {:?}", file);
+
                                         let scene_string = std::fs::read_to_string(file).unwrap();
 
                                         sender.send(EngineEvent::LoadScene(scene_string)).unwrap();
@@ -361,11 +372,11 @@ impl Editor {
                                 ui.close_menu();
                             }
 
-                            // if ui.add(Button::new("Save as")).clicked() {
-                            //     info!("Saving scene...");
-                            //     self.scene.save_as();
-                            //     ui.close_menu();
-                            // }
+                            if ui.add(Button::new("Save as")).clicked() {
+                                info!("Saving scene...");
+                                self.scene.save_as();
+                                ui.close_menu();
+                            }
                         });
 
                         ui.menu_button("Scene", |ui| {
