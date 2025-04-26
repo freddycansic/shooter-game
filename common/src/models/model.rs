@@ -1,24 +1,14 @@
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::mem::offset_of;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use std::{fmt, ptr};
 
 use color_eyre::Result;
-use color_eyre::eyre::ContextCompat;
 use fxhash::FxHasher;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
-use gltf::json::accessor::ComponentType;
-use gltf::mesh::Reader;
-use gltf::mesh::util::ReadIndices;
-use gltf::{Accessor, Semantic};
 use itertools::Itertools;
-use log::{debug, info, warn};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::import::gltf::ModelLoadError;
@@ -26,13 +16,10 @@ use crate::models::model_vertex::ModelVertex;
 
 use super::Primitive;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct Model {
     pub uuid: Uuid,
     pub name: String,
-    #[serde(skip)]
-    // This is in a mutex for interior mutability
-    // TODO figure out how to make this not like this
     pub primitives: Vec<Primitive>,
 }
 

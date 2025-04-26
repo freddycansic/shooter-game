@@ -8,7 +8,7 @@ use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
-use models::{Model, ModelInstance};
+use models::ModelInstance;
 use palette::Srgb;
 use rapier3d::na::{Point3, Translation3};
 use rfd::FileDialog;
@@ -282,7 +282,6 @@ impl Editor {
                     self.scene.background =
                         Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
                 }
-                _ => unimplemented!("Unimplemented engine event"),
             }
         }
 

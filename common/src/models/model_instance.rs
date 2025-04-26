@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use egui_glium::egui_winit::egui::WidgetText;
-use rapier3d::prelude::ColliderSet;
 
 use crate::models::{Material, Model};
 use crate::transform::Transform;

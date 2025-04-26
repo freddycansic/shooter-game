@@ -1,6 +1,6 @@
 use rapier3d::prelude::{
     CCDSolver, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters,
-    IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, QueryPipeline, RigidBodySet,
+    IslandManager, MultibodyJointSet, NarrowPhase, QueryPipeline, RigidBodySet,
 };
 
 use serde::{Deserialize, Serialize};
