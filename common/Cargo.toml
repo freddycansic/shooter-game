@@ -43,7 +43,7 @@ petgraph = { version = "0.8.1", default-features = false, features = [
     "stable_graph",
 ] }
 proc-macros = { version = "0.1.0", path = "../proc-macros" }
-rapier3d = { version = "0.24.0", features = [
+rapier3d = { version = "0.26.1", features = [
     "simd-nightly",
     "serde-serialize",
 ] }
