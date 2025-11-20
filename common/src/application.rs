@@ -1,5 +1,5 @@
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use winit::dpi::LogicalPosition;
 use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -7,7 +7,7 @@ use winit::window::{CursorGrabMode, Window};
 
 pub trait Application {
     fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop)
-        -> Self;
+    -> Self;
 
     fn window_event(
         &mut self,
@@ -29,8 +29,8 @@ pub trait Application {
 
     fn capture_cursor(&mut self, window: &Window) {
         window
-            .set_cursor_grab(CursorGrabMode::Confined)
-            .or_else(|_| window.set_cursor_grab(CursorGrabMode::Locked))
+            .set_cursor_grab(CursorGrabMode::Locked)
+            .or_else(|_| window.set_cursor_grab(CursorGrabMode::Confined))
             .unwrap();
     }
 

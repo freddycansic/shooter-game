@@ -857,6 +857,7 @@ dependencies = [
  "palette",
  "rapier3d",
  "rfd",
+ "serde_json",
  "winit",
 ]
 
