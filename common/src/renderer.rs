@@ -19,12 +19,12 @@ use petgraph::prelude::StableDiGraph;
 use uuid::Uuid;
 
 use crate::colors::{self, ColorExt};
+use crate::geometry::primitives::SimplePoint;
+use crate::geometry::{Material, ModelInstance};
+use crate::geometry::{Model, primitives};
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
-use crate::models::primitives::SimplePoint;
-use crate::models::{Material, ModelInstance};
-use crate::models::{Model, primitives};
 use crate::quad::{Quad, QuadVertex};
 use crate::terrain::Terrain;
 use crate::texture::Cubemap;
