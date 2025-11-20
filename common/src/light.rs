@@ -1,5 +1,5 @@
 use glium::implement_vertex;
-use rapier3d::na::Point3;
+use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 
 use crate::colors::{Color, ColorExt};

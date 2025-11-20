@@ -1,4 +1,4 @@
-use rapier3d::na::Matrix4;
+use nalgebra::Matrix4;
 
 pub fn linear_map(
     x: f32,

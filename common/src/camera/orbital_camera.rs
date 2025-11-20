@@ -1,4 +1,4 @@
-use rapier3d::na::{Matrix4, Point3, Vector3};
+use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::camera::Camera;

@@ -9,7 +9,6 @@ pub mod light;
 pub mod line;
 pub mod maths;
 pub mod models;
-pub mod physics;
 pub mod quad;
 pub mod renderer;
 pub mod run;

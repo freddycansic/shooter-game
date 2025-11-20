@@ -1,5 +1,5 @@
 use log::warn;
-use rapier3d::na::Vector2;
+use nalgebra::Vector2;
 use winit::dpi::PhysicalPosition;
 use winit::event::{DeviceEvent, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::{

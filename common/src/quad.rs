@@ -2,7 +2,7 @@ use crate::ui::UiItem;
 use crate::{texture::Texture2D, ui};
 use egui_glium::egui_winit::egui::WidgetText;
 use glium::implement_vertex;
-use rapier3d::na::{Point2, Vector2};
+use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

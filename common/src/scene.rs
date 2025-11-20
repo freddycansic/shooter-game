@@ -4,8 +4,8 @@ use std::sync::Arc;
 use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
+use nalgebra::{Matrix4, Point3};
 use petgraph::prelude::StableDiGraph;
-use rapier3d::na::{Matrix4, Point3};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,6 @@ use crate::import;
 use crate::light::Light;
 use crate::line::Line;
 use crate::models::ModelInstance;
-use crate::physics::Physics;
 use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::serde::SerializedScene;
@@ -43,7 +42,6 @@ pub struct Scene {
     pub quads: StableDiGraph<Quad, ()>,
     // #[serde(skip)]
     pub lines: Vec<Line>,
-    pub physics: Physics,
 }
 
 impl Scene {
@@ -57,7 +55,6 @@ impl Scene {
             background: Background::default(),
             // terrain: None,
             lights: vec![],
-            physics: Physics::default(),
         }
     }
 

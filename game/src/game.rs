@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
-use rapier3d::na::{Point2, Vector2};
+use nalgebra::{Point2, Vector2};
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;

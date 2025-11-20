@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
-use glium::{implement_vertex, Display, VertexBuffer};
+use glium::{Display, VertexBuffer, implement_vertex};
 use itertools::Itertools;
-use rapier3d::na::Vector3;
+use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 
 use crate::import;

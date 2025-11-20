@@ -10,12 +10,12 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
+    VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
+use nalgebra::{Matrix4, Point3};
 use petgraph::prelude::StableDiGraph;
-use rapier3d::na::{Matrix4, Point3};
 use uuid::Uuid;
 
 use crate::colors::{self, ColorExt};

@@ -13,7 +13,6 @@ use crate::{
     camera::FpsCamera,
     light::Light,
     models::{Model, ModelInstance, Primitive},
-    physics::Physics,
     quad::Quad,
     scene::{Background, Scene},
 };
@@ -29,7 +28,6 @@ pub struct SerializedScene {
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
     pub quads: StableDiGraph<Quad, ()>,
-    pub physics: Physics,
     pub serialized_models: FxHashMap<Uuid, SerializedModel>,
     // pub serialized_materials: FxHashMap<Uuid, SerializedMa
 }
@@ -62,7 +60,6 @@ impl From<&Scene> for SerializedScene {
             lights: value.lights.clone(),
             // terrain: value.terrain.clone(),
             quads: value.quads.clone(),
-            physics: value.physics.clone(),
             serialized_models,
         }
     }
@@ -125,7 +122,6 @@ impl SerializedScene {
             lights: self.lights,
             // terrain: self.terrain,
             quads: self.quads,
-            physics: self.physics,
             lines: vec![],
         })
     }
