@@ -3,8 +3,8 @@ use std::{fmt, path::PathBuf, sync::Arc};
 use glium::{Display, glutin::surface::WindowSurface};
 use uuid::Uuid;
 
-use crate::models::Model;
-use crate::models::Primitive;
+use crate::geometry::Model;
+use crate::geometry::Primitive;
 use crate::ui;
 
 #[derive(Debug, Clone)]

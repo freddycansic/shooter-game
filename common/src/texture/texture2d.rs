@@ -23,58 +23,37 @@ pub struct Texture2D {
 }
 
 impl Texture2D {
-    pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
-        Ok(load(path, display)?)
+    pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Self> {
+        let raw_image = texture::load_raw_image(&path)?;
+        let opengl_texture = CompressedTexture2d::new(display, raw_image)
+            .map_err(TextureLoadError::CreateTextureError)?;
+
+        Ok(Texture2D {
+            inner_texture: Some(opengl_texture),
+            path: path.clone(),
+            uuid: Uuid::new_v4(),
+        })
     }
 
-    pub fn default_diffuse(display: &Display<WindowSurface>) -> Result<Arc<Self>> {
+    pub fn default_diffuse(display: &Display<WindowSurface>) -> Result<Self> {
         Self::load(PathBuf::from("assets/textures/uv-test.jpg"), display)
     }
 
-    pub fn solid(width: u32, height: u32, display: &Display<WindowSurface>) -> Result<Arc<Self>> {
-        Ok(solid_grey_texture(255 / 2, width, height, display)?)
+    pub fn solid(width: u32, height: u32, display: &Display<WindowSurface>) -> Result<Self> {
+        let value = 255 / 2;
+
+        let opengl_texture = CompressedTexture2d::new(
+            display,
+            vec![vec![(value / 255, value / 255, value / 255); height as usize]; width as usize],
+        )
+        .map_err(TextureLoadError::CreateTextureError)?;
+
+        Ok(Texture2D {
+            inner_texture: Some(opengl_texture),
+            path: PathBuf::new(),
+            uuid: Uuid::new_v4(),
+        })
     }
-}
-
-#[memoize(Ignore: display)]
-fn solid_grey_texture(
-    // This must be integral as f32 cannot implement Eq
-    value: u8,
-    width: u32,
-    height: u32,
-    display: &Display<WindowSurface>,
-) -> Result<Arc<Texture2D>, TextureLoadError> {
-    let opengl_texture =
-        CompressedTexture2d::new(display, vec![
-            vec![
-                (value / 255, value / 255, value / 255);
-                height as usize
-            ];
-            width as usize
-        ])
-        .map_err(TextureLoadError::CreateTextureError)?;
-
-    Ok(Arc::new(Texture2D {
-        inner_texture: Some(opengl_texture),
-        path: PathBuf::new(),
-        uuid: Uuid::new_v4(),
-    }))
-}
-
-#[memoize(Ignore: display)]
-fn load(
-    path: PathBuf,
-    display: &Display<WindowSurface>,
-) -> Result<Arc<Texture2D>, TextureLoadError> {
-    let raw_image = texture::load_raw_image(&path)?;
-    let opengl_texture = CompressedTexture2d::new(display, raw_image)
-        .map_err(TextureLoadError::CreateTextureError)?;
-
-    Ok(Arc::new(Texture2D {
-        inner_texture: Some(opengl_texture),
-        path: path.clone(),
-        uuid: Uuid::new_v4(),
-    }))
 }
 
 impl PartialEq<Self> for Texture2D {
