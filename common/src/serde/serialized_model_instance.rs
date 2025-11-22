@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{models::ModelInstance, transform::Transform};
+use crate::{geometry::ModelInstance, transform::Transform};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedModelInstance {
@@ -11,13 +11,13 @@ pub struct SerializedModelInstance {
     pub material: Option<Uuid>,
 }
 
-impl From<ModelInstance> for SerializedModelInstance {
-    fn from(value: ModelInstance) -> Self {
-        Self {
-            model: value.model.uuid,
-            name: value.name,
-            transform: value.transform,
-            material: value.material.map(|material| material.uuid),
-        }
-    }
-}
+// impl From<ModelInstance> for SerializedModelInstance {
+//     fn from(value: ModelInstance) -> Self {
+//         Self {
+//             model: value.model.uuid,
+//             name: value.name,
+//             transform: value.transform,
+//             material: value.material.map(|material| material.uuid),
+//         }
+//     }
+// }

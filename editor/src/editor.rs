@@ -3,16 +3,19 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
+use common::geometry::Geometry;
+use common::scene::graph::{NodeType, Renderable, SceneNode};
+use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
-use models::ModelInstance;
+// use models::ModelInstance;
 use nalgebra::{Point3, Translation3};
 use palette::Srgb;
 use rfd::FileDialog;
-use serde::SerializedScene;
+// use serde::SerializedScene;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -25,7 +28,7 @@ use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
 use common::renderer::Renderer;
-use common::scene::Background;
+// use common::scene::Background;
 use common::texture::Cubemap;
 use common::*;
 use input::Input;
@@ -168,22 +171,36 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        let cube = import::gltf::load(PathBuf::from("assets/models/cube.glb"), display)
+        let cube_handle = scene
+            .resources
+            .get_geometry_handles(PathBuf::from("assets/models/cube.glb"), display)
             .unwrap()
             .into_iter()
             .next()
             .unwrap();
-        let model_instance = ModelInstance::from(cube);
+
+        let uv_test_handle = scene
+            .resources
+            .get_texture_handle(PathBuf::from("assets/textures/uv-test.jpg"), display)
+            .unwrap();
 
         let size = 10;
 
         for x in -(size / 2)..(size / 2) {
             for y in -(size / 2)..(size / 2) {
-                let mut m = model_instance.clone();
-                m.transform
-                    .set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
+                let mut transform = Transform::identity();
+                transform.set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
 
-                scene.graph.add_node(m);
+                log::info!("{:?}", transform.get_translation());
+
+                let renderable = Renderable {
+                    geometry_handle: cube_handle,
+                    texture_handle: uv_test_handle,
+                };
+
+                let node = SceneNode::new(NodeType::Renderable(renderable), transform);
+
+                scene.graph.add_node(node);
             }
         }
 
@@ -267,22 +284,22 @@ impl Application for Editor {
 impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
-            match engine_event {
-                EngineEvent::LoadScene(serialized_scene_string) => {
-                    let serialized_scene =
-                        serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
+            // match engine_event {
+            //     EngineEvent::LoadScene(serialized_scene_string) => {
+            //         let serialized_scene =
+            //             serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
 
-                    self.scene = serialized_scene.into_scene(display).unwrap();
-                }
-                EngineEvent::ImportModel(model_path) => self
-                    .scene
-                    .import_model(model_path.as_path(), display)
-                    .unwrap(),
-                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                    self.scene.background =
-                        Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
-                }
-            }
+            //         self.scene = serialized_scene.into_scene(display).unwrap();
+            //     }
+            //     EngineEvent::ImportModel(model_path) => self
+            //         .scene
+            //         .import_model(model_path.as_path(), display)
+            //         .unwrap(),
+            //     EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+            //         self.scene.background =
+            //             Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
+            //     }
+            // }
         }
 
         self.camera.update_zoom(&self.input);
@@ -373,7 +390,7 @@ impl Editor {
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving scene...");
-                                self.scene.save_as();
+                                // self.scene.save_as();
                                 ui.close_menu();
                             }
                         });
@@ -422,33 +439,33 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    ui.collapsing("Models", |ui| {
-                        if self.scene.graph.node_count() == 0 {
-                            ui.label("There are no models in the scene.");
-                        } else {
-                            ui::collapsing_graph(ui, &mut self.scene.graph);
-                        }
-                    });
+                    // ui.collapsing("Models", |ui| {
+                    //     if self.scene.graph.node_count() == 0 {
+                    //         ui.label("There are no models in the scene.");
+                    //     } else {
+                    //         ui::collapsing_graph(ui, &mut self.scene.graph);
+                    //     }
+                    // });
 
                     ui.add(egui::Separator::default().horizontal());
 
-                    ui.collapsing("Quads", |ui| {
-                        if self.scene.quads.node_count() == 0 {
-                            ui.label("There are no quads in the scene.");
-                        } else {
-                            ui::collapsing_graph(ui, &mut self.scene.quads);
-                        }
-                    });
+                    // ui.collapsing("Quads", |ui| {
+                    //     if self.scene.quads.node_count() == 0 {
+                    //         ui.label("There are no quads in the scene.");
+                    //     } else {
+                    //         ui::collapsing_graph(ui, &mut self.scene.quads);
+                    //     }
+                    // });
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
                 ui.collapsing("Background", |ui| {
                     ui.horizontal(|ui| {
-                        ui.selectable_value(
-                            &mut self.scene.background,
-                            Background::default(),
-                            "Color",
-                        );
+                        // ui.selectable_value(
+                        //     &mut self.scene.background,
+                        //     Background::default(),
+                        //     "Color",
+                        // );
 
                         if ui.selectable_label(false, "HDRI").clicked() {
                             let sender = self.sender.clone();

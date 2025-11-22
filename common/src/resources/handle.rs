@@ -2,11 +2,11 @@
 // Serialize as path, then do a PathBuf -> T conversion using serde::deserialize attribute
 // Means I don't have to make a serialisable copy struct
 
-#[derive(Clone, Copy)]
-pub struct GeometryHandle(pub usize);
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GeometryHandle(pub (usize, usize));
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MaterialHandle(pub usize);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureHandle(pub usize);

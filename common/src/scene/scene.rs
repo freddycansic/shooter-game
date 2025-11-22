@@ -11,13 +11,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
+use crate::geometry::ModelInstance;
 use crate::import;
 use crate::light::Light;
 use crate::line::Line;
-use crate::models::ModelInstance;
 use crate::quad::Quad;
 use crate::renderer::Renderer;
-use crate::serde::SerializedScene;
+use crate::resources::resources::Resources;
+use crate::scene::graph::SceneGraph;
+// use crate::serde::SerializedScene;
 use crate::texture::Cubemap;
 
 #[derive(PartialEq, Serialize, Deserialize, Clone)]
@@ -35,19 +37,20 @@ impl Default for Background {
 pub struct Scene {
     pub title: String,
     pub camera: FpsCamera, // the camera state to be used when starting the game
-    pub graph: StableDiGraph<ModelInstance, ()>,
+    pub graph: SceneGraph,
     pub background: Background,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
     pub quads: StableDiGraph<Quad, ()>,
     // #[serde(skip)]
     pub lines: Vec<Line>,
+    pub resources: Resources,
 }
 
 impl Scene {
     pub fn new(title: &str) -> Self {
         Self {
-            graph: StableDiGraph::new(),
+            graph: SceneGraph::new(),
             lines: vec![],
             quads: StableDiGraph::new(),
             title: title.to_owned(),
@@ -55,16 +58,17 @@ impl Scene {
             background: Background::default(),
             // terrain: None,
             lights: vec![],
+            resources: Resources::new(),
         }
     }
 
-    pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
-        let serialized_scene_string = std::fs::read_to_string(path)?;
+    // pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
+    //     let serialized_scene_string = std::fs::read_to_string(path)?;
 
-        let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string)?;
+    //     let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string)?;
 
-        serialized_scene.into_scene(display)
-    }
+    //     serialized_scene.into_scene(display)
+    // }
 
     // pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
     //     let mut scene = serde_json::from_str::<Scene>(scene_string)?;
@@ -111,28 +115,28 @@ impl Scene {
     //     Ok(scene)
     // }
 
-    pub fn save_as(&self) {
-        let serialized_scene = SerializedScene::from(self);
+    // pub fn save_as(&self) {
+    //     let serialized_scene = SerializedScene::from(self);
 
-        let serialized = serde_json::to_string(&serialized_scene).unwrap();
+    //     let serialized = serde_json::to_string(&serialized_scene).unwrap();
 
-        std::thread::spawn(move || {
-            if let Some(save_path) = FileDialog::new().save_file() {
-                std::fs::write(save_path, serialized).unwrap();
-            }
-        });
-    }
+    //     std::thread::spawn(move || {
+    //         if let Some(save_path) = FileDialog::new().save_file() {
+    //             std::fs::write(save_path, serialized).unwrap();
+    //         }
+    //     });
+    // }
 
     /// Load a models and create an instance of it in the scene
-    pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
-        let models = import::gltf::load(path.to_path_buf(), display)?;
+    // pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
+    //     let models = import::gltf::load(path.to_path_buf(), display)?;
 
-        for model in models {
-            self.graph.add_node(ModelInstance::from(model));
-        }
+    //     for model in models {
+    //         self.graph.add_node(ModelInstance::from(model));
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn render(
         &mut self,
@@ -146,21 +150,24 @@ impl Scene {
         match &self.background {
             Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
             Background::HDRI(cubemap) => {
-                target.clear_all(
-                    Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
-                    1.0,
-                    0,
-                );
-                renderer.render_skybox(cubemap, view, target);
+                // target.clear_all(
+                //     Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
+                //     1.0,
+                //     0,
+                // );
+                // renderer.render_skybox(cubemap, view, target);
             }
         }
 
-        for model_instance in self.graph.node_weights_mut() {
-            model_instance.transform.compute_transform_matrix();
-        }
+        // for model_instance in self.graph.node_weights_mut() {
+        //     model_instance.transform.compute_transform_matrix();
+        // }
 
-        renderer.render_model_instances(
-            &self.graph,
+        let queue = self.graph.build_render_queue();
+
+        renderer.render_queue(
+            queue,
+            &self.resources,
             view,
             camera_position,
             &self.lights,
@@ -172,14 +179,14 @@ impl Scene {
         //     renderer.render_terrain(terrain, view, camera_position, target);
         // }
 
-        renderer.render_lines(&self.lines, view, display, target);
+        // renderer.render_lines(&self.lines, view, display, target);
 
-        if debug {
-            renderer.render_lights(&self.lights, view, display, target);
-        }
+        // if debug {
+        //     renderer.render_lights(&self.lights, view, display, target);
+        // }
 
-        // Render quads last so they stay on top
-        renderer.render_quads(&self.quads, display, target);
+        // // Render quads last so they stay on top
+        // renderer.render_quads(&self.quads, display, target);
     }
 }
 
