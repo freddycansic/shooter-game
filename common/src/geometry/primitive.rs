@@ -1,11 +1,11 @@
 use glium::{IndexBuffer, VertexBuffer};
 
-use super::model_vertex::ModelVertex;
+use super::geometry_vertex::GeometryVertex;
 
 #[derive(Debug)]
 pub struct Primitive {
-    pub vertex_buffer: VertexBuffer<ModelVertex>,
+    pub vertex_buffer: VertexBuffer<GeometryVertex>,
     pub index_buffer: IndexBuffer<u32>,
-    pub vertices: Vec<ModelVertex>,
+    pub vertices: Vec<GeometryVertex>,
     pub indices: Vec<u32>,
 }

@@ -22,7 +22,6 @@ use uuid::Uuid;
 use crate::colors::{self, ColorExt};
 use crate::geometry::primitives::SimplePoint;
 use crate::geometry::{Geometry, primitives};
-// use crate::geometry::{Material, ModelInstance};
 use crate::light::{Light, ShaderLight};
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
@@ -242,8 +241,6 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        // let default_material = Material::default(display).unwrap();
-
         let vp = maths::raw_matrix(self.perspective_projection * view);
 
         let dimensions = target.get_dimensions();

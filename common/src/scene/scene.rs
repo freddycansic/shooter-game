@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
-use crate::geometry::ModelInstance;
 use crate::import;
 use crate::light::Light;
 use crate::line::Line;

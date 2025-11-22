@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::geometry::{Primitive, model_vertex::ModelVertex};
+use crate::geometry::{GeometryVertex, Primitive};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedPrimitive {
-    pub vertices: Vec<ModelVertex>,
+    pub vertices: Vec<GeometryVertex>,
     pub indices: Vec<u32>,
 }
 

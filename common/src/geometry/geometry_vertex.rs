@@ -2,13 +2,13 @@ use glium::implement_vertex;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct ModelVertex {
+pub struct GeometryVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub tex_coord: [f32; 2],
 }
 
-impl Default for ModelVertex {
+impl Default for GeometryVertex {
     fn default() -> Self {
         Self {
             position: [0.0, 0.0, 0.0],
@@ -18,4 +18,4 @@ impl Default for ModelVertex {
     }
 }
 
-implement_vertex!(ModelVertex, position, normal, tex_coord);
+implement_vertex!(GeometryVertex, position, normal, tex_coord);
