@@ -191,8 +191,6 @@ impl Application for Editor {
                 let mut transform = Transform::identity();
                 transform.set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
 
-                log::info!("{:?}", transform.get_translation());
-
                 let renderable = Renderable {
                     geometry_handle: cube_handle,
                     texture_handle: uv_test_handle,
@@ -200,7 +198,7 @@ impl Application for Editor {
 
                 let node = SceneNode::new(NodeType::Renderable(renderable), transform);
 
-                scene.graph.add_node(node);
+                scene.graph.add_root_node(node);
             }
         }
 

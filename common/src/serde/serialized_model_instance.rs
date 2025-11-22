@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{geometry::ModelInstance, transform::Transform};
+use crate::transform::Transform;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedModelInstance {

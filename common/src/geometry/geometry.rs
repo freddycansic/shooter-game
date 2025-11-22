@@ -11,7 +11,7 @@ use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use itertools::Itertools;
 
-use crate::geometry::model_vertex::ModelVertex;
+use crate::geometry::GeometryVertex;
 
 use std::{fmt, sync::Arc};
 
@@ -87,10 +87,10 @@ impl Primitive {
         }
 
         let num_vertices = primitive.attributes().next().unwrap().1.count();
-        let mut vertices = Vec::<ModelVertex>::with_capacity(num_vertices);
+        let mut vertices = Vec::<GeometryVertex>::with_capacity(num_vertices);
 
         vertices.extend(positions.zip_eq(normals).zip_eq(tex_coords).map(
-            |((position, normal), tex_coord)| ModelVertex {
+            |((position, normal), tex_coord)| GeometryVertex {
                 position,
                 normal,
                 tex_coord,

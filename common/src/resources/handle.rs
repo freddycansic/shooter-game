@@ -6,7 +6,4 @@
 pub struct GeometryHandle(pub (usize, usize));
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MaterialHandle(pub usize);
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureHandle(pub usize);

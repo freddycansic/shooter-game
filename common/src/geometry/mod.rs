@@ -1,11 +1,8 @@
 pub use geometry::Geometry;
-// pub use material::Material;
-pub use model_instance::ModelInstance;
+pub use geometry_vertex::GeometryVertex;
 pub use primitive::Primitive;
 
 mod geometry;
-mod material;
-mod model_instance;
-pub mod model_vertex;
+mod geometry_vertex;
 mod primitive;
 pub mod primitives;

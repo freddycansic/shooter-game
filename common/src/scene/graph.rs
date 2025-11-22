@@ -7,7 +7,7 @@ use petgraph::{Direction, graph::NodeIndex};
 
 use crate::{
     renderer::Instance,
-    resources::handle::{GeometryHandle, MaterialHandle, TextureHandle},
+    resources::handle::{GeometryHandle, TextureHandle},
     transform::Transform,
 };
 
@@ -101,7 +101,7 @@ impl SceneGraph {
         Self { graph, root }
     }
 
-    pub fn add_node(&mut self, node: SceneNode) -> NodeIndex {
+    pub fn add_root_node(&mut self, node: SceneNode) -> NodeIndex {
         let node_index = self.graph.add_node(node);
 
         self.graph.add_edge(self.root, node_index, ());
