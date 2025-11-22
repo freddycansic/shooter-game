@@ -2,17 +2,18 @@ use std::sync::Arc;
 
 use egui_glium::egui_winit::egui::WidgetText;
 
-use crate::models::{Material, Model};
+use crate::geometry::Geometry;
+// use crate::geometry::{Material, Model};
 use crate::transform::Transform;
 use crate::ui;
 use crate::ui::UiItem;
 
 #[derive(Clone)]
 pub struct ModelInstance {
-    pub model: Arc<Model>,
+    pub model: Arc<Geometry>,
     pub name: String,
     pub transform: Transform,
-    pub material: Option<Arc<Material>>,
+    // pub material: Option<Arc<Material>>,
     pub selected: bool,
 }
 
@@ -28,17 +29,17 @@ pub struct ModelInstance {
 //     }
 // }
 
-impl From<Arc<Model>> for ModelInstance {
-    fn from(model: Arc<Model>) -> Self {
-        Self {
-            model,
-            name: ui::default_name::model(),
-            material: None,
-            transform: Transform::default(),
-            selected: false,
-        }
-    }
-}
+// impl From<Arc<Model>> for ModelInstance {
+//     fn from(model: Arc<Model>) -> Self {
+//         Self {
+//             model,
+//             name: ui::default_name::model(),
+//             material: None,
+//             transform: Transform::default(),
+//             selected: false,
+//         }
+//     }
+// }
 
 impl UiItem for ModelInstance {
     fn name(&self) -> WidgetText {

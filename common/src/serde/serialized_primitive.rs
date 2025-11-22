@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Primitive, model_vertex::ModelVertex};
+use crate::geometry::{Primitive, model_vertex::ModelVertex};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedPrimitive {
