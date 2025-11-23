@@ -11,16 +11,16 @@ use crate::colors::{Color, ColorExt};
 use crate::light::Light;
 use crate::line::Line;
 use crate::renderer::Renderer;
+use crate::resources::handle::CubemapHandle;
 use crate::resources::resources::Resources;
 use crate::scene::graph::SceneGraph;
 use crate::serde::SerializedScene;
-// use crate::serde::SerializedScene;
 use crate::texture::Cubemap;
 
-#[derive(PartialEq, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Background {
     Color(Color),
-    HDRI(Arc<Cubemap>),
+    HDRI(CubemapHandle),
 }
 
 impl Default for Background {
@@ -144,19 +144,15 @@ impl Scene {
     ) {
         match &self.background {
             Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
-            Background::HDRI(_cubemap) => {
-                // target.clear_all(
-                //     Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
-                //     1.0,
-                //     0,
-                // );
-                // renderer.render_skybox(cubemap, view, target);
+            Background::HDRI(cubemap_handle) => {
+                target.clear_all(
+                    Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
+                    1.0,
+                    0,
+                );
+                renderer.render_skybox(*cubemap_handle, &self.resources, view, target);
             }
         }
-
-        // for model_instance in self.graph.node_weights_mut() {
-        //     model_instance.transform.compute_transform_matrix();
-        // }
 
         let queue = self.graph.build_render_queue();
 

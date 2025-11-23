@@ -8,8 +8,8 @@ use itertools::Itertools;
 
 use crate::{
     geometry::Geometry,
-    resources::handle::{GeometryHandle, TextureHandle},
-    texture::Texture2D,
+    resources::handle::{CubemapHandle, GeometryHandle, TextureHandle},
+    texture::{Cubemap, Texture2D},
 };
 
 pub struct Resources {
@@ -18,6 +18,9 @@ pub struct Resources {
 
     geometry_handles: FxHashMap<PathBuf, Vec<GeometryHandle>>,
     geometry: FxHashMap<GeometryHandle, Geometry>,
+
+    cubemap_handles: FxHashMap<PathBuf, CubemapHandle>,
+    cubemaps: FxHashMap<CubemapHandle, Cubemap>,
 
     handle_count: usize,
 }
@@ -31,7 +34,10 @@ impl Resources {
             textures: FxHashMap::with_hasher(hasher.clone()),
 
             geometry_handles: FxHashMap::with_hasher(hasher.clone()),
-            geometry: FxHashMap::with_hasher(hasher),
+            geometry: FxHashMap::with_hasher(hasher.clone()),
+
+            cubemap_handles: FxHashMap::with_hasher(hasher.clone()),
+            cubemaps: FxHashMap::with_hasher(hasher),
 
             handle_count: 0,
         }
@@ -110,6 +116,41 @@ impl Resources {
         }
 
         panic!("Path not found for handle, something very bad has happened");
+    }
+
+    pub fn get_cubemap(&self, cubemap_handle: CubemapHandle) -> &Cubemap {
+        self.cubemaps
+            .get(&cubemap_handle)
+            .expect(format!("CubemapHandle {} not loaded!", cubemap_handle.0).as_str())
+    }
+
+    pub fn get_cubemap_handle(
+        &mut self,
+        path: &PathBuf,
+        display: &Display<WindowSurface>,
+    ) -> Result<CubemapHandle> {
+        if let Some(handle) = self.cubemap_handles.get(path) {
+            return Ok(*handle);
+        }
+
+        log::info!("Loading cubemap {:?}...", path);
+
+        let handle = CubemapHandle(self.new_handle());
+
+        self.cubemaps
+            .insert(handle, Cubemap::load(path.clone(), display)?);
+        self.cubemap_handles.insert(path.clone(), handle);
+
+        Ok(handle)
+    }
+
+    pub fn get_cubemap_path(&self, cubemap_handle: CubemapHandle) -> PathBuf {
+        self.cubemap_handles
+            .iter()
+            .find(|(_, handle)| **handle == cubemap_handle)
+            .unwrap()
+            .0
+            .clone()
     }
 
     fn new_handle(&mut self) -> usize {

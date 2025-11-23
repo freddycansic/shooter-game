@@ -1,3 +1,4 @@
+use crate::resources::handle::TextureHandle;
 use crate::ui::UiItem;
 use crate::{texture::Texture2D, ui};
 use egui_glium::egui_winit::egui::WidgetText;
@@ -6,11 +7,11 @@ use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Clone, Serialize, Deserialize)]
+// #[derive(Clone, Serialize, Deserialize)]
 pub struct Quad {
     pub position: Point2<f32>,
     pub size: Vector2<f32>,
-    pub texture: Arc<Texture2D>,
+    pub texture: TextureHandle,
     // Higher layer = closer to camera
     pub layer: i32,
 
@@ -22,7 +23,7 @@ impl Quad {
     pub fn new(
         position: Point2<f32>,
         size: Vector2<f32>,
-        texture: Arc<Texture2D>,
+        texture: TextureHandle,
         layer: i32,
     ) -> Self {
         Self {
