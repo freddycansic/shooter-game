@@ -9,3 +9,6 @@ pub struct GeometryHandle(pub usize);
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TextureHandle(pub usize);
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CubemapHandle(pub usize);

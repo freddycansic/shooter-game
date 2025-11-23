@@ -4,7 +4,9 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::scene::graph::{NodeType, Renderable, SceneNode};
+use common::scene::scene::Background;
 use common::serde::SerializedScene;
+use common::texture::Cubemap;
 use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
@@ -292,10 +294,14 @@ impl Editor {
                 //     .scene
                 //     .import_model(model_path.as_path(), display)
                 //     .unwrap(),
-                // EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                //     self.scene.background =
-                //         Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
-                // }
+                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+                    self.scene.background = Background::HDRI(
+                        self.scene
+                            .resources
+                            .get_cubemap_handle(&hdri_directory_path, display)
+                            .unwrap(),
+                    )
+                }
                 _ => unimplemented!(),
             }
         }

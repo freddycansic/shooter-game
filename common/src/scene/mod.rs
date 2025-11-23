@@ -1,3 +1,4 @@
+pub use scene::Background;
 pub use scene::Scene;
 
 pub mod graph;

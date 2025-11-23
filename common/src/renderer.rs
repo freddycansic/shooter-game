@@ -4,44 +4,41 @@ use color_eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
-use glium::index::{IndicesSource, PrimitiveType};
+use glium::index::{IndicesSource, NoIndices, PrimitiveType};
 use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
-    VertexBuffer, implement_vertex, uniform,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+    implement_vertex, uniform,
 };
 use nalgebra::{Matrix4, Point3};
 use uuid::Uuid;
 
 use crate::colors::{self, ColorExt};
-use crate::geometry::primitives::SimplePoint;
 use crate::geometry::primitives;
+use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
 use crate::line::LinePoint;
+use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
+use crate::resources::handle::CubemapHandle;
 use crate::resources::resources::Resources;
 use crate::scene::graph::{InstanceBatch, InstanceBatchKey, RenderQueue};
+use crate::texture::Cubemap;
 // use crate::terrain::Terrain;
 use crate::{context, maths};
 
 struct Programs {
-    outline_program: Program,
-
-    default_program: Program,
-
-    skybox_program: Program,
-    light_program: Program,
-
-    lines_program: Program,
-
-    terrain_program: Program,
-
-    quad_program: Program,
-
-    fullscreen_quad_program: Program,
-    solid_color_program: Program,
+    outline: Program,
+    default: Program,
+    skybox: Program,
+    light: Program,
+    lines: Program,
+    terrain: Program,
+    quad: Program,
+    fullscreen_quad: Program,
+    solid_color: Program,
 }
 
 pub struct RendererBuffers {
@@ -204,15 +201,15 @@ impl Renderer {
                 cube_vertex_buffer,
             },
             programs: Programs {
-                outline_program,
-                default_program,
-                skybox_program,
-                light_program,
-                lines_program,
-                terrain_program,
-                quad_program,
-                fullscreen_quad_program,
-                solid_color_program,
+                outline: outline_program,
+                default: default_program,
+                skybox: skybox_program,
+                light: light_program,
+                lines: lines_program,
+                terrain: terrain_program,
+                quad: quad_program,
+                fullscreen_quad: fullscreen_quad_program,
+                solid_color: solid_color_program,
             },
         })
     }
@@ -354,32 +351,40 @@ impl Renderer {
     //     }
     // }
 
-    // pub fn render_skybox(&mut self, cubemap: &Cubemap, view: &Matrix4<f32>, target: &mut Frame) {
-    //     // Strip translation from view matrix = skybox is always in the same place
-    //     let stripped_view = view.stripped_w();
-    //     let vp = self.perspective_projection * stripped_view;
+    pub fn render_skybox(
+        &mut self,
+        cubemap_handle: CubemapHandle,
+        resources: &Resources,
+        view: &Matrix4<f32>,
+        target: &mut Frame,
+    ) {
+        // Strip translation from view matrix = skybox is always in the same place
+        let stripped_view = view.stripped_w();
+        let vp = self.perspective_projection * stripped_view;
 
-    //     let sample_behaviour = SamplerBehavior {
-    //         minify_filter: MinifySamplerFilter::Nearest,
-    //         magnify_filter: MagnifySamplerFilter::Nearest,
-    //         ..SamplerBehavior::default()
-    //     };
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
 
-    //     let uniforms = uniform! {
-    //         vp: maths::raw_matrix(vp),
-    //         skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
-    //     };
+        let cubemap = resources.get_cubemap(cubemap_handle);
 
-    //     target
-    //         .draw(
-    //             &self.cube_vertex_buffer,
-    //             NoIndices(PrimitiveType::TrianglesList),
-    //             &self.skybox_program,
-    //             &uniforms,
-    //             &DrawParameters::default(),
-    //         )
-    //         .unwrap();
-    // }
+        let uniforms = uniform! {
+            vp: maths::raw_matrix(vp),
+            skybox: Sampler(cubemap.inner_cubemap.as_ref().unwrap(), sample_behaviour).0
+        };
+
+        target
+            .draw(
+                &self.buffers.cube_vertex_buffer,
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.programs.skybox,
+                &uniforms,
+                &DrawParameters::default(),
+            )
+            .unwrap();
+    }
 
     // pub fn render_lines(
     //     &mut self,
@@ -512,8 +517,8 @@ impl Renderer {
                 // TODO temporary
                 light_color: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).color.to_rgb_vector3()),
                 light_position: <[f32; 3]>::from(lights.iter().next().unwrap_or(&Light::default()).position),
-                diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0,
-                specular_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour).0,
+                diffuse_texture: Sampler(&texture.inner_texture, sample_behaviour).0,
+                specular_texture: Sampler(&texture.inner_texture, sample_behaviour).0,
             };
 
             for primitive in geometry.primitives.iter() {
@@ -528,7 +533,7 @@ impl Renderer {
                                 .unwrap(),
                         ),
                         &primitive.index_buffer,
-                        &self.programs.default_program,
+                        &self.programs.default,
                         &uniforms,
                         &DrawParameters {
                             depth: Depth {
@@ -585,7 +590,7 @@ impl Renderer {
                                 .unwrap(),
                         ),
                         &primitive.index_buffer,
-                        &self.programs.solid_color_program,
+                        &self.programs.solid_color,
                         &solid_color_uniforms,
                         &DrawParameters::default(),
                     )
@@ -608,7 +613,7 @@ impl Renderer {
                 IndicesSource::NoIndices {
                     primitives: PrimitiveType::TriangleStrip,
                 },
-                &self.programs.fullscreen_quad_program,
+                &self.programs.fullscreen_quad,
                 &fullscreen_quad_uniforms,
                 &DrawParameters {
                     depth: Depth {
@@ -652,7 +657,7 @@ impl Renderer {
                 IndicesSource::NoIndices {
                     primitives: PrimitiveType::TriangleStrip,
                 },
-                &self.programs.outline_program,
+                &self.programs.outline,
                 &dilate_uniforms,
                 &DrawParameters::default(),
             )
