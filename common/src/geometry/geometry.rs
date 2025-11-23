@@ -1,10 +1,8 @@
 use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use color_eyre::Result;
 use color_eyre::eyre::Context;
-use fxhash::FxHasher;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
@@ -13,7 +11,6 @@ use itertools::Itertools;
 
 use crate::geometry::GeometryVertex;
 
-use std::{fmt, sync::Arc};
 
 use crate::geometry::Primitive;
 use crate::ui;
@@ -69,7 +66,7 @@ impl Primitive {
         primitive: gltf::Primitive,
         file_buffers: &[Data],
         display: &Display<WindowSurface>,
-        path: PathBuf,
+        _path: PathBuf,
     ) -> Result<Self> {
         let reader = primitive.reader(|buffer| Some(&file_buffers[buffer.index()].0));
 

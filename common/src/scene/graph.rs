@@ -1,10 +1,8 @@
 use std::hash::{Hash, Hasher};
 
-use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
-use nalgebra::Transform3;
 use petgraph::{Direction, graph::NodeIndex};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     renderer::Instance,
@@ -127,7 +125,7 @@ impl SceneGraph {
 
         let visible_nodes = self.graph.node_weights().filter(|node| node.visible);
 
-        for (i, scene_node) in visible_nodes.enumerate() {
+        for (_i, scene_node) in visible_nodes.enumerate() {
             // log::info!("Batching node {}", i);
             match &scene_node.ty {
                 NodeType::Renderable(renderable) => {

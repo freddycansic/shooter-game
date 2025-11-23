@@ -6,10 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     resources::resources::Resources,
-    scene::{
-        Scene,
-        graph::{NodeType, Renderable, SceneGraph, SceneNode},
-    },
+    scene::graph::{NodeType, Renderable, SceneGraph, SceneNode},
     transform::Transform,
 };
 

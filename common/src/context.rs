@@ -67,7 +67,7 @@ impl<A: Application> ApplicationHandler for OpenGLContext<A> {
     fn device_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        device_id: DeviceId,
+        _device_id: DeviceId,
         event: DeviceEvent,
     ) {
         self.application.as_mut().unwrap().device_event(

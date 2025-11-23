@@ -1,13 +1,11 @@
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use color_eyre::Result;
 use fxhash::FxHasher;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-use memoize::memoize;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

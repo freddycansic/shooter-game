@@ -1,21 +1,15 @@
-use std::sync::Arc;
 
 use color_eyre::eyre::Result;
-use fxhash::{FxBuildHasher, FxHashMap};
 use glium::{
-    Display, IndexBuffer, VertexBuffer, glutin::surface::WindowSurface, index::PrimitiveType,
+    Display, glutin::surface::WindowSurface,
 };
-use petgraph::prelude::StableDiGraph;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::{
     camera::FpsCamera,
-    geometry::Primitive,
     light::Light,
-    quad::Quad,
     resources::resources::Resources,
-    scene::{Scene, graph::SceneGraph, scene::Background},
+    scene::{Scene, scene::Background},
     serde::serialized_graph::SerializedSceneGraph,
 };
 
