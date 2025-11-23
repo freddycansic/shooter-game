@@ -18,6 +18,7 @@ use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::resources::resources::Resources;
 use crate::scene::graph::SceneGraph;
+use crate::serde::SerializedScene;
 // use crate::serde::SerializedScene;
 use crate::texture::Cubemap;
 
@@ -40,7 +41,7 @@ pub struct Scene {
     pub background: Background,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
-    pub quads: StableDiGraph<Quad, ()>,
+    // pub quads: StableDiGraph<Quad, ()>,
     // #[serde(skip)]
     pub lines: Vec<Line>,
     pub resources: Resources,
@@ -51,7 +52,7 @@ impl Scene {
         Self {
             graph: SceneGraph::new(),
             lines: vec![],
-            quads: StableDiGraph::new(),
+            // quads: StableDiGraph::new(),
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
@@ -114,17 +115,17 @@ impl Scene {
     //     Ok(scene)
     // }
 
-    // pub fn save_as(&self) {
-    //     let serialized_scene = SerializedScene::from(self);
+    pub fn save_as(&self) {
+        let serialized_scene = SerializedScene::from_scene(self);
 
-    //     let serialized = serde_json::to_string(&serialized_scene).unwrap();
+        let serialized = serde_json::to_string(&serialized_scene).unwrap();
 
-    //     std::thread::spawn(move || {
-    //         if let Some(save_path) = FileDialog::new().save_file() {
-    //             std::fs::write(save_path, serialized).unwrap();
-    //         }
-    //     });
-    // }
+        std::thread::spawn(move || {
+            if let Some(save_path) = FileDialog::new().save_file() {
+                std::fs::write(save_path, serialized).unwrap();
+            }
+        });
+    }
 
     /// Load a models and create an instance of it in the scene
     // pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
