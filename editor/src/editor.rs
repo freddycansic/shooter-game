@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use common::geometry::Geometry;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
+use common::serde::SerializedScene;
 use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
@@ -173,7 +174,7 @@ impl Application for Editor {
 
         let cube_handle = scene
             .resources
-            .get_geometry_handles(PathBuf::from("assets/models/cube.glb"), display)
+            .get_geometry_handles(&PathBuf::from("assets/models/cube.glb"), display)
             .unwrap()
             .into_iter()
             .next()
@@ -181,7 +182,7 @@ impl Application for Editor {
 
         let uv_test_handle = scene
             .resources
-            .get_texture_handle(PathBuf::from("assets/textures/uv-test.jpg"), display)
+            .get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)
             .unwrap();
 
         let size = 10;
@@ -282,22 +283,23 @@ impl Application for Editor {
 impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
-            // match engine_event {
-            //     EngineEvent::LoadScene(serialized_scene_string) => {
-            //         let serialized_scene =
-            //             serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
+            match engine_event {
+                EngineEvent::LoadScene(serialized_scene_string) => {
+                    let serialized_scene =
+                        serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
 
-            //         self.scene = serialized_scene.into_scene(display).unwrap();
-            //     }
-            //     EngineEvent::ImportModel(model_path) => self
-            //         .scene
-            //         .import_model(model_path.as_path(), display)
-            //         .unwrap(),
-            //     EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-            //         self.scene.background =
-            //             Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
-            //     }
-            // }
+                    self.scene = serialized_scene.into_scene(display).unwrap();
+                }
+                // EngineEvent::ImportModel(model_path) => self
+                //     .scene
+                //     .import_model(model_path.as_path(), display)
+                //     .unwrap(),
+                // EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+                //     self.scene.background =
+                //         Background::HDRI(Cubemap::load(hdri_directory_path, display).unwrap())
+                // }
+                _ => unimplemented!(),
+            }
         }
 
         self.camera.update_zoom(&self.input);
@@ -388,7 +390,7 @@ impl Editor {
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving scene...");
-                                // self.scene.save_as();
+                                self.scene.save_as();
                                 ui.close_menu();
                             }
                         });

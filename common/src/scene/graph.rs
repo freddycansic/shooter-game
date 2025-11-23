@@ -4,6 +4,7 @@ use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use itertools::Itertools;
 use nalgebra::Transform3;
 use petgraph::{Direction, graph::NodeIndex};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     renderer::Instance,
@@ -12,11 +13,12 @@ use crate::{
 };
 
 pub struct SceneNode {
-    local_transform: Transform,
-    world_transform: Transform,
-    world_transform_dirty: bool,
+    pub local_transform: Transform,
+    pub world_transform: Transform,
+    pub world_transform_dirty: bool,
     pub visible: bool,
     pub selected: bool,
+
     pub ty: NodeType,
 }
 
@@ -89,8 +91,8 @@ pub struct RenderQueue {
 }
 
 pub struct SceneGraph {
-    graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
-    root: NodeIndex,
+    pub graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
+    pub root: NodeIndex,
 }
 
 impl SceneGraph {
@@ -151,9 +153,9 @@ impl SceneGraph {
             }
         }
 
-        for (i, batch) in batches.iter().enumerate() {
-            log::info!("Batch {} len {}", i, batch.1.instances.len());
-        }
+        // for (i, batch) in batches.iter().enumerate() {
+        //     log::info!("Batch {} len {}", i, batch.1.instances.len());
+        // }
 
         batches.into_values().collect_vec()
     }

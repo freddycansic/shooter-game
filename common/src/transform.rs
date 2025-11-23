@@ -8,7 +8,9 @@ pub struct Transform {
     translation: Translation3<f32>,
     rotation: UnitQuaternion<f32>,
     scale: f32,
+    #[serde(skip)]
     matrix: [[f32; 4]; 4],
+    #[serde(skip)]
     dirty: bool,
 }
 

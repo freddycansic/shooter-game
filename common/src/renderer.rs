@@ -65,7 +65,7 @@ impl RendererBuffers {
     ) -> &VertexBuffer<Instance> {
         match self.instance_buffers.entry(batch.key.clone()) {
             Entry::Occupied(entry) => {
-                log::debug!("Already got an instance buffer");
+                // log::debug!("Already got an instance buffer");
                 let instance_buffer = entry.into_mut();
 
                 if instance_buffer.len() < batch.instances.len() {
