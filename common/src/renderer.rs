@@ -1,35 +1,29 @@
 use std::collections::hash_map::Entry;
-use std::hash::Hash;
-use std::sync::Arc;
 
 use color_eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
-use glium::index::{IndicesSource, NoIndices, PrimitiveType};
+use glium::index::{IndicesSource, PrimitiveType};
 use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface,
     VertexBuffer, implement_vertex, uniform,
 };
-use itertools::Itertools;
 use nalgebra::{Matrix4, Point3};
-use petgraph::prelude::StableDiGraph;
 use uuid::Uuid;
 
 use crate::colors::{self, ColorExt};
 use crate::geometry::primitives::SimplePoint;
-use crate::geometry::{Geometry, primitives};
-use crate::light::{Light, ShaderLight};
-use crate::line::{Line, LinePoint};
-use crate::maths::Matrix4Ext;
-use crate::quad::{Quad, QuadVertex};
+use crate::geometry::primitives;
+use crate::light::Light;
+use crate::line::LinePoint;
+use crate::quad::QuadVertex;
 use crate::resources::resources::Resources;
 use crate::scene::graph::{InstanceBatch, InstanceBatchKey, RenderQueue};
 // use crate::terrain::Terrain;
-use crate::texture::Cubemap;
 use crate::{context, maths};
 
 struct Programs {

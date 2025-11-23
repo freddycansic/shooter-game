@@ -20,10 +20,10 @@ pub trait Application {
     #[allow(clippy::unused_variables)]
     fn device_event(
         &mut self,
-        event: DeviceEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
+        _event: DeviceEvent,
+        _event_loop: &ActiveEventLoop,
+        _window: &Window,
+        _display: &Display<WindowSurface>,
     ) {
     }
 

@@ -3,7 +3,6 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use common::geometry::Geometry;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::serde::SerializedScene;
 use common::transform::Transform;
@@ -30,7 +29,6 @@ use common::light::Light;
 use common::line::Line;
 use common::renderer::Renderer;
 // use common::scene::Background;
-use common::texture::Cubemap;
 use common::*;
 use input::Input;
 use scene::Scene;

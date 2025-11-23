@@ -1,20 +1,15 @@
-use std::path::Path;
 use std::sync::Arc;
 
-use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use nalgebra::{Matrix4, Point3};
-use petgraph::prelude::StableDiGraph;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 
 use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
-use crate::import;
 use crate::light::Light;
 use crate::line::Line;
-use crate::quad::Quad;
 use crate::renderer::Renderer;
 use crate::resources::resources::Resources;
 use crate::scene::graph::SceneGraph;
@@ -143,13 +138,13 @@ impl Scene {
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
         camera_position: Point3<f32>,
-        debug: bool,
+        _debug: bool,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
         match &self.background {
             Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
-            Background::HDRI(cubemap) => {
+            Background::HDRI(_cubemap) => {
                 // target.clear_all(
                 //     Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
                 //     1.0,
