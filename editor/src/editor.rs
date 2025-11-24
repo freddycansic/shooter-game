@@ -197,7 +197,10 @@ impl Application for Editor {
                     texture_handle: uv_test_handle,
                 };
 
-                let node = SceneNode::new(NodeType::Renderable(renderable), transform);
+                let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
+                if (y % 2 == 0) {
+                    node.selected = true;
+                }
 
                 scene.graph.add_root_node(node);
             }
