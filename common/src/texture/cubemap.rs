@@ -13,7 +13,7 @@ use crate::texture::texture;
 
 pub struct Cubemap {
     pub directory: PathBuf,
-    pub inner_cubemap: Option<glium::texture::Cubemap>,
+    pub inner_cubemap: glium::texture::Cubemap,
 }
 
 impl Cubemap {
@@ -88,7 +88,7 @@ impl Cubemap {
             });
 
         Ok(Cubemap {
-            inner_cubemap: Some(inner_cubemap),
+            inner_cubemap,
             directory: directory.clone(),
         })
     }
