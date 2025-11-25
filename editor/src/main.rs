@@ -1,4 +1,4 @@
-use winit::window::WindowAttributes;
+use winit::{platform::wayland::WindowAttributesExtWayland, window::WindowAttributes};
 
 use common::run;
 use editor::Editor;
@@ -6,5 +6,6 @@ use editor::Editor;
 mod editor;
 
 fn main() {
-    run::run::<Editor>(WindowAttributes::default());
+    let attributes = WindowAttributes::default().with_name("shooter-game-editor", "");
+    run::run::<Editor>(attributes);
 }

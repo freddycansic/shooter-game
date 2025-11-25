@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use color_eyre::Result;
 use glium::Display;
@@ -13,18 +13,18 @@ pub struct Texture2D {
 }
 
 impl Texture2D {
-    pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Self> {
-        let raw_image = texture::load_raw_image(&path)?;
+    pub fn load(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
+        let raw_image = texture::load_raw_image(path)?;
         let opengl_texture = CompressedTexture2d::new(display, raw_image).unwrap();
 
         Ok(Texture2D {
             inner_texture: opengl_texture,
-            path: path.clone(),
+            path: path.to_path_buf(),
         })
     }
 
     pub fn default_diffuse(display: &Display<WindowSurface>) -> Result<Self> {
-        Self::load(PathBuf::from("assets/textures/uv-test.jpg"), display)
+        Self::load(Path::new("assets/textures/uv-test.jpg"), display)
     }
 
     pub fn solid(width: u32, height: u32, display: &Display<WindowSurface>) -> Result<Self> {

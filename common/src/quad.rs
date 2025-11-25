@@ -1,11 +1,9 @@
 use crate::resources::handle::TextureHandle;
 use crate::ui::UiItem;
-use crate::{texture::Texture2D, ui};
+use crate::ui;
 use egui_glium::egui_winit::egui::WidgetText;
 use glium::implement_vertex;
 use nalgebra::{Point2, Vector2};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 // #[derive(Clone, Serialize, Deserialize)]
 pub struct Quad {

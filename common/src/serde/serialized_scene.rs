@@ -6,7 +6,7 @@ use crate::{
     camera::FpsCamera,
     light::Light,
     resources::resources::Resources,
-    scene::{Scene, scene::Background},
+    scene::Scene,
     serde::{serialized_background::SerializedBackground, serialized_graph::SerializedSceneGraph},
 };
 

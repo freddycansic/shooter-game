@@ -6,7 +6,6 @@ use std::time::Instant;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;
-use common::texture::Cubemap;
 use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
@@ -198,7 +197,7 @@ impl Application for Editor {
                 };
 
                 let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
-                if (y % 2 == 0) {
+                if y % 2 == 0  {
                     node.selected = true;
                 }
 
@@ -293,10 +292,10 @@ impl Editor {
 
                     self.scene = serialized_scene.into_scene(display).unwrap();
                 }
-                // EngineEvent::ImportModel(model_path) => self
-                //     .scene
-                //     .import_model(model_path.as_path(), display)
-                //     .unwrap(),
+                EngineEvent::ImportModel(model_path) => self
+                    .scene
+                    .import_model(model_path.as_path(), display)
+                    .unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
                     self.scene.background = Background::HDRI(
                         self.scene
