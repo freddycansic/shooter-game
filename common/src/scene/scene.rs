@@ -1,10 +1,10 @@
-use std::sync::Arc;
+use std::path::Path;
 
+use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use nalgebra::{Matrix4, Point3};
 use rfd::FileDialog;
-use serde::{Deserialize, Serialize};
 
 use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
@@ -13,9 +13,9 @@ use crate::line::Line;
 use crate::renderer::Renderer;
 use crate::resources::handle::CubemapHandle;
 use crate::resources::resources::Resources;
-use crate::scene::graph::SceneGraph;
+use crate::scene::graph::{NodeType, Renderable, SceneGraph, SceneNode};
 use crate::serde::SerializedScene;
-use crate::texture::Cubemap;
+use crate::transform::Transform;
 
 #[derive(PartialEq, Clone)]
 pub enum Background {
@@ -123,15 +123,35 @@ impl Scene {
     }
 
     /// Load a models and create an instance of it in the scene
-    // pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
-    //     let models = import::gltf::load(path.to_path_buf(), display)?;
+    pub fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<()> {
+        let handles = self.resources.get_geometry_handles(path, display)?;
 
-    //     for model in models {
-    //         self.graph.add_node(ModelInstance::from(model));
-    //     }
+        let group_node = self
+            .graph
+            .add_root_node(SceneNode::new(NodeType::Group, Transform::identity()));
 
-    //     Ok(())
-    // }
+        let texture_handle = self
+            .resources
+            .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
+
+        for geometry_handle in handles {
+            let renderable = Renderable {
+                geometry_handle,
+                texture_handle,
+            };
+
+            let scene_node =
+                SceneNode::new(NodeType::Renderable(renderable), Transform::identity());
+
+            let node_index = self.graph.add_node(scene_node);
+
+            self.graph.add_edge(group_node, node_index);
+        }
+
+        self.graph.add_edge(self.graph.root, group_node);
+
+        Ok(())
+    }
 
     pub fn render(
         &mut self,

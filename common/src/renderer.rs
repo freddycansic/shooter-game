@@ -25,7 +25,6 @@ use crate::quad::QuadVertex;
 use crate::resources::handle::CubemapHandle;
 use crate::resources::resources::Resources;
 use crate::scene::graph::{InstanceBatch, InstanceBatchKey, RenderQueue};
-use crate::texture::Cubemap;
 // use crate::terrain::Terrain;
 use crate::{context, maths};
 

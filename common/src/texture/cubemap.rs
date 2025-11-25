@@ -1,7 +1,6 @@
 use color_eyre::eyre::Result;
 use fxhash::FxHashSet;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;

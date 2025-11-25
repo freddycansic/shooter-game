@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap};
@@ -51,7 +51,7 @@ impl Resources {
 
     pub fn get_texture_handle(
         &mut self,
-        path: &PathBuf,
+        path: &Path,
         display: &Display<WindowSurface>,
     ) -> Result<TextureHandle> {
         if let Some(handle) = self.textures_handles.get(path) {
@@ -63,8 +63,8 @@ impl Resources {
         let handle = TextureHandle(self.new_handle());
 
         self.textures
-            .insert(handle, Texture2D::load(path.clone(), display)?);
-        self.textures_handles.insert(path.clone(), handle);
+            .insert(handle, Texture2D::load(path, display)?);
+        self.textures_handles.insert(path.to_path_buf(), handle);
 
         Ok(handle)
     }
@@ -86,14 +86,14 @@ impl Resources {
 
     pub fn get_geometry_handles(
         &mut self,
-        path: &PathBuf,
+        path: &Path,
         display: &Display<WindowSurface>,
     ) -> Result<Vec<GeometryHandle>> {
         if let Some(handles) = self.geometry_handles.get(path) {
             return Ok(handles.clone());
         }
 
-        let geometries = Geometry::load(path.clone(), display)?;
+        let geometries = Geometry::load(path.to_path_buf(), display)?;
 
         let handles = (0..geometries.len())
             .map(|_| GeometryHandle(self.new_handle()))
@@ -103,7 +103,8 @@ impl Resources {
             self.geometry.insert(handle, geometry);
         }
 
-        self.geometry_handles.insert(path.clone(), handles.clone());
+        self.geometry_handles
+            .insert(path.to_path_buf(), handles.clone());
 
         Ok(handles)
     }

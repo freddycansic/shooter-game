@@ -2,7 +2,10 @@ use std::hash::{Hash, Hasher};
 
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
-use petgraph::{Direction, graph::NodeIndex};
+use petgraph::{
+    Direction,
+    graph::{EdgeIndex, NodeIndex},
+};
 
 use crate::{
     renderer::Instance,
@@ -99,6 +102,14 @@ impl SceneGraph {
         let root = graph.add_node(SceneNode::create_root());
 
         Self { graph, root }
+    }
+
+    pub fn add_edge(&mut self, a: NodeIndex, b: NodeIndex) -> EdgeIndex {
+        self.graph.add_edge(a, b, ())
+    }
+
+    pub fn add_node(&mut self, node: SceneNode) -> NodeIndex {
+        self.graph.add_node(node)
     }
 
     pub fn add_root_node(&mut self, node: SceneNode) -> NodeIndex {
