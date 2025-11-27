@@ -9,7 +9,6 @@ use common::serde::SerializedScene;
 use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
-use egui_ltreeview::TreeView;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
@@ -365,13 +364,13 @@ impl Editor {
     fn render_gui(&mut self, window: &Window) {
         self.gui.run(window, |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-                egui::menu::bar(ui, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
                                 self.scene = Scene::default();
 
-                                ui.close_menu();
+                                ui.close();
                             }
 
                             if ui.add(Button::new("Open scene")).clicked() {
@@ -392,13 +391,13 @@ impl Editor {
                                     }
                                 });
 
-                                ui.close_menu();
+                                ui.close();
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving scene...");
                                 self.scene.save_as();
-                                ui.close_menu();
+                                ui.close();
                             }
                         });
 
@@ -419,7 +418,7 @@ impl Editor {
                                     }
                                 });
 
-                                ui.close_menu();
+                                ui.close();
                             }
                         });
 
@@ -436,7 +435,7 @@ impl Editor {
                                     .wait()
                                     .unwrap();
 
-                                ui.close_menu();
+                                ui.close();
                             }
                         });
                     });
@@ -446,10 +445,7 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    let id = ui.make_persistent_id("Scene graph tree view");
-                    TreeView::new(id).show(ui, |builder| {
-                        builder.dir(0, "Hi");
-                    });
+                    self.scene.graph.show_tree_view(ui);
 
                     ui.add(egui::Separator::default().horizontal());
 

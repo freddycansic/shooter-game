@@ -1,11 +1,15 @@
 use std::hash::{Hash, Hasher};
 
+use egui_glium::egui_winit::egui::Ui;
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
 use petgraph::{
     Direction,
     graph::{EdgeIndex, NodeIndex},
+    visit::NodeRef,
 };
+
+use egui_ltreeview::{Action, NodeConfig, TreeView, TreeViewBuilder, TreeViewState};
 
 use crate::{
     renderer::Instance,
@@ -187,6 +191,52 @@ impl SceneGraph {
             self.graph[child].world_transform_dirty = false;
 
             self.calculate_world_matrices_inner(child);
+        }
+    }
+
+    pub fn show_tree_view(&mut self, ui: &mut Ui) {
+        let id = ui.make_persistent_id("Scene graph tree view");
+        let (_, actions) = TreeView::new(id).show(ui, |builder| {
+            let top_level_children = self
+                .graph
+                .neighbors_directed(self.root, Direction::Outgoing)
+                .collect_vec();
+
+            for top_level in top_level_children {
+                self.show_tree_view_inner(top_level, builder);
+            }
+        });
+
+        for action in actions {
+            match action {
+                Action::SetSelected(nodes) => {
+                    for node in nodes {
+                        self.graph[NodeIndex::new(node as usize)].selected = true;
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
+    fn show_tree_view_inner(&self, node: NodeIndex, builder: &mut TreeViewBuilder<'_, i32>) {
+        let children = self
+            .graph
+            .neighbors_directed(node, Direction::Outgoing)
+            .collect_vec();
+
+        if children.is_empty() {
+            builder.leaf(node.index() as i32, "Leaf");
+        } else {
+            let is_open = builder.dir(node.index() as i32, "Dir");
+
+            if is_open {
+                for child in children {
+                    self.show_tree_view_inner(child, builder);
+                }
+            }
+
+            builder.close_dir();
         }
     }
 }
