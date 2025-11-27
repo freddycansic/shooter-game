@@ -9,6 +9,7 @@ use common::serde::SerializedScene;
 use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
+use egui_ltreeview::TreeView;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
@@ -197,7 +198,7 @@ impl Application for Editor {
                 };
 
                 let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
-                if y % 2 == 0  {
+                if y % 2 == 0 {
                     node.selected = true;
                 }
 
@@ -445,13 +446,10 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    // ui.collapsing("Models", |ui| {
-                    //     if self.scene.graph.node_count() == 0 {
-                    //         ui.label("There are no models in the scene.");
-                    //     } else {
-                    //         ui::collapsing_graph(ui, &mut self.scene.graph);
-                    //     }
-                    // });
+                    let id = ui.make_persistent_id("Scene graph tree view");
+                    TreeView::new(id).show(ui, |builder| {
+                        builder.dir(0, "Hi");
+                    });
 
                     ui.add(egui::Separator::default().horizontal());
 
