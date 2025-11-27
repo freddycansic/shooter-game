@@ -31,7 +31,7 @@ palette = { version = "0.7.5", default-features = false, features = [
     "serializing",
 ] }
 glium = "0.36"
-egui_glium = "0.31.0"
+egui_glium = "0.33.2"
 winit = "0.30.5"
 serde = { version = "1.0.200", features = ["derive", "rc"] }
 serde_json = "1.0.116"
@@ -45,6 +45,7 @@ petgraph = { version = "0.8.1", default-features = false, features = [
 proc-macros = { version = "0.1.0", path = "../proc-macros" }
 fxhash = "0.2.1"
 nalgebra = { version = "0.34.1", features = ["serde", "serde-serialize"] }
+egui_ltreeview = "0.6.0"
 
 [dev-dependencies]
 fastrand = "2.3.0"

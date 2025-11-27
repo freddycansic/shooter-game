@@ -23,7 +23,6 @@ rapier3d = { version = "0.24.0", features = [
     "serde-serialize",
 ] }
 glium = "0.36"
-egui_glium = { git = "https://github.com/freddycansic/egui_glium.git" }
+egui_glium = "0.33.2"
 serde_json = "1.0.116"
 nalgebra = "0.34.1"
-egui_ltreeview = "0.6.0"
