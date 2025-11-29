@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 
 use color_eyre::Result;
+use egui_glium::egui_winit::egui::{self, Pos2};
 use fxhash::{FxBuildHasher, FxHashMap};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
@@ -9,7 +10,7 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Rect, Surface, VertexBuffer,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
     implement_vertex, uniform,
 };
 use nalgebra::{Matrix4, Point3};
@@ -18,6 +19,7 @@ use uuid::Uuid;
 use crate::colors::{self, ColorExt};
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
+use crate::input::Input;
 use crate::light::Light;
 use crate::line::LinePoint;
 use crate::maths::Matrix4Ext;
@@ -109,14 +111,14 @@ pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
 
-    pub viewport: Option<Rect>,
+    viewport: Option<egui::Rect>,
 }
 
 impl Renderer {
     pub fn new(
         window_width: f32,
         window_height: f32,
-        viewport: Option<Rect>,
+        viewport: Option<egui::Rect>,
         display: &Display<WindowSurface>,
     ) -> Result<Self> {
         let default_program = context::new_program(
@@ -188,11 +190,11 @@ impl Renderer {
         let hasher = FxBuildHasher::new();
 
         Ok(Self {
-            perspective_projection: maths::perspective_matrix_from_window_size(
+            perspective_projection: maths::perspective_matrix_from_dimensions(
                 window_width,
                 window_height,
             ),
-            orthograhic_projection: maths::orthographic_matrix_from_window_size(
+            orthograhic_projection: maths::orthographic_matrix_from_dimensions(
                 window_width,
                 window_height,
             ),
@@ -217,12 +219,36 @@ impl Renderer {
         })
     }
 
-    pub fn update_projection_matrices(&mut self, window_width: f32, window_height: f32) {
-        self.perspective_projection =
-            maths::perspective_matrix_from_window_size(window_width, window_height);
+    fn get_viewport(&self) -> Option<glium::Rect> {
+        // Convert to bottom left rect from top right
+        self.viewport.map(|viewport| glium::Rect {
+            left: viewport.min.x as u32,
+            bottom: (viewport.height() - viewport.max.y) as u32,
+            width: viewport.width() as u32,
+            height: viewport.height() as u32,
+        })
+    }
 
-        self.orthograhic_projection =
-            maths::orthographic_matrix_from_window_size(window_width, window_height);
+    pub fn update_projection_matrices(&mut self, width: f32, height: f32) {
+        self.perspective_projection = maths::perspective_matrix_from_dimensions(width, height);
+        self.orthograhic_projection = maths::orthographic_matrix_from_dimensions(width, height);
+    }
+
+    pub fn update_viewport(&mut self, viewport: egui::Rect) {
+        self.update_projection_matrices(viewport.width(), viewport.height());
+        self.viewport = Some(viewport);
+    }
+
+    pub fn is_mouse_in_viewport(&self, input: &Input) -> bool {
+        if !input.mouse_on_window() {
+            return false;
+        }
+
+        input.mouse_position().is_some_and(|position| {
+            self.viewport.is_some_and(|viewport| {
+                viewport.contains(Pos2::new(position.x as f32, position.y as f32))
+            })
+        })
     }
 
     pub fn render_queue(
@@ -385,7 +411,7 @@ impl Renderer {
                 &self.programs.skybox,
                 &uniforms,
                 &DrawParameters {
-                    viewport: self.viewport,
+                    viewport: self.get_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -510,6 +536,8 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
+        let viewport = self.get_viewport();
+
         // Draw regular color buffer
         for batch in batched_instances.iter() {
             let instance_buffer = self.buffers.get_instance_buffer(batch, display);
@@ -547,7 +575,7 @@ impl Renderer {
                                 write: true,
                                 ..Default::default()
                             },
-                            viewport: self.viewport,
+                            viewport,
                             // backface_culling: BackfaceCullingMode::CullClockwise,
                             ..DrawParameters::default()
                         },
@@ -579,6 +607,8 @@ impl Renderer {
             vp: *vp,
         };
 
+        let viewport = self.get_viewport();
+
         // Only draw selected models into mask
         for batch in batched_instances.iter().filter(|batch| batch.key.selected) {
             let instance_buffer = self.buffers.get_instance_buffer(batch, display);
@@ -600,7 +630,7 @@ impl Renderer {
                         &self.programs.solid_color,
                         &solid_color_uniforms,
                         &DrawParameters {
-                            viewport: self.viewport,
+                            viewport,
                             ..DrawParameters::default()
                         },
                     )

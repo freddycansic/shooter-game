@@ -13,7 +13,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
 // use models::ModelInstance;
-use nalgebra::{Point3, Translation3, UnitQuaternion, Vector3};
+use nalgebra::{Point3, Translation3};
 use palette::Srgb;
 use rfd::FileDialog;
 // use serde::SerializedScene;
@@ -318,7 +318,9 @@ impl Editor {
         self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
-        if self.input.mouse_button_just_released(MouseButton::Left) {
+        if self.input.mouse_button_just_released(MouseButton::Left)
+            && self.renderer.is_mouse_in_viewport(&self.input)
+        {
             for node in self.scene.graph.graph.node_weights_mut() {
                 node.selected = false;
             }
@@ -336,12 +338,12 @@ impl Editor {
 
         self.input.reset_internal_state();
 
-        if self.state.frame_count % 5 == 0 {
-            info!("{} FPS", self.state.fps);
-            window.set_title(
-                format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
-            );
-        }
+        // if self.state.frame_count % 5 == 0 {
+        //     info!("{} FPS", self.state.fps);
+        //     window.set_title(
+        //         format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
+        //     );
+        // }
     }
 
     fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
@@ -350,13 +352,14 @@ impl Editor {
             return;
         }
 
-        for node in self.scene.graph.graph.node_weights_mut() {
-            node.local_transform
-                .set_rotation(UnitQuaternion::from_axis_angle(
-                    &Vector3::y_axis(),
-                    (self.state.frame_count as f32 * 0.001) % 360.0,
-                ));
-        }
+        // TODO fix this spinning them about origin
+        // for node in self.scene.graph.graph.node_weights_mut() {
+        //     node.local_transform
+        //         .set_rotation(UnitQuaternion::from_axis_angle(
+        //             &Vector3::y_axis(),
+        //             (self.state.frame_count as f32 * 0.001) % 360.0,
+        //         ));
+        // }
 
         let mut target = display.draw();
         {
@@ -504,19 +507,7 @@ impl Editor {
                 });
             });
 
-            // Top left rect
-            let available = ctx.available_rect();
-
-            // Bottom left rect
-            self.renderer.viewport = Some(glium::Rect {
-                left: available.min.x as u32,
-                bottom: (available.height() - available.max.y) as u32,
-                width: available.width() as u32,
-                height: available.height() as u32,
-            });
-
-            dbg!(available);
-            dbg!(self.renderer.viewport);
+            self.renderer.update_viewport(ctx.available_rect());
         });
     }
 }
