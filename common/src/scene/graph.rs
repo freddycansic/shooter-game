@@ -4,8 +4,8 @@ use egui_glium::egui_winit::egui::Ui;
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
 use petgraph::{
-    graph::{EdgeIndex, NodeIndex},
     Direction,
+    graph::{EdgeIndex, NodeIndex},
 };
 
 use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
@@ -211,8 +211,12 @@ impl SceneGraph {
         for action in actions {
             match action {
                 Action::SetSelected(nodes) => {
-                    for node in nodes {
-                        self.graph[NodeIndex::new(node as usize)].selected = true;
+                    for node in self.graph.node_weights_mut() {
+                        node.selected = false;
+                    }
+
+                    for selected_node in nodes {
+                        self.graph[NodeIndex::new(selected_node as usize)].selected = true;
                     }
                 }
                 _ => (),

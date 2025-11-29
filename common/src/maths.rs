@@ -18,17 +18,19 @@ pub fn raw_identity_matrix() -> [[f32; 4]; 4] {
     raw_matrix(Matrix4::identity())
 }
 
-pub fn perspective_matrix_from_window_size(window_width: f32, window_height: f32) -> Matrix4<f32> {
-    Matrix4::new_perspective(
-        window_width / window_height,
-        std::f32::consts::FRAC_PI_2,
-        0.01,
-        2000.0,
-    )
+pub fn perspective_matrix_from_dimensions(width: f32, height: f32) -> Matrix4<f32> {
+    const MIN_ASPECT_RATIO: f32 = 0.1;
+    let aspect_ratio = (width / height).max(MIN_ASPECT_RATIO);
+
+    Matrix4::new_perspective(aspect_ratio, std::f32::consts::FRAC_PI_2, 0.01, 2000.0)
 }
 
-pub fn orthographic_matrix_from_window_size(window_width: f32, window_height: f32) -> Matrix4<f32> {
-    Matrix4::new_orthographic(0.0, window_width, 0.0, window_height, 0.01, 100.0)
+pub fn orthographic_matrix_from_dimensions(width: f32, height: f32) -> Matrix4<f32> {
+    const MIN_DIMENSION: f32 = 1.0;
+    let safe_width = width.max(MIN_DIMENSION);
+    let safe_height = height.max(MIN_DIMENSION);
+
+    Matrix4::new_orthographic(0.0, safe_width, 0.0, safe_height, 0.01, 100.0)
 }
 
 pub trait Matrix4Ext {
