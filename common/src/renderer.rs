@@ -9,7 +9,7 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Rect, Surface, VertexBuffer,
     implement_vertex, uniform,
 };
 use nalgebra::{Matrix4, Point3};
@@ -108,12 +108,15 @@ pub struct Renderer {
 
     buffers: RendererBuffers,
     programs: Programs,
+
+    pub viewport: Option<Rect>,
 }
 
 impl Renderer {
     pub fn new(
         window_width: f32,
         window_height: f32,
+        viewport: Option<Rect>,
         display: &Display<WindowSurface>,
     ) -> Result<Self> {
         let default_program = context::new_program(
@@ -210,6 +213,7 @@ impl Renderer {
                 fullscreen_quad: fullscreen_quad_program,
                 solid_color: solid_color_program,
             },
+            viewport,
         })
     }
 
@@ -380,7 +384,10 @@ impl Renderer {
                 NoIndices(PrimitiveType::TrianglesList),
                 &self.programs.skybox,
                 &uniforms,
-                &DrawParameters::default(),
+                &DrawParameters {
+                    viewport: self.viewport,
+                    ..DrawParameters::default()
+                },
             )
             .unwrap();
     }
@@ -540,6 +547,7 @@ impl Renderer {
                                 write: true,
                                 ..Default::default()
                             },
+                            viewport: self.viewport,
                             // backface_culling: BackfaceCullingMode::CullClockwise,
                             ..DrawParameters::default()
                         },
@@ -591,7 +599,10 @@ impl Renderer {
                         &primitive.index_buffer,
                         &self.programs.solid_color,
                         &solid_color_uniforms,
-                        &DrawParameters::default(),
+                        &DrawParameters {
+                            viewport: self.viewport,
+                            ..DrawParameters::default()
+                        },
                     )
                     .unwrap();
             }

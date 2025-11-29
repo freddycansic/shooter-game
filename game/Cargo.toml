@@ -12,7 +12,3 @@ common = { path = "../common" }
 color-eyre = "0.6.2"
 glium = "0.36"
 winit = "0.30.5"
-rapier3d = { version = "0.24.0", features = [
-    "simd-nightly",
-    "serde-serialize",
-] }
