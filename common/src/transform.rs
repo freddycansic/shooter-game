@@ -18,9 +18,9 @@ impl Transform {
     pub fn compute_transform_matrix(&mut self) {
         if self.dirty {
             let mut matrix = Similarity3::identity();
-            matrix.append_translation_mut(&self.translation);
-            matrix.append_rotation_mut(&self.rotation);
             matrix.append_scaling_mut(self.scale);
+            matrix.append_rotation_mut(&self.rotation);
+            matrix.append_translation_mut(&self.translation);
 
             self.matrix = maths::raw_matrix(matrix.into());
 

@@ -13,10 +13,10 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
 // use models::ModelInstance;
-use nalgebra::{Point3, Translation3};
+use nalgebra::{Point3, Translation3, UnitQuaternion, Vector3};
 use palette::Srgb;
 use rfd::FileDialog;
-// use serde::SerializedScene;
+
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -352,14 +352,13 @@ impl Editor {
             return;
         }
 
-        // TODO fix this spinning them about origin
-        // for node in self.scene.graph.graph.node_weights_mut() {
-        //     node.local_transform
-        //         .set_rotation(UnitQuaternion::from_axis_angle(
-        //             &Vector3::y_axis(),
-        //             (self.state.frame_count as f32 * 0.001) % 360.0,
-        //         ));
-        // }
+        for node in self.scene.graph.graph.node_weights_mut() {
+            node.local_transform
+                .set_rotation(UnitQuaternion::from_axis_angle(
+                    &Vector3::y_axis(),
+                    (self.state.frame_count as f32 * 0.001) % 360.0,
+                ));
+        }
 
         let mut target = display.draw();
         {
