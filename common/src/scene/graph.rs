@@ -4,12 +4,11 @@ use egui_glium::egui_winit::egui::Ui;
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
 use petgraph::{
-    Direction,
     graph::{EdgeIndex, NodeIndex},
-    visit::NodeRef,
+    Direction,
 };
 
-use egui_ltreeview::{Action, NodeConfig, TreeView, TreeViewBuilder, TreeViewState};
+use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
 
 use crate::{
     renderer::Instance,
@@ -206,6 +205,8 @@ impl SceneGraph {
                 self.show_tree_view_inner(top_level, builder);
             }
         });
+
+        // TODO now need to make it so that when i click in the viewer without clicking an object it deselects all
 
         for action in actions {
             match action {

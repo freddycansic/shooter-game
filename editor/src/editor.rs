@@ -13,7 +13,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
 // use models::ModelInstance;
-use nalgebra::{Point3, Translation3};
+use nalgebra::{Point3, Translation3, UnitQuaternion, Vector3};
 use palette::Srgb;
 use rfd::FileDialog;
 // use serde::SerializedScene;
@@ -163,8 +163,13 @@ impl Application for Editor {
         // scene.graph.add_edge(child1, grandchild2, ());
 
         let inner_size = window.inner_size();
-        let renderer =
-            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
+        let renderer = Renderer::new(
+            inner_size.width as f32,
+            inner_size.height as f32,
+            None, // full size
+            display,
+        )
+        .unwrap();
 
         scene.lights.push(Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -313,6 +318,12 @@ impl Editor {
         self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
             || self.input.key_down(KeyCode::Space);
 
+        if self.input.mouse_button_just_released(MouseButton::Left) {
+            for node in self.scene.graph.graph.node_weights_mut() {
+                node.selected = false;
+            }
+        }
+
         if self.state.is_moving_camera {
             self.camera.update(&self.input, self.state.deltatime as f32);
             self.capture_cursor(window);
@@ -339,10 +350,13 @@ impl Editor {
             return;
         }
 
-        // let node_indices = self.scene.graph.node_indices().collect_vec();
-
-        // self.scene.graph[node_indices[0]].transform.rotation =
-        //     Quaternion::from_angle_y(Deg((self.state.frame_count % 360) as f32));
+        for node in self.scene.graph.graph.node_weights_mut() {
+            node.local_transform
+                .set_rotation(UnitQuaternion::from_axis_angle(
+                    &Vector3::y_axis(),
+                    (self.state.frame_count as f32 * 0.001) % 360.0,
+                ));
+        }
 
         let mut target = display.draw();
         {
@@ -489,6 +503,20 @@ impl Editor {
                     ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
                 });
             });
+
+            // Top left rect
+            let available = ctx.available_rect();
+
+            // Bottom left rect
+            self.renderer.viewport = Some(glium::Rect {
+                left: available.min.x as u32,
+                bottom: (available.height() - available.max.y) as u32,
+                width: available.width() as u32,
+                height: available.height() as u32,
+            });
+
+            dbg!(available);
+            dbg!(self.renderer.viewport);
         });
     }
 }
