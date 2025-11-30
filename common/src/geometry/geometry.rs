@@ -11,7 +11,6 @@ use itertools::Itertools;
 
 use crate::geometry::GeometryVertex;
 
-
 use crate::geometry::Primitive;
 use crate::ui;
 

@@ -14,7 +14,7 @@ use crate::renderer::Renderer;
 use crate::resources::CubemapHandle;
 use crate::resources::Resources;
 use crate::scene::graph::{GeometryBatches, NodeType, Renderable, SceneGraph, SceneNode};
-use crate::scene::{QuadBatches, QuadTree};
+use crate::scene::{Bvh, QuadBatches, QuadTree};
 use crate::serde::SerializedScene;
 use crate::transform::Transform;
 
@@ -41,11 +41,10 @@ pub struct Scene {
     pub graph: SceneGraph,
     pub background: Background,
     pub lights: Vec<Light>,
-    // pub terrain: Option<Terrain>,
     pub quads: QuadTree,
-    // #[serde(skip)]
     pub lines: Vec<Line>,
     pub resources: Resources,
+    pub terrain_bvh: Option<Bvh>,
 }
 
 impl Scene {
@@ -57,7 +56,7 @@ impl Scene {
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
-            // terrain: None,
+            terrain_bvh: None,
             lights: vec![],
             resources: Resources::new(),
         }

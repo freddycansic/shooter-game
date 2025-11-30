@@ -48,6 +48,7 @@ impl SerializedScene {
             graph: self.graph.into_scene_graph(display, &mut resources),
             background: self.background.into_background(display, &mut resources),
             lights: self.lights,
+            terrain_bvh: None,
             // terrain: self.terrain,
             resources,
             lines: vec![],

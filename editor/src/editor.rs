@@ -4,6 +4,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::quad::Quad;
+use common::scene::Bvh;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;
@@ -209,6 +210,29 @@ impl Application for Editor {
 
                 scene.graph.add_root_node(node);
             }
+        }
+
+        {
+            let map_handle = scene
+                .resources
+                .get_geometry_handles(&PathBuf::from("assets/game_scenes/map.glb"), display)
+                .unwrap()
+                .into_iter()
+                .next()
+                .unwrap();
+
+            let map_renderable = Renderable {
+                geometry_handle: map_handle,
+                texture_handle: uv_test_handle,
+            };
+
+            let map_node =
+                SceneNode::new(NodeType::Renderable(map_renderable), Transform::identity());
+
+            scene.graph.add_root_node(map_node);
+
+            let geometry = scene.resources.get_geometry(map_handle);
+            let bvh = Bvh::from_geometry(geometry, &scene.resources);
         }
 
         scene.quads.0.push(vec![Quad::new(
