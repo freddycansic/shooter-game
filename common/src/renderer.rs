@@ -1,4 +1,5 @@
 use std::collections::hash_map::Entry;
+use std::hash::Hash;
 
 use color_eyre::Result;
 use egui_glium::egui_winit::egui::{self, Pos2};
@@ -10,11 +11,10 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, VertexBuffer,
-    implement_vertex, uniform,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
+    VertexBuffer, implement_vertex, uniform,
 };
 use nalgebra::{Matrix4, Point3};
-use uuid::Uuid;
 
 use crate::colors::{self, ColorExt};
 use crate::geometry::primitives;
@@ -24,9 +24,11 @@ use crate::light::Light;
 use crate::line::LinePoint;
 use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
-use crate::resources::handle::CubemapHandle;
-use crate::resources::resources::Resources;
-use crate::scene::graph::{InstanceBatch, InstanceBatchKey, RenderQueue};
+use crate::resources::Resources;
+use crate::resources::{CubemapHandle, TextureHandle};
+use crate::scene::QuadBatches;
+use crate::scene::graph::{GeometryBatchKey, GeometryBatches};
+use crate::scene::scene::RenderQueue;
 // use crate::terrain::Terrain;
 use crate::{context, maths};
 
@@ -43,38 +45,37 @@ struct Programs {
 }
 
 pub struct RendererBuffers {
-    pub instance_buffers: FxHashMap<InstanceBatchKey, VertexBuffer<Instance>>,
+    pub instance_buffers: FxHashMap<GeometryBatchKey, VertexBuffer<Instance>>,
     pub line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
-    pub quad_vertex_buffers: FxHashMap<Uuid, VertexBuffer<QuadVertex>>,
+    pub quad_vertex_buffers: FxHashMap<TextureHandle, VertexBuffer<QuadVertex>>,
     pub cube_vertex_buffer: VertexBuffer<SimplePoint>,
 }
 
 impl RendererBuffers {
-    fn get_instance_buffer(
-        &mut self,
-        batch: &InstanceBatch,
+    pub fn get_vertex_buffer<'a, K, V>(
+        buffers: &'a mut FxHashMap<K, VertexBuffer<V>>,
+        key: &K,
+        data: &[V],
         display: &Display<WindowSurface>,
-    ) -> &VertexBuffer<Instance> {
-        match self.instance_buffers.entry(batch.key.clone()) {
+    ) -> &'a VertexBuffer<V>
+    where
+        K: Eq + Hash + Clone,
+        V: Vertex,
+    {
+        match buffers.entry(key.clone()) {
             Entry::Occupied(entry) => {
-                // log::debug!("Already got an instance buffer");
-                let instance_buffer = entry.into_mut();
+                let buffer = entry.into_mut();
 
-                if instance_buffer.len() < batch.instances.len() {
-                    *instance_buffer = context::new_sized_dynamic_vertex_buffer_with_data(
-                        display,
-                        instance_buffer.len() * 2,
-                        &batch.instances,
-                    )
-                    .unwrap();
+                if buffer.len() < data.len() {
+                    // double the size of existing buffer or fit data
+                    let new_size = (buffer.len() * 2).max(data.len());
+                    *buffer =
+                        context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data)
+                            .unwrap();
                 } else {
-                    instance_buffer
-                        .slice_mut(..batch.instances.len())
-                        .unwrap()
-                        .write(&batch.instances);
+                    buffer.slice_mut(..data.len()).unwrap().write(data);
                 }
-
-                instance_buffer
+                buffer
             }
             // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
 
@@ -86,18 +87,13 @@ impl RendererBuffers {
             // 2.pow(8) = 256
             // min_size = 256.max(INITIAL_VERTEX_BUFFER_SIZE [128]) = 256
             Entry::Vacant(entry) => {
-                log::debug!("Creating a new instance buffer");
-                let x = (batch.instances.len() as f64).log2().ceil() as u32;
-                const INITIAL_VERTEX_BUFFER_SIZE: u32 = 128;
-                let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE);
+                const INITIAL_VERTEX_BUFFER_SIZE: usize = 128;
+                let x = (data.len() as f64).log2().ceil() as u32;
+                let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE as u32) as usize;
 
-                let buffer = context::new_sized_dynamic_vertex_buffer_with_data(
-                    display,
-                    min_size as usize,
-                    &batch.instances,
-                )
-                .unwrap();
-
+                let buffer =
+                    context::new_sized_dynamic_vertex_buffer_with_data(display, min_size, data)
+                        .unwrap();
                 entry.insert(buffer)
             }
         }
@@ -266,10 +262,10 @@ impl Renderer {
         let dimensions = target.get_dimensions();
 
         let mask_texture =
-            self.render_mask_texture(&queue.queue, resources, dimensions, &vp, display);
+            self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, display);
 
         self.render_model_instances_color(
-            &queue.queue,
+            &queue.geometry_batches,
             resources,
             &vp,
             lights,
@@ -280,6 +276,9 @@ impl Renderer {
 
         let outline_texture = self.render_outline_texture(mask_texture, dimensions, display);
         self.render_outline(outline_texture, target);
+
+        // Render quads last so they stay on top
+        self.render_quads(&queue.quad_batches, resources, display, target);
     }
 
     // pub fn render_terrain(
@@ -319,66 +318,52 @@ impl Renderer {
     //         .unwrap()
     // }
 
-    // pub fn render_quads(
-    //     &mut self,
-    //     quads: &StableDiGraph<Quad, ()>,
-    //     display: &Display<WindowSurface>,
-    //     target: &mut Frame,
-    // ) {
-    //     if quads.node_count() == 0 {
-    //         return;
-    //     }
+    pub fn render_quads(
+        &mut self,
+        quad_batches: &QuadBatches,
+        resources: &Resources,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
 
-    //     let sample_behaviour = SamplerBehavior {
-    //         minify_filter: MinifySamplerFilter::Nearest,
-    //         magnify_filter: MagnifySamplerFilter::Nearest,
-    //         ..SamplerBehavior::default()
-    //     };
+        let viewport = self.get_viewport();
 
-    //     let grouped_quad_vertices = quads
-    //         .node_weights()
-    //         .cloned()
-    //         .into_group_map_by(|quad| quad.texture.clone())
-    //         .into_iter()
-    //         .map(|(texture, quads)| {
-    //             (
-    //                 texture,
-    //                 quads.into_iter().map(QuadVertex::from).collect_vec(),
-    //             )
-    //         });
+        for (texture_handle, quad_vertices) in quad_batches.iter() {
+            let quad_buffer = RendererBuffers::get_vertex_buffer(
+                &mut self.buffers.quad_vertex_buffers,
+                &texture_handle,
+                quad_vertices,
+                display,
+            );
 
-    //     for (texture, quad_vertices) in grouped_quad_vertices {
-    //         Self::copy_into_buffers(
-    //             display,
-    //             texture.uuid,
-    //             &quad_vertices,
-    //             &mut self.quad_vertex_buffers,
-    //         );
+            let texture = resources.get_texture(*texture_handle);
 
-    //         let uniforms = uniform! {
-    //             diffuse_texture: Sampler(texture.inner_texture.as_ref().unwrap(), sample_behaviour),
-    //             projection: maths::raw_matrix(self.orthograhic_projection)
-    //         };
+            let uniforms = uniform! {
+                diffuse_texture: Sampler(&texture.inner_texture, sample_behaviour),
+                projection: maths::raw_matrix(self.orthograhic_projection)
+            };
 
-    //         target
-    //             .draw(
-    //                 self.quad_vertex_buffers
-    //                     .get(&texture.uuid)
-    //                     .unwrap()
-    //                     .slice(0..quad_vertices.len())
-    //                     .unwrap(),
-    //                 NoIndices(PrimitiveType::Points),
-    //                 &self.quad_program,
-    //                 &uniforms,
-    //                 &DrawParameters {
-    //                     // Depth buffer is disabled so that they appear on top
-    //                     blend: Blend::alpha_blending(),
-    //                     ..Default::default()
-    //                 },
-    //             )
-    //             .unwrap();
-    //     }
-    // }
+            target
+                .draw(
+                    quad_buffer.slice(0..quad_vertices.len()).unwrap(),
+                    NoIndices(PrimitiveType::Points),
+                    &self.programs.quad,
+                    &uniforms,
+                    &DrawParameters {
+                        // Depth buffer is disabled so that they appear on top
+                        blend: Blend::alpha_blending(),
+                        viewport,
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
+    }
 
     pub fn render_skybox(
         &mut self,
@@ -520,7 +505,7 @@ impl Renderer {
 
     fn render_model_instances_color(
         &mut self,
-        batched_instances: &Vec<InstanceBatch>,
+        geometry_batches: &GeometryBatches,
         resources: &Resources,
         vp: &[[f32; 4]; 4],
         lights: &[Light],
@@ -539,11 +524,16 @@ impl Renderer {
         let viewport = self.get_viewport();
 
         // Draw regular color buffer
-        for batch in batched_instances.iter() {
-            let instance_buffer = self.buffers.get_instance_buffer(batch, display);
+        for (key, instances) in geometry_batches.iter() {
+            let instance_buffer = RendererBuffers::get_vertex_buffer(
+                &mut self.buffers.instance_buffers,
+                key,
+                instances,
+                display,
+            );
 
-            let texture = resources.get_texture(batch.key.texture_handle);
-            let geometry = resources.get_geometry(batch.key.geometry_handle);
+            let texture = resources.get_texture(key.texture_handle);
+            let geometry = resources.get_geometry(key.geometry_handle);
 
             let uniforms = uniform! {
                 vp: *vp,
@@ -561,7 +551,7 @@ impl Renderer {
                         (
                             &primitive.vertex_buffer,
                             instance_buffer
-                                .slice(0..batch.instances.len())
+                                .slice(0..instances.len())
                                 .unwrap()
                                 .per_instance()
                                 .unwrap(),
@@ -587,7 +577,7 @@ impl Renderer {
 
     fn render_mask_texture(
         &mut self,
-        batched_instances: &[InstanceBatch],
+        geometry_batches: &GeometryBatches,
         resources: &Resources,
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
@@ -610,10 +600,15 @@ impl Renderer {
         let viewport = self.get_viewport();
 
         // Only draw selected models into mask
-        for batch in batched_instances.iter().filter(|batch| batch.key.selected) {
-            let instance_buffer = self.buffers.get_instance_buffer(batch, display);
+        for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {
+            let instance_buffer = RendererBuffers::get_vertex_buffer(
+                &mut self.buffers.instance_buffers,
+                &key,
+                instances,
+                display,
+            );
 
-            let geometry = resources.get_geometry(batch.key.geometry_handle);
+            let geometry = resources.get_geometry(key.geometry_handle);
 
             for primitive in geometry.primitives.iter() {
                 framebuffer
@@ -621,7 +616,7 @@ impl Renderer {
                         (
                             &primitive.vertex_buffer,
                             instance_buffer
-                                .slice(0..batch.instances.len())
+                                .slice(0..instances.len())
                                 .unwrap()
                                 .per_instance()
                                 .unwrap(),

@@ -1,6 +1,6 @@
-use crate::resources::handle::TextureHandle;
-use crate::ui::UiItem;
+use crate::resources::TextureHandle;
 use crate::ui;
+use crate::ui::UiItem;
 use egui_glium::egui_winit::egui::WidgetText;
 use glium::implement_vertex;
 use nalgebra::{Point2, Vector2};
@@ -10,25 +10,17 @@ pub struct Quad {
     pub position: Point2<f32>,
     pub size: Vector2<f32>,
     pub texture: TextureHandle,
-    // Higher layer = closer to camera
-    pub layer: i32,
 
     pub selected: bool,
     pub name: String,
 }
 
 impl Quad {
-    pub fn new(
-        position: Point2<f32>,
-        size: Vector2<f32>,
-        texture: TextureHandle,
-        layer: i32,
-    ) -> Self {
+    pub fn new(position: Point2<f32>, size: Vector2<f32>, texture: TextureHandle) -> Self {
         Self {
             position,
             size,
             texture,
-            layer,
             selected: false,
             name: ui::default_name::quad(),
         }
@@ -42,16 +34,6 @@ pub struct QuadVertex {
     pub layer: i32,
 }
 implement_vertex!(QuadVertex, position, size, layer);
-
-impl From<Quad> for QuadVertex {
-    fn from(value: Quad) -> Self {
-        QuadVertex {
-            position: <[f32; 2]>::from(value.position),
-            size: <[f32; 2]>::from(value.size),
-            layer: value.layer,
-        }
-    }
-}
 
 impl UiItem for Quad {
     fn name(&self) -> WidgetText {

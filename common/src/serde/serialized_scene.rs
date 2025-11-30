@@ -5,9 +5,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     camera::FpsCamera,
     light::Light,
-    resources::resources::Resources,
-    scene::Scene,
-    serde::{serialized_background::SerializedBackground, serialized_graph::SerializedSceneGraph},
+    resources::Resources,
+    scene::{QuadTree, Scene, SerializedQuadTree},
+    serde::{
+        SerializeWithContext, serialized_background::SerializedBackground,
+        serialized_graph::SerializedSceneGraph,
+    },
 };
 
 #[derive(Serialize, Deserialize)]
@@ -18,9 +21,7 @@ pub struct SerializedScene {
     pub background: SerializedBackground,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
-    // pub quads: StableDiGraph<Quad, ()>,
-    // pub serialized_models: FxHashMap<Uuid, SerializedModel>,
-    // pub serialized_materials: FxHashMap<Uuid, SerializedMa
+    pub quads: SerializedQuadTree,
 }
 
 impl SerializedScene {
@@ -28,11 +29,11 @@ impl SerializedScene {
         Self {
             title: value.title.clone(),
             camera: value.camera.clone(),
+            quads: value.quads.serialize_with(&value.resources),
             graph: SerializedSceneGraph::from_scene_graph(&value.graph, &value.resources),
             background: SerializedBackground::from_background(&value.background, &value.resources),
             lights: value.lights.clone(),
             // terrain: value.terrain.clone(),
-            // quads: value.quads.clone(),
             // serialized_models,
         }
     }
@@ -43,11 +44,11 @@ impl SerializedScene {
         Ok(Scene {
             title: self.title,
             camera: self.camera,
+            quads: QuadTree::deserialize_with(self.quads, display, &mut resources),
             graph: self.graph.into_scene_graph(display, &mut resources),
             background: self.background.into_background(display, &mut resources),
             lights: self.lights,
             // terrain: self.terrain,
-            // quads: self.quads,
             resources,
             lines: vec![],
         })
