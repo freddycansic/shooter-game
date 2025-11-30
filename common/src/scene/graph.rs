@@ -12,7 +12,7 @@ use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
 
 use crate::{
     renderer::Instance,
-    resources::handle::{GeometryHandle, TextureHandle},
+    resources::{GeometryHandle, TextureHandle},
     transform::Transform,
 };
 
@@ -61,18 +61,13 @@ pub struct Renderable {
 }
 
 #[derive(Clone)]
-pub struct InstanceBatchKey {
+pub struct GeometryBatchKey {
     pub geometry_handle: GeometryHandle,
     pub texture_handle: TextureHandle,
     pub selected: bool,
 }
 
-pub struct InstanceBatch {
-    pub key: InstanceBatchKey,
-    pub instances: Vec<Instance>,
-}
-
-impl Hash for InstanceBatchKey {
+impl Hash for GeometryBatchKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.geometry_handle.hash(state);
         self.texture_handle.hash(state);
@@ -80,7 +75,7 @@ impl Hash for InstanceBatchKey {
     }
 }
 
-impl PartialEq for InstanceBatchKey {
+impl PartialEq for GeometryBatchKey {
     fn eq(&self, other: &Self) -> bool {
         self.geometry_handle == other.geometry_handle
             && self.texture_handle == other.texture_handle
@@ -88,11 +83,9 @@ impl PartialEq for InstanceBatchKey {
     }
 }
 
-impl Eq for InstanceBatchKey {}
+impl Eq for GeometryBatchKey {}
 
-pub struct RenderQueue {
-    pub queue: Vec<InstanceBatch>,
-}
+pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
 
 pub struct SceneGraph {
     pub graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
@@ -123,19 +116,10 @@ impl SceneGraph {
         node_index
     }
 
-    pub fn build_render_queue(&mut self) -> RenderQueue {
+    pub fn batch_geometry(&mut self) -> GeometryBatches {
         self.calculate_world_matrices();
 
-        let batches = self.batch_instances();
-
-        RenderQueue { queue: batches }
-    }
-
-    fn batch_instances(&self) -> Vec<InstanceBatch> {
-        let mut batches =
-            FxHashMap::<(GeometryHandle, TextureHandle, bool), InstanceBatch>::with_hasher(
-                FxBuildHasher::new(),
-            );
+        let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         let visible_nodes = self.graph.node_weights().filter(|node| node.visible);
 
@@ -143,21 +127,15 @@ impl SceneGraph {
             // log::info!("Batching node {}", i);
             match &scene_node.ty {
                 NodeType::Renderable(renderable) => {
-                    let node_key = (
-                        renderable.geometry_handle,
-                        renderable.texture_handle,
-                        scene_node.selected,
-                    );
-                    let batch = batches.entry(node_key).or_insert(InstanceBatch {
-                        key: InstanceBatchKey {
-                            texture_handle: renderable.texture_handle,
-                            geometry_handle: renderable.geometry_handle,
-                            selected: scene_node.selected,
-                        },
-                        instances: Vec::new(),
-                    });
+                    let node_key = GeometryBatchKey {
+                        geometry_handle: renderable.geometry_handle,
+                        texture_handle: renderable.texture_handle,
+                        selected: scene_node.selected,
+                    };
 
-                    batch.instances.push(Instance {
+                    let batch = batches.entry(node_key).or_insert(vec![]);
+
+                    batch.push(Instance {
                         transform: scene_node.world_transform.matrix(),
                     });
                 }
@@ -169,7 +147,7 @@ impl SceneGraph {
         //     log::info!("Batch {} len {}", i, batch.1.instances.len());
         // }
 
-        batches.into_values().collect_vec()
+        batches
     }
 
     fn calculate_world_matrices(&mut self) {

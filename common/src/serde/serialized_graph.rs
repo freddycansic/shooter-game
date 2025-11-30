@@ -5,7 +5,7 @@ use petgraph::{graph::NodeIndex, prelude::StableDiGraph};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    resources::resources::Resources,
+    resources::Resources,
     scene::graph::{NodeType, Renderable, SceneGraph, SceneNode},
     transform::Transform,
 };

@@ -11,9 +11,10 @@ use crate::colors::{Color, ColorExt};
 use crate::light::Light;
 use crate::line::Line;
 use crate::renderer::Renderer;
-use crate::resources::handle::CubemapHandle;
-use crate::resources::resources::Resources;
-use crate::scene::graph::{NodeType, Renderable, SceneGraph, SceneNode};
+use crate::resources::CubemapHandle;
+use crate::resources::Resources;
+use crate::scene::graph::{GeometryBatches, NodeType, Renderable, SceneGraph, SceneNode};
+use crate::scene::{QuadBatches, QuadTree};
 use crate::serde::SerializedScene;
 use crate::transform::Transform;
 
@@ -29,6 +30,11 @@ impl Default for Background {
     }
 }
 
+pub struct RenderQueue {
+    pub geometry_batches: GeometryBatches,
+    pub quad_batches: QuadBatches,
+}
+
 pub struct Scene {
     pub title: String,
     pub camera: FpsCamera, // the camera state to be used when starting the game
@@ -36,7 +42,7 @@ pub struct Scene {
     pub background: Background,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
-    // pub quads: StableDiGraph<Quad, ()>,
+    pub quads: QuadTree,
     // #[serde(skip)]
     pub lines: Vec<Line>,
     pub resources: Resources,
@@ -47,7 +53,7 @@ impl Scene {
         Self {
             graph: SceneGraph::new(),
             lines: vec![],
-            // quads: StableDiGraph::new(),
+            quads: QuadTree::new(),
             title: title.to_owned(),
             camera: FpsCamera::default(),
             background: Background::default(),
@@ -153,6 +159,16 @@ impl Scene {
         Ok(())
     }
 
+    pub fn build_render_queue(&mut self) -> RenderQueue {
+        let geometry_batches = self.graph.batch_geometry();
+        let quad_batches = self.quads.batch();
+
+        RenderQueue {
+            geometry_batches,
+            quad_batches,
+        }
+    }
+
     pub fn render(
         &mut self,
         renderer: &mut Renderer,
@@ -174,7 +190,7 @@ impl Scene {
             }
         }
 
-        let queue = self.graph.build_render_queue();
+        let queue = self.build_render_queue();
 
         renderer.render_queue(
             queue,
@@ -195,9 +211,6 @@ impl Scene {
         // if debug {
         //     renderer.render_lights(&self.lights, view, display, target);
         // }
-
-        // // Render quads last so they stay on top
-        // renderer.render_quads(&self.quads, display, target);
     }
 }
 

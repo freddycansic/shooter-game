@@ -3,6 +3,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
+use common::quad::Quad;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;
@@ -13,7 +14,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
 // use models::ModelInstance;
-use nalgebra::{Point3, Translation3, UnitQuaternion, Vector3};
+use nalgebra::{Point2, Point3, Translation3, UnitQuaternion, Vector2, Vector3};
 use palette::Srgb;
 use rfd::FileDialog;
 
@@ -209,6 +210,12 @@ impl Application for Editor {
                 scene.graph.add_root_node(node);
             }
         }
+
+        scene.quads.0.push(vec![Quad::new(
+            Point2::new(100.0, 100.0),
+            Vector2::new(50.0, 50.0),
+            uv_test_handle,
+        )]);
 
         let input = Input::new();
 
