@@ -3,6 +3,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
+use common::debug::DebugCuboid;
 use common::quad::Quad;
 use common::scene::Bvh;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
@@ -75,6 +76,7 @@ pub struct Editor {
     state: FrameState,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
+    debug_cuboids: Vec<DebugCuboid>,
 }
 
 impl Application for Editor {
@@ -212,7 +214,7 @@ impl Application for Editor {
             }
         }
 
-        {
+        let debug_cuboids = {
             let map_handle = scene
                 .resources
                 .get_geometry_handles(&PathBuf::from("assets/game_scenes/map.glb"), display)
@@ -232,8 +234,10 @@ impl Application for Editor {
             scene.graph.add_root_node(map_node);
 
             let geometry = scene.resources.get_geometry(map_handle);
-            let bvh = Bvh::from_geometry(geometry, &scene.resources);
-        }
+            let bvh = Bvh::from_geometry(geometry);
+
+            bvh.get_debug_cuboids()
+        };
 
         scene.quads.0.push(vec![Quad::new(
             Point2::new(100.0, 100.0),
@@ -267,6 +271,7 @@ impl Application for Editor {
             sender,
             receiver,
             camera,
+            debug_cuboids,
         }
     }
 

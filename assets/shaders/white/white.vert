@@ -7,16 +7,9 @@ layout(location = 2) in vec2 tex_coord;
 
 // Instance
 layout(location = 3) in mat4 transform;
-layout(location = 4) in vec3 color;
 
 uniform mat4 vp;
 
-out VS_OUT {
-    vec3 color;
-} vs_out;
-
 void main() {
-    vs_out.color = color;
-
     gl_Position = vp * transform * vec4(position, 1.0);
 }

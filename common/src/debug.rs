@@ -1,17 +1,28 @@
-use fern::colors::{Color, ColoredLevelConfig};
+use fern::colors::ColoredLevelConfig;
 use log::LevelFilter;
+use nalgebra::Vector3;
+
+use crate::colors::Color;
+
+pub struct DebugCuboid {
+    pub min: Vector3<f32>,
+    pub max: Vector3<f32>,
+    pub color: Color,
+}
 
 pub fn set_up_logging() {
     // configure colors for the whole line
     let colors_line = ColoredLevelConfig::new()
-        .error(Color::Red)
-        .warn(Color::Yellow)
-        .info(Color::White)
-        .debug(Color::White)
-        .trace(Color::White);
+        .error(fern::colors::Color::Red)
+        .warn(fern::colors::Color::Yellow)
+        .info(fern::colors::Color::White)
+        .debug(fern::colors::Color::White)
+        .trace(fern::colors::Color::White);
 
     // configure colors for the severity
-    let colors_level = colors_line.info(Color::Green).debug(Color::Blue);
+    let colors_level = colors_line
+        .info(fern::colors::Color::Green)
+        .debug(fern::colors::Color::Blue);
 
     fern::Dispatch::new()
         .format(move |out, message, record| {
@@ -21,7 +32,7 @@ pub fn set_up_logging() {
                     "\x1B[{}m",
                     colors_line.get_color(&record.level()).to_fg_str()
                 ),
-                white = format_args!("\x1B[{}m", Color::White.to_fg_str()),
+                white = format_args!("\x1B[{}m", fern::colors::Color::White.to_fg_str()),
                 time = chrono::offset::Local::now().format("%H:%M:%S"),
                 target = record.target(),
                 level = colors_level.color(record.level()),
