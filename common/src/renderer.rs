@@ -14,9 +14,11 @@ use glium::{
     Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
     VertexBuffer, implement_vertex, uniform,
 };
-use nalgebra::{Matrix4, Point3};
+use itertools::Itertools;
+use nalgebra::{Affine3, Matrix4, Point3, Similarity3, Transform3, Translation3};
 
 use crate::colors::{self, ColorExt};
+use crate::debug::DebugCuboid;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::input::Input;
@@ -29,6 +31,7 @@ use crate::resources::{CubemapHandle, TextureHandle};
 use crate::scene::QuadBatches;
 use crate::scene::graph::{GeometryBatchKey, GeometryBatches};
 use crate::scene::scene::RenderQueue;
+use crate::transform::Transform;
 // use crate::terrain::Terrain;
 use crate::{context, maths};
 
@@ -42,6 +45,7 @@ struct Programs {
     quad: Program,
     fullscreen_quad: Program,
     solid_color: Program,
+    white: Program,
 }
 
 pub struct RendererBuffers {
@@ -49,6 +53,7 @@ pub struct RendererBuffers {
     pub line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
     pub quad_vertex_buffers: FxHashMap<TextureHandle, VertexBuffer<QuadVertex>>,
     pub cube_vertex_buffer: VertexBuffer<SimplePoint>,
+    pub debug_cube_instance_buffer: VertexBuffer<SolidColorInstance>,
 }
 
 impl RendererBuffers {
@@ -65,16 +70,7 @@ impl RendererBuffers {
         match buffers.entry(key.clone()) {
             Entry::Occupied(entry) => {
                 let buffer = entry.into_mut();
-
-                if buffer.len() < data.len() {
-                    // double the size of existing buffer or fit data
-                    let new_size = (buffer.len() * 2).max(data.len());
-                    *buffer =
-                        context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data)
-                            .unwrap();
-                } else {
-                    buffer.slice_mut(..data.len()).unwrap().write(data);
-                }
+                Self::ensure_vertex_buffer_size(buffer, data, display);
                 buffer
             }
             // If the vertex buffer does not exist then make one at least as big as INITIAL_VERTEX_BUFFER_SIZE
@@ -96,6 +92,23 @@ impl RendererBuffers {
                         .unwrap();
                 entry.insert(buffer)
             }
+        }
+    }
+
+    pub fn ensure_vertex_buffer_size<V>(
+        buffer: &mut VertexBuffer<V>,
+        data: &[V],
+        display: &Display<WindowSurface>,
+    ) where
+        V: Vertex,
+    {
+        if buffer.len() < data.len() {
+            // double the size of existing buffer or fit data
+            let new_size = (buffer.len() * 2).max(data.len());
+            *buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data)
+                .unwrap();
+        } else {
+            buffer.slice_mut(..data.len()).unwrap().write(data);
         }
     }
 }
@@ -180,6 +193,13 @@ impl Renderer {
             display,
         )?;
 
+        let white_program = context::new_program(
+            "assets/shaders/white/white.vert",
+            "assets/shaders/white/white.frag",
+            None,
+            display,
+        )?;
+
         // This will be used by the skybox and debug lights
         let cube_vertex_buffer = VertexBuffer::new(display, &primitives::CUBE)?;
 
@@ -198,6 +218,7 @@ impl Renderer {
                 instance_buffers: FxHashMap::with_hasher(hasher.clone()),
                 line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
                 quad_vertex_buffers: FxHashMap::with_hasher(hasher),
+                debug_cube_instance_buffer: VertexBuffer::empty(display, 10 /* ? */).unwrap(),
                 cube_vertex_buffer,
             },
             programs: Programs {
@@ -210,6 +231,7 @@ impl Renderer {
                 quad: quad_program,
                 fullscreen_quad: fullscreen_quad_program,
                 solid_color: solid_color_program,
+                white: white_program,
             },
             viewport,
         })
@@ -365,6 +387,68 @@ impl Renderer {
         }
     }
 
+    pub fn render_debug_cuboids(
+        &mut self,
+        cuboids: &[DebugCuboid],
+        view: &Matrix4<f32>,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        if cuboids.is_empty() {
+            return;
+        }
+
+        let instances = cuboids
+            .iter()
+            .map(|cuboid| {
+                let scale = cuboid.min - cuboid.max;
+                let translation = cuboid.min + scale / 2.0;
+                let scaling = Matrix4::new_nonuniform_scaling(&scale);
+                let translation = Translation3::from(translation);
+                let transform = translation.to_homogeneous() * scaling;
+
+                SolidColorInstance {
+                    transform: transform.into(),
+                    color: cuboid.color.to_rgb_vector3().try_into().unwrap(),
+                }
+            })
+            .collect_vec();
+
+        RendererBuffers::ensure_vertex_buffer_size(
+            &mut self.buffers.debug_cube_instance_buffer,
+            &instances,
+            display,
+        );
+
+        let vp = maths::raw_matrix(self.perspective_projection * view);
+
+        target
+            .draw(
+                (
+                    &self.buffers.cube_vertex_buffer,
+                    self.buffers
+                        .debug_cube_instance_buffer
+                        .per_instance()
+                        .unwrap(),
+                ),
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.programs.solid_color,
+                &uniform! {
+                    vp: vp,
+                    opacity: 0.6,
+                },
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::IfLess,
+                        write: true,
+                        ..Default::default()
+                    },
+                    ..DrawParameters::default()
+                },
+            )
+            .unwrap();
+    }
+
     pub fn render_skybox(
         &mut self,
         cubemap_handle: CubemapHandle,
@@ -470,6 +554,7 @@ impl Renderer {
     //     if lights.is_empty() {
     //         return;
     //     }
+    // // TODO note to self, i changed the shader so it takes a colour and opacity now so need to factor this in
 
     //     let shader_lights = lights
     //         .iter()
@@ -593,7 +678,7 @@ impl Renderer {
         .unwrap();
         let mut framebuffer = SimpleFrameBuffer::new(display, &mask_texture).unwrap();
 
-        let solid_color_uniforms = uniform! {
+        let uniform = uniform! {
             vp: *vp,
         };
 
@@ -622,8 +707,8 @@ impl Renderer {
                                 .unwrap(),
                         ),
                         &primitive.index_buffer,
-                        &self.programs.solid_color,
-                        &solid_color_uniforms,
+                        &self.programs.white,
+                        &uniform,
                         &DrawParameters {
                             viewport,
                             ..DrawParameters::default()
@@ -707,3 +792,10 @@ pub struct Instance {
     pub transform: [[f32; 4]; 4],
 }
 implement_vertex!(Instance, transform);
+
+#[derive(Copy, Clone, Debug)]
+pub struct SolidColorInstance {
+    pub transform: [[f32; 4]; 4],
+    pub color: [f32; 3],
+}
+implement_vertex!(SolidColorInstance, transform, color);
