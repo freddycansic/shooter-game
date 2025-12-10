@@ -48,6 +48,8 @@ struct FrameState {
 
 struct GuiState {
     pub render_lights: bool,
+    pub debug_cube_index: usize,
+    pub debug_cube_opacity: f32,
 }
 
 impl FrameState {
@@ -195,55 +197,61 @@ impl Application for Editor {
 
         let size = 10;
 
-        for x in -(size / 2)..(size / 2) {
-            for y in -(size / 2)..(size / 2) {
-                let mut transform = Transform::identity();
-                transform.set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
+        // for x in -(size / 2)..(size / 2) {
+        //     for y in -(size / 2)..(size / 2) {
+        //         let mut transform = Transform::identity();
+        //         transform.set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
 
-                let renderable = Renderable {
-                    geometry_handle: cube_handle,
-                    texture_handle: uv_test_handle,
-                };
+        //         let renderable = Renderable {
+        //             geometry_handle: cube_handle,
+        //             texture_handle: uv_test_handle,
+        //         };
 
-                let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
-                if y % 2 == 0 {
-                    node.selected = true;
-                }
+        //         let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
+        //         if y % 2 == 0 {
+        //             node.selected = true;
+        //         }
 
-                scene.graph.add_root_node(node);
-            }
-        }
+        //         scene.graph.add_root_node(node);
+        //     }
+        // }
 
-        let debug_cuboids = {
-            let map_handle = scene
-                .resources
-                .get_geometry_handles(&PathBuf::from("assets/game_scenes/map.glb"), display)
-                .unwrap()
-                .into_iter()
-                .next()
-                .unwrap();
+        let map_handle = scene
+            .resources
+            .get_geometry_handles(&PathBuf::from("assets/models/cube.glb"), display)
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
 
-            let map_renderable = Renderable {
-                geometry_handle: map_handle,
-                texture_handle: uv_test_handle,
-            };
-
-            let map_node =
-                SceneNode::new(NodeType::Renderable(map_renderable), Transform::identity());
-
-            scene.graph.add_root_node(map_node);
-
-            let geometry = scene.resources.get_geometry(map_handle);
-            let bvh = Bvh::from_geometry(geometry);
-
-            bvh.get_debug_cuboids()
+        let map_renderable = Renderable {
+            geometry_handle: map_handle,
+            texture_handle: uv_test_handle,
         };
 
-        scene.quads.0.push(vec![Quad::new(
-            Point2::new(100.0, 100.0),
-            Vector2::new(50.0, 50.0),
-            uv_test_handle,
-        )]);
+        let map_node = SceneNode::new(NodeType::Renderable(map_renderable), Transform::identity());
+
+        scene.graph.add_root_node(map_node);
+
+        let geometry = scene.resources.get_geometry(map_handle);
+        // let bvh = Bvh::from_geometry(geometry);
+
+        // let debug_cuboids = bvh.get_debug_cuboids();
+
+        let tris_with_cents = Bvh::get_tris_with_centroids(&geometry);
+        let bounds = Bvh::pass_triangles_with_centroids(&tris_with_cents).bounds;
+
+        let debug_cuboids = vec![DebugCuboid {
+            min: bounds.min.to_homogeneous().xyz(),
+            max: bounds.max.to_homogeneous().xyz(),
+            color: Color::from_named(palette::named::PURPLE),
+        }];
+
+        // scene.quads.0.push(vec![Quad::new(
+        //     Point2::new(100.0, 100.0),
+        //     Vector2::new(50.0, 50.0),
+        //     uv_test_handle,
+        // )]);
 
         let input = Input::new();
 
@@ -257,6 +265,8 @@ impl Application for Editor {
             is_moving_camera: false,
             gui: GuiState {
                 render_lights: true,
+                debug_cube_index: 0,
+                debug_cube_opacity: 0.5,
             },
         };
 
@@ -388,13 +398,13 @@ impl Editor {
             return;
         }
 
-        for node in self.scene.graph.graph.node_weights_mut() {
-            node.local_transform
-                .set_rotation(UnitQuaternion::from_axis_angle(
-                    &Vector3::y_axis(),
-                    (self.state.frame_count as f32 * 0.001) % 360.0,
-                ));
-        }
+        // for node in self.scene.graph.graph.node_weights_mut() {
+        //     node.local_transform
+        //         .set_rotation(UnitQuaternion::from_axis_angle(
+        //             &Vector3::y_axis(),
+        //             (self.state.frame_count as f32 * 0.001) % 360.0,
+        //         ));
+        // }
 
         let mut target = display.draw();
         {
@@ -403,6 +413,23 @@ impl Editor {
                 &self.camera.view(),
                 self.camera.position(),
                 self.state.gui.render_lights,
+                display,
+                &mut target,
+            );
+
+            // let cube = vec![
+            //     self.debug_cuboids
+            //         .iter()
+            //         .nth(self.state.gui.debug_cube_index)
+            //         .unwrap()
+            //         .clone(),
+            // ];
+
+            self.renderer.render_debug_cuboids(
+                &self.debug_cuboids,
+                // &cube,
+                self.state.gui.debug_cube_opacity,
+                &self.camera.view(),
                 display,
                 &mut target,
             );
@@ -511,6 +538,19 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
+                ui.add(
+                    egui::Slider::new(
+                        &mut self.state.gui.debug_cube_index,
+                        0..=self.debug_cuboids.len() - 1,
+                    )
+                    .integer(),
+                );
+
+                ui.add(egui::Slider::new(
+                    &mut self.state.gui.debug_cube_opacity,
+                    0.0..=1.0,
+                ));
+
                 ui.collapsing("Background", |ui| {
                     ui.horizontal(|ui| {
                         // ui.selectable_value(

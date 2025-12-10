@@ -135,9 +135,19 @@ impl SceneGraph {
 
                     let batch = batches.entry(node_key).or_insert(vec![]);
 
+                    let transform = scene_node.world_transform.matrix();
+
                     batch.push(Instance {
-                        transform: scene_node.world_transform.matrix(),
+                        transform_x: [transform[0][0], transform[0][1], transform[0][2], transform[0][3]],
+                        transform_y: [transform[1][0], transform[1][1], transform[1][2], transform[1][3]],
+                        transform_z: [transform[2][0], transform[2][1], transform[2][2], transform[2][3]],
+                        transform_w: [transform[3][0], transform[3][1], transform[3][2], transform[3][3]],
                     });
+
+                    // dbg!(batch.last().unwrap().transform_x);
+                    // dbg!(batch.last().unwrap().transform_x);
+                    // dbg!(batch.last().unwrap().transform_x);
+                    // dbg!(batch.last().unwrap().transform_x);
                 }
                 NodeType::Group => (),
             }
@@ -155,10 +165,7 @@ impl SceneGraph {
     }
 
     fn calculate_world_matrices_inner(&mut self, parent: NodeIndex) {
-        let children = self
-            .graph
-            .neighbors_directed(parent, Direction::Outgoing)
-            .collect_vec();
+        let children = self.graph.neighbors_directed(parent, Direction::Outgoing).collect_vec();
 
         for child in children.into_iter() {
             self.graph[child].world_transform = self.graph[parent]
@@ -203,10 +210,7 @@ impl SceneGraph {
     }
 
     fn show_tree_view_inner(&self, node: NodeIndex, builder: &mut TreeViewBuilder<'_, i32>) {
-        let children = self
-            .graph
-            .neighbors_directed(node, Direction::Outgoing)
-            .collect_vec();
+        let children = self.graph.neighbors_directed(node, Direction::Outgoing).collect_vec();
 
         if children.is_empty() {
             builder.leaf(node.index() as i32, "Leaf");

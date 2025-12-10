@@ -390,6 +390,7 @@ impl Renderer {
     pub fn render_debug_cuboids(
         &mut self,
         cuboids: &[DebugCuboid],
+        opacity: f32,
         view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -401,14 +402,24 @@ impl Renderer {
         let instances = cuboids
             .iter()
             .map(|cuboid| {
-                let scale = cuboid.min - cuboid.max;
-                let translation = cuboid.min + scale / 2.0;
-                let scaling = Matrix4::new_nonuniform_scaling(&scale);
-                let translation = Translation3::from(translation);
+                dbg!(&cuboid);
+
+                let scale_vec = cuboid.max - cuboid.min;
+                let scaling = Matrix4::new_nonuniform_scaling(&scale_vec);
+
+                let center = (cuboid.min + cuboid.max) * 0.5;
+                let translation = Translation3::from(center);
+
+                // model maps debug-cube-local -> world
                 let transform = translation.to_homogeneous() * scaling;
 
+                dbg!(&transform);
+
                 SolidColorInstance {
-                    transform: transform.into(),
+                    transform_x: [transform.m11, transform.m12, transform.m13, transform.m14],
+                    transform_y: [transform.m21, transform.m22, transform.m23, transform.m24],
+                    transform_z: [transform.m31, transform.m32, transform.m33, transform.m34],
+                    transform_w: [transform.m41, transform.m42, transform.m43, transform.m44],
                     color: cuboid.color.to_rgb_vector3().try_into().unwrap(),
                 }
             })
@@ -428,6 +439,8 @@ impl Renderer {
                     &self.buffers.cube_vertex_buffer,
                     self.buffers
                         .debug_cube_instance_buffer
+                        .slice(0..cuboids.len())
+                        .unwrap()
                         .per_instance()
                         .unwrap(),
                 ),
@@ -435,14 +448,46 @@ impl Renderer {
                 &self.programs.solid_color,
                 &uniform! {
                     vp: vp,
-                    opacity: 0.6,
+                    opacity: opacity,
                 },
                 &DrawParameters {
                     depth: Depth {
                         test: DepthTest::IfLess,
-                        write: true,
+                        write: false,
                         ..Default::default()
                     },
+                    blend: Blend::alpha_blending(),
+                    ..DrawParameters::default()
+                },
+            )
+            .unwrap();
+
+        target
+            .draw(
+                (
+                    &self.buffers.cube_vertex_buffer,
+                    self.buffers
+                        .debug_cube_instance_buffer
+                        .slice(0..cuboids.len())
+                        .unwrap()
+                        .per_instance()
+                        .unwrap(),
+                ),
+                NoIndices(PrimitiveType::TrianglesList),
+                &self.programs.solid_color,
+                &uniform! {
+                    vp: vp,
+                    opacity: (opacity + 0.2).min(1.0),
+                },
+                &DrawParameters {
+                    depth: Depth {
+                        test: DepthTest::IfLess,
+                        write: false,
+                        ..Default::default()
+                    },
+                    blend: Blend::alpha_blending(),
+                    polygon_mode: glium::PolygonMode::Line,
+                    line_width: Some(2.0),
                     ..DrawParameters::default()
                 },
             )
@@ -789,13 +834,26 @@ impl Renderer {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Instance {
-    pub transform: [[f32; 4]; 4],
+    pub transform_x: [f32; 4],
+    pub transform_y: [f32; 4],
+    pub transform_z: [f32; 4],
+    pub transform_w: [f32; 4],
 }
-implement_vertex!(Instance, transform);
+implement_vertex!(Instance, transform_x, transform_y, transform_z, transform_w);
 
 #[derive(Copy, Clone, Debug)]
 pub struct SolidColorInstance {
-    pub transform: [[f32; 4]; 4],
+    pub transform_x: [f32; 4],
+    pub transform_y: [f32; 4],
+    pub transform_z: [f32; 4],
+    pub transform_w: [f32; 4],
     pub color: [f32; 3],
 }
-implement_vertex!(SolidColorInstance, transform, color);
+implement_vertex!(
+    SolidColorInstance,
+    transform_x,
+    transform_y,
+    transform_z,
+    transform_w,
+    color
+);
