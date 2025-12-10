@@ -24,9 +24,9 @@ struct Split {
     position: f32,
 }
 
-struct BvhPass {
-    bounds: Bounds,
-    centroid: Vector3<f32>,
+pub struct BvhPass {
+    pub bounds: Bounds,
+    pub centroid: Vector3<f32>,
 }
 
 impl BvhPass {
@@ -52,23 +52,43 @@ impl BvhPass {
     }
 }
 
-struct Bounds {
-    min: Point3<f32>,
-    max: Point3<f32>,
+pub struct Bounds {
+    pub min: Point3<f32>,
+    pub max: Point3<f32>,
 }
 
-type Triangle = [[f32; 3]; 3];
+impl Bounds {
+    fn union(&self, other: &Self) -> Self {
+        Bounds {
+            min: Point3::new(
+                self.min.x.min(other.min.x),
+                self.min.y.min(other.min.y),
+                self.min.z.min(other.min.z),
+            ),
+            max: Point3::new(
+                self.max.x.max(other.max.x),
+                self.max.y.max(other.max.y),
+                self.max.z.max(other.max.z),
+            ),
+        }
+    }
+}
 
-type Centroid = Vector3<f32>;
+pub type Triangle = [[f32; 3]; 3];
 
-struct TriangleWithCentroid {
+pub type Centroid = Vector3<f32>;
+
+pub struct TriangleWithCentroid {
     verts: Triangle,
     centroid: Centroid,
 }
 
 enum BvhNode {
     Bounds(Bounds),
-    Leaf(Vec<Triangle>),
+    Leaf {
+        triangles: Vec<Triangle>,
+        bounds: Bounds,
+    },
 }
 
 pub struct Bvh {
@@ -94,9 +114,13 @@ impl Bvh {
                 BvhNode::Bounds(bounds) => Some(DebugCuboid {
                     min: bounds.min.to_homogeneous().xyz(),
                     max: bounds.max.to_homogeneous().xyz(),
-                    color: Color::from_named(palette::named::WHITE),
+                    color: Color::from_components((
+                        fastrand::f32() * 100.0,
+                        fastrand::f32() * 150.0,
+                        fastrand::f32() * 360.0,
+                    )),
                 }),
-                BvhNode::Leaf(_) => None,
+                BvhNode::Leaf { .. } => None,
             })
             .collect_vec()
     }
@@ -106,11 +130,20 @@ impl Bvh {
         tris_with_centroids: Vec<TriangleWithCentroid>,
     ) -> NodeIndex {
         if tris_with_centroids.len() <= 2 {
-            let leaf_tris = tris_with_centroids.into_iter().map(|t| t.verts).collect();
-            return graph.add_node(BvhNode::Leaf(leaf_tris));
+            let leaf_tris = tris_with_centroids
+                .into_iter()
+                .map(|tri| tri.verts)
+                .collect_vec();
+
+            let leaf_bounds = Self::pass_triangles(&leaf_tris);
+
+            return graph.add_node(BvhNode::Leaf {
+                triangles: leaf_tris,
+                bounds: leaf_bounds,
+            });
         }
 
-        let pass = Self::pass_triangles(&tris_with_centroids);
+        let pass = Self::pass_triangles_with_centroids(&tris_with_centroids);
         let split = pass.determine_split();
 
         let mut left = Vec::new();
@@ -134,23 +167,41 @@ impl Bvh {
             let leaf_tris = left
                 .into_iter()
                 .chain(right.into_iter())
-                .map(|t| t.verts)
-                .collect();
-            return graph.add_node(BvhNode::Leaf(leaf_tris));
-        }
+                .map(|tri| tri.verts)
+                .collect_vec();
 
-        let bounds_node = graph.add_node(BvhNode::Bounds(pass.bounds));
+            let leaf_bounds = Self::pass_triangles(&leaf_tris);
+
+            return graph.add_node(BvhNode::Leaf {
+                triangles: leaf_tris,
+                bounds: leaf_bounds,
+            });
+        }
 
         let left_id = Self::build(graph, left);
         let right_id = Self::build(graph, right);
 
-        graph.add_edge(bounds_node, left_id, split.clone());
-        graph.add_edge(bounds_node, right_id, split);
+        let left_bounds = match &graph[left_id] {
+            BvhNode::Bounds(bounds) => bounds,
+            BvhNode::Leaf { bounds, .. } => bounds,
+        };
 
-        bounds_node
+        let right_bounds = match &graph[right_id] {
+            BvhNode::Bounds(bounds) => bounds,
+            BvhNode::Leaf { bounds, .. } => bounds,
+        };
+
+        let combined = left_bounds.union(&right_bounds);
+
+        let parent_id = graph.add_node(BvhNode::Bounds(combined));
+
+        graph.add_edge(parent_id, left_id, split.clone());
+        graph.add_edge(parent_id, right_id, split);
+
+        parent_id
     }
 
-    fn pass_triangles(triangles_centroids: &[TriangleWithCentroid]) -> BvhPass {
+    pub fn pass_triangles_with_centroids(triangles_centroids: &[TriangleWithCentroid]) -> BvhPass {
         let mut centroid_sum = Vector3::zeros();
         let mut bounds = Bounds {
             min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
@@ -176,7 +227,28 @@ impl Bvh {
         BvhPass { bounds, centroid }
     }
 
-    fn get_tris_with_centroids(geometry: &Geometry) -> Vec<TriangleWithCentroid> {
+    pub fn pass_triangles(triangles: &[Triangle]) -> Bounds {
+        let mut bounds = Bounds {
+            min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+            max: Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
+        };
+
+        for triangle in triangles {
+            for vert in triangle {
+                bounds.min.x = bounds.min.x.min(vert[0]);
+                bounds.min.y = bounds.min.y.min(vert[1]);
+                bounds.min.z = bounds.min.z.min(vert[2]);
+
+                bounds.max.x = bounds.max.x.max(vert[0]);
+                bounds.max.y = bounds.max.y.max(vert[1]);
+                bounds.max.z = bounds.max.z.max(vert[2]);
+            }
+        }
+
+        bounds
+    }
+
+    pub fn get_tris_with_centroids(geometry: &Geometry) -> Vec<TriangleWithCentroid> {
         let mut triangles = Vec::new();
 
         for primitive in &geometry.primitives {

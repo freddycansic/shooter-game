@@ -8,111 +8,111 @@ implement_vertex!(SimplePoint, position);
 
 pub const CUBE: [SimplePoint; 36] = [
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, -1.0],
+        position: [-0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, -1.0],
+        position: [0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, -1.0],
+        position: [-0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, 1.0],
+        position: [-0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, 1.0],
+        position: [0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, -1.0],
+        position: [0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, 1.0],
+        position: [-0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, 1.0],
+        position: [0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, -1.0],
+        position: [0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, 1.0, 1.0],
+        position: [0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, 1.0],
+        position: [-0.5, 0.5, 0.5],
     },
     SimplePoint {
-        position: [-1.0, 1.0, -1.0],
+        position: [-0.5, 0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, -1.0],
+        position: [-0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, -1.0],
+        position: [0.5, -0.5, -0.5],
     },
     SimplePoint {
-        position: [-1.0, -1.0, 1.0],
+        position: [-0.5, -0.5, 0.5],
     },
     SimplePoint {
-        position: [1.0, -1.0, 1.0],
+        position: [0.5, -0.5, 0.5],
     },
 ];
