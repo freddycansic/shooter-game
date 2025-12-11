@@ -4,7 +4,6 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::debug::DebugCuboid;
-use common::quad::Quad;
 use common::scene::Bvh;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
@@ -16,7 +15,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
 // use models::ModelInstance;
-use nalgebra::{Point2, Point3, Translation3, UnitQuaternion, Vector2, Vector3};
+use nalgebra::Point3;
 use palette::Srgb;
 use rfd::FileDialog;
 
@@ -178,7 +177,7 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         });
 
-        let cube_handle = scene
+        let _cube_handle = scene
             .resources
             .get_geometry_handles(&PathBuf::from("assets/models/cube.glb"), display)
             .unwrap()
@@ -191,7 +190,7 @@ impl Application for Editor {
             .get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)
             .unwrap();
 
-        let size = 10;
+        let _size = 10;
 
         // for x in -(size / 2)..(size / 2) {
         //     for y in -(size / 2)..(size / 2) {
@@ -347,7 +346,6 @@ impl Editor {
                             .unwrap(),
                     )
                 }
-                _ => unimplemented!(),
             }
         }
 

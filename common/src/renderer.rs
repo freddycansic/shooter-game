@@ -15,7 +15,7 @@ use glium::{
     uniform,
 };
 use itertools::Itertools;
-use nalgebra::{Affine3, Matrix4, Point3, Similarity3, Transform3, Translation3};
+use nalgebra::{Matrix4, Point3, Translation3};
 
 use crate::colors::{self, ColorExt};
 use crate::debug::DebugCuboid;

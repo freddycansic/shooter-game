@@ -1,14 +1,11 @@
-use color_eyre::owo_colors::colors::xterm::GrandisCaramel;
 use itertools::Itertools;
-use nalgebra::{Point3, UnitVector3, Vector3};
+use nalgebra::{Point3, Vector3};
 use petgraph::{Graph, graph::NodeIndex};
 
 use crate::{
-    colors::{Color, ColorExt},
+    colors::Color,
     debug::DebugCuboid,
-    geometry::{Geometry, GeometryVertex},
-    resources::Resources,
-    scene::graph::Renderable,
+    geometry::Geometry,
 };
 
 #[derive(Debug, Clone)]
