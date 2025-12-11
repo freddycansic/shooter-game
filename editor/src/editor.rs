@@ -82,11 +82,7 @@ pub struct Editor {
 }
 
 impl Application for Editor {
-    fn new(
-        window: &Window,
-        display: &Display<WindowSurface>,
-        event_loop: &ActiveEventLoop,
-    ) -> Self {
+    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
@@ -218,7 +214,7 @@ impl Application for Editor {
 
         let map_handle = scene
             .resources
-            .get_geometry_handles(&PathBuf::from("assets/models/cube.glb"), display)
+            .get_geometry_handles(&PathBuf::from("assets/game_scenes/map.glb"), display)
             .unwrap()
             .into_iter()
             .next()
@@ -234,18 +230,18 @@ impl Application for Editor {
         scene.graph.add_root_node(map_node);
 
         let geometry = scene.resources.get_geometry(map_handle);
-        // let bvh = Bvh::from_geometry(geometry);
+        let bvh = Bvh::from_geometry(geometry);
 
-        // let debug_cuboids = bvh.get_debug_cuboids();
+        let debug_cuboids = bvh.get_debug_cuboids();
 
-        let tris_with_cents = Bvh::get_tris_with_centroids(&geometry);
-        let bounds = Bvh::pass_triangles_with_centroids(&tris_with_cents).bounds;
+        // let tris_with_cents = Bvh::get_tris_with_centroids(&geometry);
+        // let bounds = Bvh::pass_triangles_with_centroids(&tris_with_cents).bounds;
 
-        let debug_cuboids = vec![DebugCuboid {
-            min: bounds.min.to_homogeneous().xyz(),
-            max: bounds.max.to_homogeneous().xyz(),
-            color: Color::from_named(palette::named::PURPLE),
-        }];
+        // let debug_cuboids = vec![DebugCuboid {
+        //     min: bounds.min.to_homogeneous().xyz(),
+        //     max: bounds.max.to_homogeneous().xyz(),
+        //     color: Color::from_named(palette::named::PURPLE),
+        // }];
 
         // scene.quads.0.push(vec![Quad::new(
         //     Point2::new(100.0, 100.0),
@@ -338,15 +334,11 @@ impl Editor {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
                 EngineEvent::LoadScene(serialized_scene_string) => {
-                    let serialized_scene =
-                        serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
+                    let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
 
                     self.scene = serialized_scene.into_scene(display).unwrap();
                 }
-                EngineEvent::ImportModel(model_path) => self
-                    .scene
-                    .import_model(model_path.as_path(), display)
-                    .unwrap(),
+                EngineEvent::ImportModel(model_path) => self.scene.import_model(model_path.as_path(), display).unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
                     self.scene.background = Background::HDRI(
                         self.scene
@@ -361,12 +353,10 @@ impl Editor {
 
         self.camera.update_zoom(&self.input);
 
-        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
-            || self.input.key_down(KeyCode::Space);
+        self.state.is_moving_camera =
+            self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
 
-        if self.input.mouse_button_just_released(MouseButton::Left)
-            && self.renderer.is_mouse_in_viewport(&self.input)
-        {
+        if self.input.mouse_button_just_released(MouseButton::Left) && self.renderer.is_mouse_in_viewport(&self.input) {
             for node in self.scene.graph.graph.node_weights_mut() {
                 node.selected = false;
             }
@@ -417,17 +407,17 @@ impl Editor {
                 &mut target,
             );
 
-            // let cube = vec![
-            //     self.debug_cuboids
-            //         .iter()
-            //         .nth(self.state.gui.debug_cube_index)
-            //         .unwrap()
-            //         .clone(),
-            // ];
+            let cube = vec![
+                self.debug_cuboids
+                    .iter()
+                    .nth(self.state.gui.debug_cube_index)
+                    .unwrap()
+                    .clone(),
+            ];
 
             self.renderer.render_debug_cuboids(
-                &self.debug_cuboids,
-                // &cube,
+                // &self.debug_cuboids,
+                &cube,
                 self.state.gui.debug_cube_opacity,
                 &self.camera.view(),
                 display,
@@ -539,17 +529,10 @@ impl Editor {
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
                 ui.add(
-                    egui::Slider::new(
-                        &mut self.state.gui.debug_cube_index,
-                        0..=self.debug_cuboids.len() - 1,
-                    )
-                    .integer(),
+                    egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len() - 1).integer(),
                 );
 
-                ui.add(egui::Slider::new(
-                    &mut self.state.gui.debug_cube_opacity,
-                    0.0..=1.0,
-                ));
+                ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
 
                 ui.collapsing("Background", |ui| {
                     ui.horizontal(|ui| {
@@ -568,9 +551,7 @@ impl Editor {
                                     .set_directory("/")
                                     .pick_folder()
                                 {
-                                    sender
-                                        .send(EngineEvent::ImportHDRIBackground(path))
-                                        .unwrap();
+                                    sender.send(EngineEvent::ImportHDRIBackground(path)).unwrap();
                                 }
                             });
                         }
