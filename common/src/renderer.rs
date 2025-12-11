@@ -11,8 +11,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex,
-    VertexBuffer, implement_vertex, uniform,
+    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex, VertexBuffer, implement_vertex,
+    uniform,
 };
 use itertools::Itertools;
 use nalgebra::{Affine3, Matrix4, Point3, Similarity3, Transform3, Translation3};
@@ -31,8 +31,6 @@ use crate::resources::{CubemapHandle, TextureHandle};
 use crate::scene::QuadBatches;
 use crate::scene::graph::{GeometryBatchKey, GeometryBatches};
 use crate::scene::scene::RenderQueue;
-use crate::transform::Transform;
-// use crate::terrain::Terrain;
 use crate::{context, maths};
 
 struct Programs {
@@ -87,26 +85,20 @@ impl RendererBuffers {
                 let x = (data.len() as f64).log2().ceil() as u32;
                 let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE as u32) as usize;
 
-                let buffer =
-                    context::new_sized_dynamic_vertex_buffer_with_data(display, min_size, data)
-                        .unwrap();
+                let buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, min_size, data).unwrap();
                 entry.insert(buffer)
             }
         }
     }
 
-    pub fn ensure_vertex_buffer_size<V>(
-        buffer: &mut VertexBuffer<V>,
-        data: &[V],
-        display: &Display<WindowSurface>,
-    ) where
+    pub fn ensure_vertex_buffer_size<V>(buffer: &mut VertexBuffer<V>, data: &[V], display: &Display<WindowSurface>)
+    where
         V: Vertex,
     {
         if buffer.len() < data.len() {
             // double the size of existing buffer or fit data
             let new_size = (buffer.len() * 2).max(data.len());
-            *buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data)
-                .unwrap();
+            *buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data).unwrap();
         } else {
             buffer.slice_mut(..data.len()).unwrap().write(data);
         }
@@ -206,14 +198,8 @@ impl Renderer {
         let hasher = FxBuildHasher::new();
 
         Ok(Self {
-            perspective_projection: maths::perspective_matrix_from_dimensions(
-                window_width,
-                window_height,
-            ),
-            orthograhic_projection: maths::orthographic_matrix_from_dimensions(
-                window_width,
-                window_height,
-            ),
+            perspective_projection: maths::perspective_matrix_from_dimensions(window_width, window_height),
+            orthograhic_projection: maths::orthographic_matrix_from_dimensions(window_width, window_height),
             buffers: RendererBuffers {
                 instance_buffers: FxHashMap::with_hasher(hasher.clone()),
                 line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
@@ -263,9 +249,8 @@ impl Renderer {
         }
 
         input.mouse_position().is_some_and(|position| {
-            self.viewport.is_some_and(|viewport| {
-                viewport.contains(Pos2::new(position.x as f32, position.y as f32))
-            })
+            self.viewport
+                .is_some_and(|viewport| viewport.contains(Pos2::new(position.x as f32, position.y as f32)))
         })
     }
 
@@ -283,8 +268,7 @@ impl Renderer {
 
         let dimensions = target.get_dimensions();
 
-        let mask_texture =
-            self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, display);
+        let mask_texture = self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, display);
 
         self.render_model_instances_color(
             &queue.geometry_batches,
@@ -402,34 +386,22 @@ impl Renderer {
         let instances = cuboids
             .iter()
             .map(|cuboid| {
-                dbg!(&cuboid);
-
                 let scale_vec = cuboid.max - cuboid.min;
                 let scaling = Matrix4::new_nonuniform_scaling(&scale_vec);
 
                 let center = (cuboid.min + cuboid.max) * 0.5;
                 let translation = Translation3::from(center);
 
-                // model maps debug-cube-local -> world
                 let transform = translation.to_homogeneous() * scaling;
 
-                dbg!(&transform);
-
                 SolidColorInstance {
-                    transform_x: [transform.m11, transform.m12, transform.m13, transform.m14],
-                    transform_y: [transform.m21, transform.m22, transform.m23, transform.m24],
-                    transform_z: [transform.m31, transform.m32, transform.m33, transform.m34],
-                    transform_w: [transform.m41, transform.m42, transform.m43, transform.m44],
+                    transform: transform.into(),
                     color: cuboid.color.to_rgb_vector3().try_into().unwrap(),
                 }
             })
             .collect_vec();
 
-        RendererBuffers::ensure_vertex_buffer_size(
-            &mut self.buffers.debug_cube_instance_buffer,
-            &instances,
-            display,
-        );
+        RendererBuffers::ensure_vertex_buffer_size(&mut self.buffers.debug_cube_instance_buffer, &instances, display);
 
         let vp = maths::raw_matrix(self.perspective_projection * view);
 
@@ -457,6 +429,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     blend: Blend::alpha_blending(),
+                    viewport: self.get_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -488,6 +461,7 @@ impl Renderer {
                     blend: Blend::alpha_blending(),
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
+                    viewport: self.get_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -655,12 +629,8 @@ impl Renderer {
 
         // Draw regular color buffer
         for (key, instances) in geometry_batches.iter() {
-            let instance_buffer = RendererBuffers::get_vertex_buffer(
-                &mut self.buffers.instance_buffers,
-                key,
-                instances,
-                display,
-            );
+            let instance_buffer =
+                RendererBuffers::get_vertex_buffer(&mut self.buffers.instance_buffers, key, instances, display);
 
             let texture = resources.get_texture(key.texture_handle);
             let geometry = resources.get_geometry(key.geometry_handle);
@@ -731,12 +701,8 @@ impl Renderer {
 
         // Only draw selected models into mask
         for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {
-            let instance_buffer = RendererBuffers::get_vertex_buffer(
-                &mut self.buffers.instance_buffers,
-                &key,
-                instances,
-                display,
-            );
+            let instance_buffer =
+                RendererBuffers::get_vertex_buffer(&mut self.buffers.instance_buffers, &key, instances, display);
 
             let geometry = resources.get_geometry(key.geometry_handle);
 
@@ -834,26 +800,13 @@ impl Renderer {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Instance {
-    pub transform_x: [f32; 4],
-    pub transform_y: [f32; 4],
-    pub transform_z: [f32; 4],
-    pub transform_w: [f32; 4],
+    pub transform: [[f32; 4]; 4],
 }
-implement_vertex!(Instance, transform_x, transform_y, transform_z, transform_w);
+implement_vertex!(Instance, transform);
 
 #[derive(Copy, Clone, Debug)]
 pub struct SolidColorInstance {
-    pub transform_x: [f32; 4],
-    pub transform_y: [f32; 4],
-    pub transform_z: [f32; 4],
-    pub transform_w: [f32; 4],
+    pub transform: [[f32; 4]; 4],
     pub color: [f32; 3],
 }
-implement_vertex!(
-    SolidColorInstance,
-    transform_x,
-    transform_y,
-    transform_z,
-    transform_w,
-    color
-);
+implement_vertex!(SolidColorInstance, transform, color);
