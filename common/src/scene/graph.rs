@@ -8,9 +8,9 @@ use petgraph::{
 };
 
 use crate::{
+    maths::Transform,
     renderer::Instance,
     resources::{GeometryHandle, TextureHandle},
-    transform::Transform,
 };
 
 pub struct SceneNode {

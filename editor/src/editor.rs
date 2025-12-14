@@ -4,17 +4,16 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::debug::DebugCuboid;
+use common::maths::Transform;
 use common::scene::Bvh;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;
-use common::transform::Transform;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use log::info;
-// use models::ModelInstance;
 use nalgebra::Point3;
 use palette::Srgb;
 use rfd::FileDialog;

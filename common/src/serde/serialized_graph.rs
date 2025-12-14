@@ -5,9 +5,9 @@ use petgraph::{graph::NodeIndex, prelude::StableDiGraph};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    maths::Transform,
     resources::Resources,
     scene::graph::{NodeType, Renderable, SceneGraph, SceneNode},
-    transform::Transform,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -23,9 +23,9 @@ impl SerializedSceneNode {
     fn from_scene_node(scene_node: &SceneNode, resources: &Resources) -> Self {
         let serialized_node_type = match &scene_node.ty {
             NodeType::Group => SerializedNodeType::Group,
-            NodeType::Renderable(renderable) => SerializedNodeType::SerializedRenderable(
-                SerializedRenderable::from_renderable(renderable, resources),
-            ),
+            NodeType::Renderable(renderable) => {
+                SerializedNodeType::SerializedRenderable(SerializedRenderable::from_renderable(renderable, resources))
+            }
         };
 
         Self {
@@ -36,11 +36,7 @@ impl SerializedSceneNode {
         }
     }
 
-    fn into_scene_node(
-        self,
-        display: &Display<WindowSurface>,
-        resources: &mut Resources,
-    ) -> SceneNode {
+    fn into_scene_node(self, display: &Display<WindowSurface>, resources: &mut Resources) -> SceneNode {
         let node_type = match self.ty {
             SerializedNodeType::Group => NodeType::Group,
             SerializedNodeType::SerializedRenderable(serialized_renderable) => {
@@ -74,8 +70,7 @@ struct SerializedRenderable {
 
 impl SerializedRenderable {
     fn from_renderable(renderable: &Renderable, resources: &Resources) -> Self {
-        let (geometry_path, mesh_index) =
-            resources.get_geometry_path_and_index(renderable.geometry_handle);
+        let (geometry_path, mesh_index) = resources.get_geometry_path_and_index(renderable.geometry_handle);
         let texture_path = resources.get_texture_path(renderable.texture_handle);
 
         Self {
@@ -85,18 +80,10 @@ impl SerializedRenderable {
         }
     }
 
-    fn into_renderable(
-        self,
-        resources: &mut Resources,
-        display: &Display<WindowSurface>,
-    ) -> Renderable {
-        let geometry_handle = resources
-            .get_geometry_handles(&self.geometry_path, display)
-            .unwrap()[self.mesh_index];
+    fn into_renderable(self, resources: &mut Resources, display: &Display<WindowSurface>) -> Renderable {
+        let geometry_handle = resources.get_geometry_handles(&self.geometry_path, display).unwrap()[self.mesh_index];
 
-        let texture_handle = resources
-            .get_texture_handle(&self.texture_path, display)
-            .unwrap();
+        let texture_handle = resources.get_texture_handle(&self.texture_path, display).unwrap();
 
         Renderable {
             geometry_handle,
@@ -124,19 +111,12 @@ impl SerializedSceneGraph {
         }
     }
 
-    pub fn into_scene_graph(
-        self,
-        display: &Display<WindowSurface>,
-        resources: &mut Resources,
-    ) -> SceneGraph {
+    pub fn into_scene_graph(self, display: &Display<WindowSurface>, resources: &mut Resources) -> SceneGraph {
         let graph = self.serialized_graph.map_owned(
             |_, serialized_scene_node| serialized_scene_node.into_scene_node(display, resources),
             |_, _| (),
         );
 
-        SceneGraph {
-            graph,
-            root: self.root,
-        }
+        SceneGraph { graph, root: self.root }
     }
 }
