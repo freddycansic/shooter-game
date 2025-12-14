@@ -20,7 +20,7 @@ color-eyre = "0.6.2"
 fern = { version = "0.7.1", features = ["colored"] }
 gltf = "1.4.0"
 itertools = "0.14.0"
-log = "0.4.20"
+log = "0.4.29"
 image = { version = "0.25.1", default-features = false, features = [
     "png",
     "jpeg",
