@@ -10,13 +10,13 @@ use crate::camera::FpsCamera;
 use crate::colors::{Color, ColorExt};
 use crate::light::Light;
 use crate::line::Line;
+use crate::maths::Transform;
 use crate::renderer::Renderer;
 use crate::resources::CubemapHandle;
 use crate::resources::Resources;
 use crate::scene::graph::{GeometryBatches, NodeType, Renderable, SceneGraph, SceneNode};
 use crate::scene::{Bvh, QuadBatches, QuadTree};
 use crate::serde::SerializedScene;
-use crate::transform::Transform;
 
 #[derive(PartialEq, Clone)]
 pub enum Background {
@@ -145,8 +145,7 @@ impl Scene {
                 texture_handle,
             };
 
-            let scene_node =
-                SceneNode::new(NodeType::Renderable(renderable), Transform::identity());
+            let scene_node = SceneNode::new(NodeType::Renderable(renderable), Transform::identity());
 
             let node_index = self.graph.add_node(scene_node);
 
