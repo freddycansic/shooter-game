@@ -36,6 +36,8 @@ use common::*;
 use input::Input;
 use scene::Scene;
 
+use crate::ui::Show;
+
 struct FrameState {
     pub last_frame_end: Instant,
     pub frame_count: u128,
@@ -512,7 +514,7 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    self.scene.graph.show_tree_view(ui);
+                    self.scene.graph.show(ui);
 
                     ui.add(egui::Separator::default().horizontal());
 
