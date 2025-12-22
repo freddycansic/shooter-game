@@ -54,7 +54,7 @@ impl BvhPass {
     }
 }
 
-pub type Triangle = [[f32; 3]; 3];
+pub struct Triangle([[f32; 3]; 3]);
 
 pub type Centroid = Vector3<f32>;
 
@@ -189,7 +189,7 @@ impl Bvh {
         };
 
         for triangle_centroid in triangles_centroids {
-            for vert in triangle_centroid.verts {
+            for vert in triangle_centroid.verts.0 {
                 aabb.min.x = aabb.min.x.min(vert[0] as f64);
                 aabb.min.y = aabb.min.y.min(vert[1] as f64);
                 aabb.min.z = aabb.min.z.min(vert[2] as f64);
@@ -214,7 +214,7 @@ impl Bvh {
         };
 
         for triangle in triangles {
-            for vert in triangle {
+            for vert in triangle.0 {
                 aabb.min.x = aabb.min.x.min(vert[0] as f64);
                 aabb.min.y = aabb.min.y.min(vert[1] as f64);
                 aabb.min.z = aabb.min.z.min(vert[2] as f64);
@@ -233,11 +233,11 @@ impl Bvh {
 
         for primitive in &geometry.primitives {
             for chunk in primitive.indices.chunks(3) {
-                let verts = [
+                let triangle = Triangle([
                     primitive.vertices[chunk[0] as usize].position,
                     primitive.vertices[chunk[1] as usize].position,
                     primitive.vertices[chunk[2] as usize].position,
-                ];
+                ]);
 
                 let mut centroid = Centroid::zeros();
 
@@ -246,7 +246,7 @@ impl Bvh {
                     centroid += Vector3::new(pos[0], pos[1], pos[2]);
                 }
 
-                triangles.push(TriangleWithCentroid { verts, centroid });
+                triangles.push(TriangleWithCentroid { verts: triangle, centroid });
             }
         }
 
