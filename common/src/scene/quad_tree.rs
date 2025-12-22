@@ -50,12 +50,7 @@ impl SerializeWithContext for QuadTree {
         SerializedQuadTree(
             self.0
                 .iter()
-                .map(|quads| {
-                    quads
-                        .iter()
-                        .map(|quad| quad.serialize_with(resources))
-                        .collect_vec()
-                })
+                .map(|quads| quads.iter().map(|quad| quad.serialize_with(resources)).collect_vec())
                 .collect_vec(),
         )
     }
@@ -111,9 +106,7 @@ impl SerializeWithContext for Quad {
         display: &Display<WindowSurface>,
         resources: &mut Resources,
     ) -> Self {
-        let texture_handle = resources
-            .get_texture_handle(&serialized.texture, display)
-            .unwrap();
+        let texture_handle = resources.get_texture_handle(&serialized.texture, display).unwrap();
 
         Quad {
             position: serialized.position,

@@ -10,7 +10,12 @@ pub struct Ray {
 
 impl Ray {
     pub fn new(origin: Point3<f32>, direction: Vector3<f32>) -> Self {
-        debug_assert!(direction.normalize().relative_eq(&direction, f32::EPSILON, f32::EPSILON), "The direction is not normalised");
+        debug_assert!(
+            direction
+                .normalize()
+                .relative_eq(&direction, f32::EPSILON, f32::EPSILON),
+            "The direction is not normalised"
+        );
 
         Self {
             origin,

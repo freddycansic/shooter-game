@@ -17,12 +17,7 @@ impl Line {
             warn!("Line width can only be integer values between 1 and 10.");
         }
 
-        Self {
-            p1,
-            p2,
-            color,
-            width,
-        }
+        Self { p1, p2, color, width }
     }
 }
 

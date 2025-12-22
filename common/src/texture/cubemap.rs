@@ -41,11 +41,8 @@ impl Cubemap {
             .collect::<Vec<Texture2d>>();
 
         // Check each side is of the same dimension
-        let unique_cubemap_dimensions = FxHashSet::from_iter(
-            textures
-                .iter()
-                .map(|texture| (texture.width(), texture.height())),
-        );
+        let unique_cubemap_dimensions =
+            FxHashSet::from_iter(textures.iter().map(|texture| (texture.width(), texture.height())));
 
         if unique_cubemap_dimensions.len() > 1 {
             panic!(
@@ -61,10 +58,7 @@ impl Cubemap {
 
         let framebuffers = cube_layers
             .into_iter()
-            .map(|cube_layer| {
-                SimpleFrameBuffer::new(display, inner_cubemap.main_level().image(cube_layer))
-                    .unwrap()
-            })
+            .map(|cube_layer| SimpleFrameBuffer::new(display, inner_cubemap.main_level().image(cube_layer)).unwrap())
             .collect::<Vec<SimpleFrameBuffer>>();
 
         let blit_target = BlitTarget {
@@ -79,11 +73,9 @@ impl Cubemap {
             .iter_mut()
             .zip(framebuffers.iter())
             .for_each(|(texture, framebuffer)| {
-                texture.as_surface().blit_whole_color_to(
-                    framebuffer,
-                    &blit_target,
-                    MagnifySamplerFilter::Linear,
-                )
+                texture
+                    .as_surface()
+                    .blit_whole_color_to(framebuffer, &blit_target, MagnifySamplerFilter::Linear)
             });
 
         Ok(Cubemap {

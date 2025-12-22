@@ -53,17 +53,12 @@ pub struct Game {
 }
 
 impl Application for Game {
-    fn new(
-        window: &Window,
-        display: &Display<WindowSurface>,
-        event_loop: &ActiveEventLoop,
-    ) -> Self {
+    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
         let inner_size = window.inner_size();
-        let renderer =
-            Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
+        let renderer = Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
         // let mut scene =
         //     Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
         let mut scene = Scene::default();
@@ -139,13 +134,11 @@ impl Application for Game {
 
 impl Game {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        self.state.is_moving_camera = self.input.mouse_button_down(MouseButton::Middle)
-            || self.input.key_down(KeyCode::Space);
+        self.state.is_moving_camera =
+            self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
 
         if self.state.is_moving_camera {
-            self.scene
-                .camera
-                .update(&self.input, self.state.deltatime as f32);
+            self.scene.camera.update(&self.input, self.state.deltatime as f32);
 
             self.capture_cursor(window);
             window.set_cursor_visible(false);

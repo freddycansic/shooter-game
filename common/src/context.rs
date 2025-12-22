@@ -46,12 +46,7 @@ impl<A: Application> ApplicationHandler for OpenGLContext<A> {
         ));
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        window_id: WindowId,
-        event: WindowEvent,
-    ) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
         if window_id != self.window.as_ref().unwrap().id() {
             return;
         }
@@ -64,12 +59,7 @@ impl<A: Application> ApplicationHandler for OpenGLContext<A> {
         );
     }
 
-    fn device_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
-        event: DeviceEvent,
-    ) {
+    fn device_event(&mut self, event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
         self.application.as_mut().unwrap().device_event(
             event,
             event_loop,

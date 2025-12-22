@@ -29,10 +29,7 @@ pub fn set_up_logging() {
         .format(move |out, message, record| {
             out.finish(format_args!(
                 "[{time} {color_line}{level} {white}{target}] {color_line}{message}\x1B[0m",
-                color_line = format_args!(
-                    "\x1B[{}m",
-                    colors_line.get_color(&record.level()).to_fg_str()
-                ),
+                color_line = format_args!("\x1B[{}m", colors_line.get_color(&record.level()).to_fg_str()),
                 white = format_args!("\x1B[{}m", fern::colors::Color::White.to_fg_str()),
                 time = chrono::offset::Local::now().format("%H:%M:%S"),
                 target = record.target(),

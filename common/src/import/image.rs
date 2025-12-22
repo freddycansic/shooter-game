@@ -28,8 +28,7 @@ where
 {
     info!("Loading image {:?}", path);
 
-    let image =
-        ImageReader::open(path).map_err(|_| ImageLoadError::ImageNotFound(path.to_path_buf()))?;
+    let image = ImageReader::open(path).map_err(|_| ImageLoadError::ImageNotFound(path.to_path_buf()))?;
 
     let decoded = image
         .decode()
