@@ -7,8 +7,8 @@ pub trait Collidable {
 }
 
 pub struct Hit {
-    pub tmin: f64, // entry point
-    pub tmax: f64, // exit point
+    pub tmin: f32, // entry point
+    pub tmax: f32, // exit point
 }
 
 pub trait Intersectable {
