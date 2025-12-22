@@ -7,6 +7,7 @@ use nalgebra::{Matrix4, Point3};
 use rfd::FileDialog;
 
 use crate::camera::FpsCamera;
+use crate::collision::colliders::bvh::Bvh;
 use crate::colors::{Color, ColorExt};
 use crate::light::Light;
 use crate::line::Line;
@@ -15,7 +16,7 @@ use crate::renderer::Renderer;
 use crate::resources::CubemapHandle;
 use crate::resources::Resources;
 use crate::scene::graph::{GeometryBatches, NodeType, Renderable, SceneGraph, SceneNode};
-use crate::scene::{Bvh, QuadBatches, QuadTree};
+use crate::scene::{QuadBatches, QuadTree};
 use crate::serde::SerializedScene;
 
 #[derive(PartialEq, Clone)]

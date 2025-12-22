@@ -1,8 +1,17 @@
 use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
-use petgraph::{Graph, graph::NodeIndex};
+use petgraph::{Direction, Graph, graph::NodeIndex};
 
-use crate::{collision::colliders::aabb::Aabb, colors::Color, debug::DebugCuboid, geometry::Geometry};
+use crate::{
+    collision::{
+        collidable::{Hit, Intersectable},
+        colliders::aabb::Aabb,
+    },
+    colors::Color,
+    debug::DebugCuboid,
+    geometry::Geometry,
+    maths::Ray,
+};
 
 #[derive(Debug, Clone)]
 enum Axis {
@@ -59,6 +68,15 @@ enum BvhNode {
     Leaf { triangles: Vec<Triangle>, aabb: Aabb },
 }
 
+impl Intersectable for BvhNode {
+    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+        match &self {
+            Self::Aabb(aabb) => aabb.intersect_t(ray),
+            Self::Leaf { .. } => unimplemented!(),
+        }
+    }
+}
+
 pub struct Bvh {
     pub graph: Graph<BvhNode, Split>,
     pub root: NodeIndex,
@@ -80,8 +98,8 @@ impl Bvh {
             .into_iter()
             .filter_map(|node| match &self.graph[node] {
                 BvhNode::Aabb(aabb) => Some(DebugCuboid {
-                    min: aabb.min.to_homogeneous().xyz(),
-                    max: aabb.max.to_homogeneous().xyz(),
+                    min: aabb.min.to_homogeneous().xyz().cast::<f32>(),
+                    max: aabb.max.to_homogeneous().xyz().cast::<f32>(),
                     color: Color::from_components((
                         fastrand::f32() * 100.0,
                         fastrand::f32() * 150.0,
@@ -166,19 +184,19 @@ impl Bvh {
     pub fn pass_triangles_with_centroids(triangles_centroids: &[TriangleWithCentroid]) -> BvhPass {
         let mut centroid_sum = Vector3::zeros();
         let mut aabb = Aabb {
-            min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            max: Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
+            min: Point3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
+            max: Point3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
         };
 
         for triangle_centroid in triangles_centroids {
             for vert in triangle_centroid.verts {
-                aabb.min.x = aabb.min.x.min(vert[0]);
-                aabb.min.y = aabb.min.y.min(vert[1]);
-                aabb.min.z = aabb.min.z.min(vert[2]);
+                aabb.min.x = aabb.min.x.min(vert[0] as f64);
+                aabb.min.y = aabb.min.y.min(vert[1] as f64);
+                aabb.min.z = aabb.min.z.min(vert[2] as f64);
 
-                aabb.max.x = aabb.max.x.max(vert[0]);
-                aabb.max.y = aabb.max.y.max(vert[1]);
-                aabb.max.z = aabb.max.z.max(vert[2]);
+                aabb.max.x = aabb.max.x.max(vert[0] as f64);
+                aabb.max.y = aabb.max.y.max(vert[1] as f64);
+                aabb.max.z = aabb.max.z.max(vert[2] as f64);
             }
 
             centroid_sum += triangle_centroid.centroid / 3.0;
@@ -191,19 +209,19 @@ impl Bvh {
 
     pub fn pass_triangles(triangles: &[Triangle]) -> Aabb {
         let mut aabb = Aabb {
-            min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
-            max: Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
+            min: Point3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
+            max: Point3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
         };
 
         for triangle in triangles {
             for vert in triangle {
-                aabb.min.x = aabb.min.x.min(vert[0]);
-                aabb.min.y = aabb.min.y.min(vert[1]);
-                aabb.min.z = aabb.min.z.min(vert[2]);
+                aabb.min.x = aabb.min.x.min(vert[0] as f64);
+                aabb.min.y = aabb.min.y.min(vert[1] as f64);
+                aabb.min.z = aabb.min.z.min(vert[2] as f64);
 
-                aabb.max.x = aabb.max.x.max(vert[0]);
-                aabb.max.y = aabb.max.y.max(vert[1]);
-                aabb.max.z = aabb.max.z.max(vert[2]);
+                aabb.max.x = aabb.max.x.max(vert[0] as f64);
+                aabb.max.y = aabb.max.y.max(vert[1] as f64);
+                aabb.max.z = aabb.max.z.max(vert[2] as f64);
             }
         }
 
@@ -233,5 +251,28 @@ impl Bvh {
         }
 
         triangles
+    }
+
+    fn intersect_t_inner(&self, ray: &Ray, node: NodeIndex) -> Option<Hit> {
+        match &self.graph[node] {
+            BvhNode::Aabb(aabb) => {
+                if aabb.intersect_t(ray).is_some() {
+                    for child in self.graph.neighbors_directed(node, Direction::Outgoing) {
+                        if let Some(intersection) = self.intersect_t_inner(ray, child) {
+                            return Some(intersection);
+                        }
+                    }
+                }
+            }
+            _ => unimplemented!(),
+        }
+
+        None
+    }
+}
+
+impl Intersectable for Bvh {
+    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+        self.intersect_t_inner(ray, self.root)
     }
 }

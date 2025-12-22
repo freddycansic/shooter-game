@@ -1,14 +1,14 @@
-use nalgebra::Vector3;
+use nalgebra::{Point3, Vector3};
 
 pub struct Ray {
-    pub origin: Vector3<f32>,
+    pub origin: Point3<f64>,
 
-    direction: Vector3<f32>,
-    direction_inv: Vector3<f32>,
+    direction: Vector3<f64>,
+    direction_inv: Vector3<f64>,
 }
 
 impl Ray {
-    fn new(origin: Vector3<f32>, direction: Vector3<f32>) -> Self {
+    pub fn new(origin: Point3<f64>, direction: Vector3<f64>) -> Self {
         Self {
             origin,
             direction,
@@ -16,11 +16,11 @@ impl Ray {
         }
     }
 
-    pub fn direction(&self) -> Vector3<f32> {
+    pub fn direction(&self) -> Vector3<f64> {
         self.direction
     }
 
-    pub fn direction_inv(&self) -> Vector3<f32> {
+    pub fn direction_inv(&self) -> Vector3<f64> {
         self.direction_inv
     }
 }

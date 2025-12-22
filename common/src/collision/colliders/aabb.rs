@@ -1,10 +1,13 @@
 use nalgebra::{Point3, Vector3};
 
-use crate::{collision::collidable::Intersectable, maths::Ray};
+use crate::{
+    collision::collidable::{Hit, Intersectable},
+    maths::Ray,
+};
 
 pub struct Aabb {
-    pub min: Point3<f32>,
-    pub max: Point3<f32>,
+    pub min: Point3<f64>,
+    pub max: Point3<f64>,
 }
 
 impl Aabb {
@@ -25,21 +28,124 @@ impl Aabb {
 }
 
 impl Intersectable for Aabb {
-    fn intersect_t(&self, ray: &Ray) -> Option<f32> {
-        let mut t1 = (self.min[0] - ray.origin[0]) * ray.direction_inv()[0];
-        let mut t2 = (self.max[0] - ray.origin[0]) * ray.direction_inv()[0];
+    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+        let mut tmin = f64::NEG_INFINITY; // earliest possible intersection
+        let mut tmax = f64::INFINITY; // lastest possible intersection
 
-        let mut tmin = t1.min(t2);
-        let mut tmax = t1.max(t2);
+        for i in 0..3 {
+            if ray.direction()[i] != 0.0 {
+                let t1 = (self.min[i] - ray.origin[i]) * ray.direction_inv()[i];
+                let t2 = (self.max[i] - ray.origin[i]) * ray.direction_inv()[i];
 
-        for i in 1..3 {
-            t1 = (self.min[i] - ray.origin[i]) * ray.direction_inv()[i];
-            t2 = (self.max[i] - ray.origin[i]) * ray.direction_inv()[i];
-
-            tmin = tmin.max(t1.min(t2).min(tmax));
-            tmax = tmax.min(t1.max(t2).max(tmin));
+                tmin = tmin.max(t1.min(t2));
+                tmax = tmax.min(t1.max(t2));
+            } else if ray.origin[i] < self.min[i] || ray.origin[i] > self.max[i] {
+                return None;
+            }
         }
 
-        if tmax > tmin.max(0.0) { Some(tmin) } else { None }
+        if tmax >= tmin && tmax > 0.0 {
+            Some(Hit { tmin: tmin.max(0.0), tmax })
+        } else {
+            None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::assert_relative_eq;
+
+    use super::*;
+
+    #[test]
+    fn intersect_t_box_corner_hit() {
+        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0).normalize());
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        let result = aabb.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 3_f64.sqrt());
+    }
+
+    #[test]
+    fn intersect_t_box_face_hit() {
+        let ray = Ray::new(Point3::new(0.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        let result = aabb.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
+    }
+
+    #[test]
+    fn intersect_t_box_edge_hit() {
+        let ray = Ray::new(Point3::new(0.0, 1.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        let result = aabb.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
+    }
+
+    #[test]
+    fn intersect_t_inside_box() {
+        let ray = Ray::new(Point3::new(1.5, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        let result = aabb.intersect_t(&ray).unwrap();
+
+        assert_relative_eq!(result.tmin, 0.0);
+        assert_relative_eq!(result.tmax, 0.5);
+    }
+
+    #[test]
+    fn intersect_t_miss_parallel() {
+        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        assert!(aabb.intersect_t(&ray).is_none());
+    }
+
+    #[test]
+    fn intersect_t_behind_ray() {
+        let ray = Ray::new(Point3::new(3.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        assert!(aabb.intersect_t(&ray).is_none());
+    }
+
+    #[test]
+    fn intersect_t_grazing_hit() {
+        let ray = Ray::new(Point3::new(0.0, 2.0, 1.5), Vector3::new(1.0, 0.0, 0.0));
+
+        let aabb = Aabb {
+            min: Point3::new(1.0, 1.0, 1.0),
+            max: Point3::new(2.0, 2.0, 2.0),
+        };
+
+        let result = aabb.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
     }
 }
