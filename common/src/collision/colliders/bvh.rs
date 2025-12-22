@@ -12,6 +12,7 @@ use crate::{
     geometry::Geometry,
     maths::Ray,
 };
+use crate::collision::collidable::Collidable;
 
 #[derive(Debug, Clone)]
 enum Axis {
@@ -54,7 +55,51 @@ impl BvhPass {
     }
 }
 
-pub struct Triangle([[f32; 3]; 3]);
+pub struct Triangle([Vector3<f32>; 3]);
+
+impl Intersectable for Triangle {
+    /// (t, u, v) are barycentric coordinates
+    /// they sum to 1, and are weights towards triangle vertices
+    /// if any are negative, then the Euclidean point is outside the triangle
+    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+        let v0v1 = self.0[1] - self.0[0];
+        let v0v2 = self.0[2] - self.0[0];
+        let pvec = ray.direction().cross(&v0v2);
+
+        let det = v0v1.dot(&pvec);
+
+        // If the determinant is negative, the triangle is back-facing.
+        // Just abs to ignore this
+        // If the determinant is close to 0, the ray misses the triangle.
+        if det.abs() < f32::EPSILON {
+            return None;
+        }
+
+        let inv_det = 1.0 / det;
+
+        let tvec = (ray.origin - self.0[0]).to_homogeneous().xyz();
+        let u = tvec.dot(&pvec) * inv_det;
+        if u < 0.0 || u > 1.0 {
+            return None;
+        }
+
+        let qvec = tvec.cross(&v0v1);
+        let v = ray.direction().dot(&qvec) * inv_det;
+        if v < 0.0 || u + v > 1.0 {
+            return None;
+        }
+
+        let t = v0v2.dot(&qvec) * inv_det;
+
+        debug_assert_ne!(t, f32::NAN);
+        debug_assert_ne!(t, f32::NEG_INFINITY);
+        debug_assert_ne!(t, f32::INFINITY);
+
+        // Slightly inefficient to return redundant information
+        // Can always remove it if this becomes a real problem
+        Some(Hit { tmin: t, tmax: t })
+    }
+}
 
 pub type Centroid = Vector3<f32>;
 
@@ -66,15 +111,6 @@ pub struct TriangleWithCentroid {
 enum BvhNode {
     Aabb(Aabb),
     Leaf { triangles: Vec<Triangle>, aabb: Aabb },
-}
-
-impl Intersectable for BvhNode {
-    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
-        match &self {
-            Self::Aabb(aabb) => aabb.intersect_t(ray),
-            Self::Leaf { .. } => unimplemented!(),
-        }
-    }
 }
 
 pub struct Bvh {
@@ -184,19 +220,19 @@ impl Bvh {
     pub fn pass_triangles_with_centroids(triangles_centroids: &[TriangleWithCentroid]) -> BvhPass {
         let mut centroid_sum = Vector3::zeros();
         let mut aabb = Aabb {
-            min: Point3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
-            max: Point3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
+            min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+            max: Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
         };
 
         for triangle_centroid in triangles_centroids {
             for vert in triangle_centroid.verts.0 {
-                aabb.min.x = aabb.min.x.min(vert[0] as f64);
-                aabb.min.y = aabb.min.y.min(vert[1] as f64);
-                aabb.min.z = aabb.min.z.min(vert[2] as f64);
+                aabb.min.x = aabb.min.x.min(vert[0]);
+                aabb.min.y = aabb.min.y.min(vert[1]);
+                aabb.min.z = aabb.min.z.min(vert[2]);
 
-                aabb.max.x = aabb.max.x.max(vert[0] as f64);
-                aabb.max.y = aabb.max.y.max(vert[1] as f64);
-                aabb.max.z = aabb.max.z.max(vert[2] as f64);
+                aabb.max.x = aabb.max.x.max(vert[0]);
+                aabb.max.y = aabb.max.y.max(vert[1]);
+                aabb.max.z = aabb.max.z.max(vert[2]);
             }
 
             centroid_sum += triangle_centroid.centroid / 3.0;
@@ -209,19 +245,19 @@ impl Bvh {
 
     pub fn pass_triangles(triangles: &[Triangle]) -> Aabb {
         let mut aabb = Aabb {
-            min: Point3::new(f64::INFINITY, f64::INFINITY, f64::INFINITY),
-            max: Point3::new(f64::NEG_INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY),
+            min: Point3::new(f32::INFINITY, f32::INFINITY, f32::INFINITY),
+            max: Point3::new(f32::NEG_INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY),
         };
 
         for triangle in triangles {
             for vert in triangle.0 {
-                aabb.min.x = aabb.min.x.min(vert[0] as f64);
-                aabb.min.y = aabb.min.y.min(vert[1] as f64);
-                aabb.min.z = aabb.min.z.min(vert[2] as f64);
+                aabb.min.x = aabb.min.x.min(vert[0]);
+                aabb.min.y = aabb.min.y.min(vert[1]);
+                aabb.min.z = aabb.min.z.min(vert[2]);
 
-                aabb.max.x = aabb.max.x.max(vert[0] as f64);
-                aabb.max.y = aabb.max.y.max(vert[1] as f64);
-                aabb.max.z = aabb.max.z.max(vert[2] as f64);
+                aabb.max.x = aabb.max.x.max(vert[0]);
+                aabb.max.y = aabb.max.y.max(vert[1]);
+                aabb.max.z = aabb.max.z.max(vert[2]);
             }
         }
 
@@ -234,9 +270,9 @@ impl Bvh {
         for primitive in &geometry.primitives {
             for chunk in primitive.indices.chunks(3) {
                 let triangle = Triangle([
-                    primitive.vertices[chunk[0] as usize].position,
-                    primitive.vertices[chunk[1] as usize].position,
-                    primitive.vertices[chunk[2] as usize].position,
+                    Vector3::from_row_slice(primitive.vertices[chunk[0] as usize].position.as_slice()),
+                    Vector3::from_row_slice(primitive.vertices[chunk[1] as usize].position.as_slice()),
+                    Vector3::from_row_slice(primitive.vertices[chunk[2] as usize].position.as_slice()),
                 ]);
 
                 let mut centroid = Centroid::zeros();
@@ -264,7 +300,15 @@ impl Bvh {
                     }
                 }
             }
-            _ => unimplemented!(),
+            BvhNode::Leaf { triangles, aabb } => { let hit = aabb.intersect_t(ray)
+                .and_then(|_| triangles.iter()
+                    .filter_map(|tri| tri.intersect_t(ray))
+                    .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())); if hit.is_some() {
+                return hit;
+                
+                
+                
+            } }
         }
 
         None
@@ -274,5 +318,66 @@ impl Bvh {
 impl Intersectable for Bvh {
     fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
         self.intersect_t_inner(ray, self.root)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::assert_relative_eq;
+
+    use super::*;
+
+    #[test]
+    fn intersect_t_triangle_perpendicular() {
+        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
+
+        let triangle = Triangle([Vector3::new(1.0, 0.0, 1.0), Vector3::new(-1.0, 1.0, 1.0), Vector3::new(-1.0, -1.0, 1.0)]);
+
+        let result = triangle.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
+        assert_relative_eq!(result.tmax, 1.0);
+    }
+
+    #[test]
+    fn intersect_t_triangle_corner() {
+        let ray = Ray::new(Point3::new(1.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
+
+        let triangle = Triangle([Vector3::new(1.0, 0.0, 1.0), Vector3::new(-1.0, 1.0, 1.0), Vector3::new(-1.0, -1.0, 1.0)]);
+
+        let result = triangle.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
+        assert_relative_eq!(result.tmax, 1.0);
+    }
+
+    #[test]
+    fn intersect_t_triangle_edge() {
+        let v0 = Vector3::new(1.0, 0.0, 1.0);
+        let v1 = Vector3::new(-1.0, 1.0, 1.0);
+        let v2 = Vector3::new(-1.0, -1.0, 1.0);
+
+        let v0v1 = v1 - v0;
+        let midpoint = v0 + v0v1 / 2.0 - Vector3::new(0.0, 0.0, 1.0);
+
+        let ray = Ray::new(midpoint.into(), Vector3::new(0.0, 0.0, 1.0));
+
+        //   ^
+        //  <->
+        // <--->
+        let triangle = Triangle([v0, v1, v2]);
+
+        let result = triangle.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 1.0);
+        assert_relative_eq!(result.tmax, 1.0);
+    }
+
+    #[test]
+    fn intersect_t_triangle_diagonal() {
+        let ray = Ray::new(Point3::new(-1.0, -1.0, -1.0), Vector3::new(1.0, 1.0, 1.0).normalize());
+
+        let triangle = Triangle([Vector3::new(1.0, 0.0, 0.0), Vector3::new(-1.0, 1.0, 0.0), Vector3::new(-1.0, -1.0, 0.0)]);
+
+        let result = triangle.intersect_t(&ray).unwrap();
+        assert_relative_eq!(result.tmin, 3.0_f32.sqrt());
+        assert_relative_eq!(result.tmax, 3.0_f32.sqrt());
     }
 }

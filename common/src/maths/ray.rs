@@ -1,14 +1,17 @@
+use approx::RelativeEq;
 use nalgebra::{Point3, Vector3};
 
 pub struct Ray {
-    pub origin: Point3<f64>,
+    pub origin: Point3<f32>,
 
-    direction: Vector3<f64>,
-    direction_inv: Vector3<f64>,
+    direction: Vector3<f32>,
+    direction_inv: Vector3<f32>,
 }
 
 impl Ray {
-    pub fn new(origin: Point3<f64>, direction: Vector3<f64>) -> Self {
+    pub fn new(origin: Point3<f32>, direction: Vector3<f32>) -> Self {
+        debug_assert!(direction.normalize().relative_eq(&direction, f32::EPSILON, f32::EPSILON), "The direction is not normalised");
+
         Self {
             origin,
             direction,
@@ -16,11 +19,11 @@ impl Ray {
         }
     }
 
-    pub fn direction(&self) -> Vector3<f64> {
+    pub fn direction(&self) -> Vector3<f32> {
         self.direction
     }
 
-    pub fn direction_inv(&self) -> Vector3<f64> {
+    pub fn direction_inv(&self) -> Vector3<f32> {
         self.direction_inv
     }
 }

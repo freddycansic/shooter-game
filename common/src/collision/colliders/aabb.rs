@@ -6,8 +6,8 @@ use crate::{
 };
 
 pub struct Aabb {
-    pub min: Point3<f64>,
-    pub max: Point3<f64>,
+    pub min: Point3<f32>,
+    pub max: Point3<f32>,
 }
 
 impl Aabb {
@@ -29,8 +29,8 @@ impl Aabb {
 
 impl Intersectable for Aabb {
     fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
-        let mut tmin = f64::NEG_INFINITY; // earliest possible intersection
-        let mut tmax = f64::INFINITY; // lastest possible intersection
+        let mut tmin = f32::NEG_INFINITY; // earliest possible intersection
+        let mut tmax = f32::INFINITY; // lastest possible intersection
 
         for i in 0..3 {
             if ray.direction()[i] != 0.0 {
@@ -59,7 +59,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn intersect_t_box_corner_hit() {
+    fn intersect_t_aabb_corner_hit() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0).normalize());
 
         let aabb = Aabb {
@@ -68,11 +68,11 @@ mod tests {
         };
 
         let result = aabb.intersect_t(&ray).unwrap();
-        assert_relative_eq!(result.tmin, 3_f64.sqrt());
+        assert_relative_eq!(result.tmin, 3_f32.sqrt());
     }
 
     #[test]
-    fn intersect_t_box_face_hit() {
+    fn intersect_t_aabb_face_hit() {
         let ray = Ray::new(Point3::new(0.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -85,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn intersect_t_box_edge_hit() {
+    fn intersect_t_aabb_edge_hit() {
         let ray = Ray::new(Point3::new(0.0, 1.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -98,7 +98,7 @@ mod tests {
     }
 
     #[test]
-    fn intersect_t_inside_box() {
+    fn intersect_t_ray_inside_aabb() {
         let ray = Ray::new(Point3::new(1.5, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn intersect_t_miss_parallel() {
+    fn intersect_t_aabb_miss_parallel() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let aabb = Aabb {
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn intersect_t_behind_ray() {
+    fn intersect_t_aabb_behind_ray() {
         let ray = Ray::new(Point3::new(3.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -137,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn intersect_t_grazing_hit() {
+    fn intersect_t_aabb_grazing_hit() {
         let ray = Ray::new(Point3::new(0.0, 2.0, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
