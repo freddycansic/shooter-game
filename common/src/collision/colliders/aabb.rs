@@ -1,4 +1,4 @@
-use nalgebra::{Point3, Vector3};
+use nalgebra::Point3;
 
 use crate::{
     collision::collidable::{Hit, Intersectable},
