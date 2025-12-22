@@ -20,7 +20,7 @@ winit = "0.30.5"
 log = "0.4.29"
 glium = "0.36"
 egui_glium = "0.33.2"
-serde_json = "1.0.116"
+serde_json = "1.0.146"
 nalgebra = "0.34.1"
 egui_ltreeview = "0.6.0"
 petgraph = { version = "0.8.1", default-features = false, features = [

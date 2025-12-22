@@ -34,7 +34,7 @@ glium = "0.36"
 egui_glium = "0.33.2"
 winit = "0.30.5"
 serde = { version = "1.0.200", features = ["derive", "rc"] }
-serde_json = "1.0.116"
+serde_json = "1.0.146"
 rfd = "0.16.0"
 memoize = "0.5.1"
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "serde"] }
