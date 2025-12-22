@@ -15,17 +15,11 @@ impl SerializedBackground {
     pub fn from_background(background: &Background, resources: &Resources) -> Self {
         match background {
             Background::Color(color) => SerializedBackground::Color(color.clone()),
-            Background::HDRI(hdri_handle) => {
-                SerializedBackground::HDRI(resources.get_cubemap_path(*hdri_handle))
-            }
+            Background::HDRI(hdri_handle) => SerializedBackground::HDRI(resources.get_cubemap_path(*hdri_handle)),
         }
     }
 
-    pub fn into_background(
-        self,
-        display: &Display<WindowSurface>,
-        resources: &mut Resources,
-    ) -> Background {
+    pub fn into_background(self, display: &Display<WindowSurface>, resources: &mut Resources) -> Background {
         match self {
             SerializedBackground::Color(color) => Background::Color(color.clone()),
             SerializedBackground::HDRI(hdri_path) => {

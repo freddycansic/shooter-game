@@ -49,8 +49,7 @@ impl Camera for FpsCamera {
         .normalize();
 
         let left_direction = self.looking_direction.cross(&Vector3::new(0.0, 1.0, 0.0));
-        let forward_direction =
-            Vector3::new(self.looking_direction.x, 0.0, self.looking_direction.z).normalize();
+        let forward_direction = Vector3::new(self.looking_direction.x, 0.0, self.looking_direction.z).normalize();
 
         let speed = 3.0;
 

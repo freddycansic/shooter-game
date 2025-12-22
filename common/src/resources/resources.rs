@@ -49,11 +49,7 @@ impl Resources {
             .expect(format!("TextureHandle {} not loaded!", texture_handle.0).as_str())
     }
 
-    pub fn get_texture_handle(
-        &mut self,
-        path: &Path,
-        display: &Display<WindowSurface>,
-    ) -> Result<TextureHandle> {
+    pub fn get_texture_handle(&mut self, path: &Path, display: &Display<WindowSurface>) -> Result<TextureHandle> {
         if let Some(handle) = self.textures_handles.get(path) {
             return Ok(*handle);
         }
@@ -62,8 +58,7 @@ impl Resources {
 
         let handle = TextureHandle(self.new_handle());
 
-        self.textures
-            .insert(handle, Texture2D::load(path, display)?);
+        self.textures.insert(handle, Texture2D::load(path, display)?);
         self.textures_handles.insert(path.to_path_buf(), handle);
 
         Ok(handle)
@@ -103,8 +98,7 @@ impl Resources {
             self.geometry.insert(handle, geometry);
         }
 
-        self.geometry_handles
-            .insert(path.to_path_buf(), handles.clone());
+        self.geometry_handles.insert(path.to_path_buf(), handles.clone());
 
         Ok(handles)
     }
@@ -125,11 +119,7 @@ impl Resources {
             .expect(format!("CubemapHandle {} not loaded!", cubemap_handle.0).as_str())
     }
 
-    pub fn get_cubemap_handle(
-        &mut self,
-        path: &PathBuf,
-        display: &Display<WindowSurface>,
-    ) -> Result<CubemapHandle> {
+    pub fn get_cubemap_handle(&mut self, path: &PathBuf, display: &Display<WindowSurface>) -> Result<CubemapHandle> {
         if let Some(handle) = self.cubemap_handles.get(path) {
             return Ok(*handle);
         }
@@ -138,8 +128,7 @@ impl Resources {
 
         let handle = CubemapHandle(self.new_handle());
 
-        self.cubemaps
-            .insert(handle, Cubemap::load(path.clone(), display)?);
+        self.cubemaps.insert(handle, Cubemap::load(path.clone(), display)?);
         self.cubemap_handles.insert(path.clone(), handle);
 
         Ok(handle)

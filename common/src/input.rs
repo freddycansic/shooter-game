@@ -78,8 +78,7 @@ impl Input {
     }
 
     pub fn mouse_button_just_released(&self, mouse_button: MouseButton) -> bool {
-        self.mouse_button_states[Self::mouse_button_to_index(mouse_button)]
-            == KeyState::JustReleased
+        self.mouse_button_states[Self::mouse_button_to_index(mouse_button)] == KeyState::JustReleased
     }
 
     pub fn window_offset(&self) -> Vector2<f32> {
@@ -174,10 +173,7 @@ impl Input {
 
     fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
         match button {
-            MouseButton::Other(code) => warn!(
-                "Unidentified mouse button event received with code {}",
-                code
-            ),
+            MouseButton::Other(code) => warn!("Unidentified mouse button event received with code {}", code),
             // Offsets into the key_states member
             _ => Self::update_key_state(
                 &mut self.mouse_button_states,
@@ -198,10 +194,8 @@ impl Input {
         }
 
         self.window_offset = Vector2::new(
-            ((new_vector_position.x - self.mouse_position.unwrap().x) * Self::MOUSE_SENSITIVITY)
-                as f32,
-            ((new_vector_position.y - self.mouse_position.unwrap().y) * Self::MOUSE_SENSITIVITY)
-                as f32,
+            ((new_vector_position.x - self.mouse_position.unwrap().x) * Self::MOUSE_SENSITIVITY) as f32,
+            ((new_vector_position.y - self.mouse_position.unwrap().y) * Self::MOUSE_SENSITIVITY) as f32,
         );
 
         self.mouse_position = Some(new_vector_position);
@@ -248,10 +242,7 @@ impl Input {
             MouseButton::Middle => 2,
             MouseButton::Back => 3,
             MouseButton::Forward => 4,
-            MouseButton::Other(code) => panic!(
-                "Cannot query for unidentified mouse button with code {}",
-                code
-            ),
+            MouseButton::Other(code) => panic!("Cannot query for unidentified mouse button with code {}", code),
         }
     }
 }

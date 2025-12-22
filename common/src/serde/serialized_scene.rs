@@ -8,8 +8,7 @@ use crate::{
     resources::Resources,
     scene::{QuadTree, Scene, SerializedQuadTree},
     serde::{
-        SerializeWithContext, serialized_background::SerializedBackground,
-        serialized_graph::SerializedSceneGraph,
+        SerializeWithContext, serialized_background::SerializedBackground, serialized_graph::SerializedSceneGraph,
     },
 };
 

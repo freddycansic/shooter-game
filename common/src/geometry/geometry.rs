@@ -24,8 +24,8 @@ impl Geometry {
     pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Vec<Geometry>> {
         log::info!("Loading gltf {:?}...", path);
 
-        let (document, file_buffers, _images) = gltf::import(&path)
-            .context(format!("The model \"{:?}\" does not exist", path.clone()))?;
+        let (document, file_buffers, _images) =
+            gltf::import(&path).context(format!("The model \"{:?}\" does not exist", path.clone()))?;
 
         let models = document
             .meshes()
@@ -37,20 +37,12 @@ impl Geometry {
                     .map(|(primitive_index, primitive)| {
                         log::debug!("Loading mesh {} primitive {}", mesh_index, primitive_index);
 
-                        Primitive::from_gltf_primitive(
-                            primitive,
-                            &file_buffers,
-                            display,
-                            path.clone(),
-                        )
+                        Primitive::from_gltf_primitive(primitive, &file_buffers, display, path.clone())
                     })
                     .collect::<Result<Vec<Primitive>>>()?;
 
                 Ok(Geometry {
-                    name: mesh
-                        .name()
-                        .unwrap_or(ui::default_name::model().as_str())
-                        .to_owned(),
+                    name: mesh.name().unwrap_or(ui::default_name::model().as_str()).to_owned(),
                     primitives,
                 })
             })
@@ -85,18 +77,20 @@ impl Primitive {
         let num_vertices = primitive.attributes().next().unwrap().1.count();
         let mut vertices = Vec::<GeometryVertex>::with_capacity(num_vertices);
 
-        vertices.extend(positions.zip_eq(normals).zip_eq(tex_coords).map(
-            |((position, normal), tex_coord)| GeometryVertex {
-                position,
-                normal,
-                tex_coord,
-            },
-        ));
+        vertices.extend(
+            positions
+                .zip_eq(normals)
+                .zip_eq(tex_coords)
+                .map(|((position, normal), tex_coord)| GeometryVertex {
+                    position,
+                    normal,
+                    tex_coord,
+                }),
+        );
 
         let vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
 
-        let index_buffer =
-            IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
+        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
 
         Ok(Primitive {
             vertex_buffer,

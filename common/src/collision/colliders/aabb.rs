@@ -45,7 +45,10 @@ impl Intersectable for Aabb {
         }
 
         if tmax >= tmin && tmax > 0.0 {
-            Some(Hit { tmin: tmin.max(0.0), tmax })
+            Some(Hit {
+                tmin: tmin.max(0.0),
+                tmax,
+            })
         } else {
             None
         }

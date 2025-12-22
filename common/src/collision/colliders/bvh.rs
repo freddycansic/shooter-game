@@ -2,6 +2,7 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
+use crate::collision::collidable::Collidable;
 use crate::{
     collision::{
         collidable::{Hit, Intersectable},
@@ -12,7 +13,6 @@ use crate::{
     geometry::Geometry,
     maths::Ray,
 };
-use crate::collision::collidable::Collidable;
 
 #[derive(Debug, Clone)]
 enum Axis {
@@ -282,7 +282,10 @@ impl Bvh {
                     centroid += Vector3::new(pos[0], pos[1], pos[2]);
                 }
 
-                triangles.push(TriangleWithCentroid { verts: triangle, centroid });
+                triangles.push(TriangleWithCentroid {
+                    verts: triangle,
+                    centroid,
+                });
             }
         }
 
@@ -300,15 +303,17 @@ impl Bvh {
                     }
                 }
             }
-            BvhNode::Leaf { triangles, aabb } => { let hit = aabb.intersect_t(ray)
-                .and_then(|_| triangles.iter()
-                    .filter_map(|tri| tri.intersect_t(ray))
-                    .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())); if hit.is_some() {
-                return hit;
-                
-                
-                
-            } }
+            BvhNode::Leaf { triangles, aabb } => {
+                let hit = aabb.intersect_t(ray).and_then(|_| {
+                    triangles
+                        .iter()
+                        .filter_map(|tri| tri.intersect_t(ray))
+                        .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
+                });
+                if hit.is_some() {
+                    return hit;
+                }
+            }
         }
 
         None
@@ -331,7 +336,11 @@ mod tests {
     fn intersect_t_triangle_perpendicular() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
 
-        let triangle = Triangle([Vector3::new(1.0, 0.0, 1.0), Vector3::new(-1.0, 1.0, 1.0), Vector3::new(-1.0, -1.0, 1.0)]);
+        let triangle = Triangle([
+            Vector3::new(1.0, 0.0, 1.0),
+            Vector3::new(-1.0, 1.0, 1.0),
+            Vector3::new(-1.0, -1.0, 1.0),
+        ]);
 
         let result = triangle.intersect_t(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -342,7 +351,11 @@ mod tests {
     fn intersect_t_triangle_corner() {
         let ray = Ray::new(Point3::new(1.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
 
-        let triangle = Triangle([Vector3::new(1.0, 0.0, 1.0), Vector3::new(-1.0, 1.0, 1.0), Vector3::new(-1.0, -1.0, 1.0)]);
+        let triangle = Triangle([
+            Vector3::new(1.0, 0.0, 1.0),
+            Vector3::new(-1.0, 1.0, 1.0),
+            Vector3::new(-1.0, -1.0, 1.0),
+        ]);
 
         let result = triangle.intersect_t(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -374,7 +387,11 @@ mod tests {
     fn intersect_t_triangle_diagonal() {
         let ray = Ray::new(Point3::new(-1.0, -1.0, -1.0), Vector3::new(1.0, 1.0, 1.0).normalize());
 
-        let triangle = Triangle([Vector3::new(1.0, 0.0, 0.0), Vector3::new(-1.0, 1.0, 0.0), Vector3::new(-1.0, -1.0, 0.0)]);
+        let triangle = Triangle([
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(-1.0, 1.0, 0.0),
+            Vector3::new(-1.0, -1.0, 0.0),
+        ]);
 
         let result = triangle.intersect_t(&ray).unwrap();
         assert_relative_eq!(result.tmin, 3.0_f32.sqrt());

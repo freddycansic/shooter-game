@@ -6,8 +6,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{CursorGrabMode, Window};
 
 pub trait Application {
-    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop)
-    -> Self;
+    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self;
 
     fn window_event(
         &mut self,
