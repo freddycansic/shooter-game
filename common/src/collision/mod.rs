@@ -1,2 +1,2 @@
-mod collidable;
-mod colliders;
+pub mod collidable;
+pub mod colliders;

@@ -1,8 +1,6 @@
-use nalgebra::Vector3;
-
 use crate::{
     collision::{
-        collidable::Intersectable,
+        collidable::{Hit, Intersectable},
         colliders::{aabb::Aabb, bvh::Bvh},
     },
     maths::Ray,
@@ -16,7 +14,7 @@ pub enum Collider {
 }
 
 impl Collider {
-    pub fn intersection(&self, ray: &Ray) -> Option<Vector3<f32>> {
+    pub fn intersection(&self, ray: &Ray) -> Option<Hit> {
         match self {
             Collider::Aabb(aabb) => aabb.intersect_t(ray),
             Collider::Bvh(bvh) => bvh.intersect_t(ray),

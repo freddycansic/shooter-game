@@ -3,9 +3,9 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
+use common::collision::colliders::bvh::Bvh;
 use common::debug::DebugCuboid;
 use common::maths::Transform;
-use common::scene::Bvh;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;

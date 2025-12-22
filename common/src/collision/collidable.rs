@@ -6,6 +6,11 @@ pub trait Collidable {
     fn collider<'a>(&self) -> &'a Collider;
 }
 
+pub struct Hit {
+    pub tmin: f64, // entry point
+    pub tmax: f64, // exit point
+}
+
 pub trait Intersectable {
-    fn intersect_t(&self, ray: &Ray) -> Option<f32>;
+    fn intersect_t(&self, ray: &Ray) -> Option<Hit>;
 }

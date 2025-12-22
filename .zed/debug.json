@@ -4,26 +4,32 @@
 // see: https://zed.dev/docs/debugger
 [
     {
-        "adapter": "CodeLLDB",
-        "label": "cargo run -p editor",
+        "label": "debug editor",
         "build": {
-            "label": "cargo run -p editor",
-            "command": "cargo",
-            "args": ["build", "--package", "editor"],
-            "env": {
-                "RUSTC_TOOLCHAIN": "/nix/store/vv3zjy0v4gqd6lck40f9drq9v96dgvqd-rust-nightly-complete-with-components-2025-11-19"
-            },
-            "cwd": "/home/freddy/dev/shooter-game",
-            "use_new_terminal": false,
-            "allow_concurrent_runs": false,
-            "reveal": "always",
-            "reveal_target": "dock",
-            "hide": "never",
-            "tags": [],
-            "shell": "system",
-            "show_summary": false,
-            "show_command": false
+            "command": "nix",
+            "args": ["develop", "--command", "cargo", "build", "-p", "editor"],
         },
-        "sourceLanguages": ["rust"]
-    }
+        "program": "$ZED_WORKTREE_ROOT/target/debug/editor",
+        "sourceLanguages": ["rust"],
+        "request": "launch",
+        "adapter": "CodeLLDB",
+    },
+    {
+        "label": "debug test common",
+        "build": {
+            "command": "nix",
+            "args": [
+                "develop",
+                "--command",
+                "cargo",
+                "build",
+                "--test",
+                "common",
+            ],
+        },
+        "program": "$ZED_WORKTREE_ROOT/target/debug/editor",
+        "sourceLanguages": ["rust"],
+        "request": "launch",
+        "adapter": "CodeLLDB",
+    },
 ]
