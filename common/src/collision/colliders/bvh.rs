@@ -2,7 +2,6 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
-use crate::collision::collidable::Collidable;
 use crate::{
     collision::{
         collidable::{Hit, Intersectable},
