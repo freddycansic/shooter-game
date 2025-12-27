@@ -2,6 +2,7 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
+use crate::geometry::Primitive;
 use crate::{
     collision::{
         collidable::{Hit, Intersectable},
@@ -9,7 +10,6 @@ use crate::{
     },
     colors::Color,
     debug::DebugCuboid,
-    geometry::Geometry,
     maths::Ray,
 };
 
@@ -54,6 +54,7 @@ impl BvhPass {
     }
 }
 
+#[derive(Debug)]
 pub struct Triangle([Vector3<f32>; 3]);
 
 impl Intersectable for Triangle {
@@ -107,19 +108,21 @@ pub struct TriangleWithCentroid {
     centroid: Centroid,
 }
 
+#[derive(Debug)]
 enum BvhNode {
     Aabb(Aabb),
     Leaf { triangles: Vec<Triangle>, aabb: Aabb },
 }
 
+#[derive(Debug)]
 pub struct Bvh {
     pub graph: Graph<BvhNode, Split>,
     pub root: NodeIndex,
 }
 
 impl Bvh {
-    pub fn from_geometry(geometry: &Geometry) -> Self {
-        let tris_with_centroids = Self::get_tris_with_centroids(geometry);
+    pub fn from_primitives(primitives: &[Primitive]) -> Self {
+        let tris_with_centroids = Self::get_tris_with_centroids(primitives);
         let mut graph = Graph::<BvhNode, Split>::new();
 
         let root = Self::build(&mut graph, tris_with_centroids);
@@ -263,10 +266,10 @@ impl Bvh {
         aabb
     }
 
-    pub fn get_tris_with_centroids(geometry: &Geometry) -> Vec<TriangleWithCentroid> {
+    pub fn get_tris_with_centroids(primitives: &[Primitive]) -> Vec<TriangleWithCentroid> {
         let mut triangles = Vec::new();
 
-        for primitive in &geometry.primitives {
+        for primitive in primitives {
             for chunk in primitive.indices.chunks(3) {
                 let triangle = Triangle([
                     Vector3::from_row_slice(primitive.vertices[chunk[0] as usize].position.as_slice()),
@@ -293,29 +296,19 @@ impl Bvh {
 
     fn intersect_t_inner(&self, ray: &Ray, node: NodeIndex) -> Option<Hit> {
         match &self.graph[node] {
-            BvhNode::Aabb(aabb) => {
-                if aabb.intersect_t(ray).is_some() {
-                    for child in self.graph.neighbors_directed(node, Direction::Outgoing) {
-                        if let Some(intersection) = self.intersect_t_inner(ray, child) {
-                            return Some(intersection);
-                        }
-                    }
-                }
-            }
-            BvhNode::Leaf { triangles, aabb } => {
-                let hit = aabb.intersect_t(ray).and_then(|_| {
-                    triangles
-                        .iter()
-                        .filter_map(|tri| tri.intersect_t(ray))
-                        .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
-                });
-                if hit.is_some() {
-                    return hit;
-                }
-            }
+            BvhNode::Aabb(aabb) => aabb.intersect_t(ray).and_then(|_| {
+                self.graph
+                    .neighbors_directed(node, Direction::Outgoing)
+                    .filter_map(|child| self.intersect_t_inner(ray, child))
+                    .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
+            }),
+            BvhNode::Leaf { triangles, aabb } => aabb.intersect_t(ray).and_then(|_| {
+                triangles
+                    .iter()
+                    .filter_map(|tri| tri.intersect_t(ray))
+                    .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
+            }),
         }
-
-        None
     }
 }
 

@@ -54,8 +54,7 @@ impl Camera for OrbitalCamera {
         self.yaw %= 2.0 * std::f32::consts::PI;
 
         self.pitch -= offset.y;
-        let epsilon = 0.000000001;
-        self.pitch = self.pitch.clamp(epsilon, std::f32::consts::PI - epsilon);
+        self.pitch = self.pitch.clamp(f32::EPSILON, std::f32::consts::PI - f32::EPSILON);
 
         self.update_position();
     }
@@ -66,6 +65,10 @@ impl Camera for OrbitalCamera {
 
     fn view(&self) -> Matrix4<f32> {
         Matrix4::look_at_rh(&self.position, &self.target, &Vector3::new(0.0, 1.0, 0.0))
+    }
+
+    fn direction(&self) -> Vector3<f32> {
+        (self.target - self.position).normalize()
     }
 }
 

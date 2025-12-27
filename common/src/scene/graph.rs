@@ -7,6 +7,10 @@ use petgraph::{
     graph::{EdgeIndex, NodeIndex},
 };
 
+use crate::collision::collidable::{Hit, Intersectable};
+use crate::collision::colliders::Collider;
+use crate::maths::Ray;
+use crate::resources::Resources;
 use crate::{
     maths::Transform,
     renderer::Instance,
@@ -37,6 +41,27 @@ impl SceneNode {
             visible: true,
             selected: false,
             ty,
+        }
+    }
+
+    pub fn intersect_t(&self, ray: &Ray, resources: &mut Resources) -> Option<Hit> {
+        match &self.ty {
+            NodeType::Renderable(renderable) => {
+                let geometry = resources.get_geometry(renderable.geometry_handle);
+
+                // geometry bvh is in local space, incoming ray is world space
+                let local_ray = {
+                    let world_inverse = self.world_transform.matrix().inverse();
+
+                    let local_origin = world_inverse.transform_point(&ray.origin);
+                    let local_direction = world_inverse.transform_vector(&ray.direction()).normalize();
+
+                    Ray::new(local_origin, local_direction)
+                };
+
+                geometry.bvh.intersect_t(&local_ray)
+            }
+            NodeType::Group => None,
         }
     }
 
@@ -132,7 +157,7 @@ impl SceneGraph {
 
                     let batch = batches.entry(node_key).or_insert(vec![]);
 
-                    let transform = scene_node.world_transform.matrix();
+                    let transform = scene_node.world_transform.raw_matrix();
 
                     batch.push(Instance { transform });
 

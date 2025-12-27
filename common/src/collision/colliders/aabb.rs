@@ -5,6 +5,7 @@ use crate::{
     maths::Ray,
 };
 
+#[derive(Debug)]
 pub struct Aabb {
     pub min: Point3<f32>,
     pub max: Point3<f32>,
@@ -30,7 +31,7 @@ impl Aabb {
 impl Intersectable for Aabb {
     fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
         let mut tmin = f32::NEG_INFINITY; // earliest possible intersection
-        let mut tmax = f32::INFINITY; // lastest possible intersection
+        let mut tmax = f32::INFINITY; // latest possible intersection
 
         for i in 0..3 {
             if ray.direction()[i] != 0.0 {
@@ -57,9 +58,9 @@ impl Intersectable for Aabb {
 
 #[cfg(test)]
 mod tests {
-    use approx::assert_relative_eq;
-
     use super::*;
+    use approx::assert_relative_eq;
+    use nalgebra::Vector3;
 
     #[test]
     fn intersect_t_aabb_corner_hit() {

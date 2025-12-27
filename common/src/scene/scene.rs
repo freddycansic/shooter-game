@@ -4,14 +4,16 @@ use color_eyre::eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
 use nalgebra::{Matrix4, Point3};
+use petgraph::graph::NodeIndex;
 use rfd::FileDialog;
 
 use crate::camera::FpsCamera;
+use crate::collision::collidable::{Hit, Intersectable};
 use crate::collision::colliders::bvh::Bvh;
 use crate::colors::{Color, ColorExt};
 use crate::light::Light;
 use crate::line::Line;
-use crate::maths::Transform;
+use crate::maths::{Ray, Transform};
 use crate::renderer::Renderer;
 use crate::resources::CubemapHandle;
 use crate::resources::Resources;
@@ -61,6 +63,19 @@ impl Scene {
             lights: vec![],
             resources: Resources::new(),
         }
+    }
+
+    pub fn intersect_t(&mut self, ray: &Ray) -> Option<NodeIndex> {
+        self.graph
+            .graph
+            .node_indices()
+            .filter_map(|idx| {
+                let node = &self.graph.graph[idx];
+                node.intersect_t(ray, &mut self.resources)
+                    .map(|hit| (idx, hit))
+            })
+            .min_by(|(_, a), (_, b)| a.tmin.partial_cmp(&b.tmin).unwrap())
+            .map(|(idx, _)| idx)
     }
 
     // pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {

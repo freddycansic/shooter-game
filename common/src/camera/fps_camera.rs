@@ -81,6 +81,10 @@ impl Camera for FpsCamera {
             &Vector3::new(0.0, 1.0, 0.0),
         )
     }
+
+    fn direction(&self) -> Vector3<f32> {
+        self.looking_direction
+    }
 }
 
 impl Default for FpsCamera {
