@@ -8,7 +8,7 @@ use petgraph::graph::NodeIndex;
 use rfd::FileDialog;
 
 use crate::camera::FpsCamera;
-use crate::collision::collidable::{Hit, Intersectable};
+use crate::collision::collidable::Intersectable;
 use crate::collision::colliders::bvh::Bvh;
 use crate::colors::{Color, ColorExt};
 use crate::light::Light;

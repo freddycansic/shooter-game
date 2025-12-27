@@ -3,7 +3,6 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use common::collision::colliders::bvh::Bvh;
 use common::debug::DebugCuboid;
 use common::maths::{Ray, Transform};
 use common::scene::graph::{NodeType, Renderable, SceneNode};
@@ -15,7 +14,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
-use nalgebra::{Point3, Vector3, Vector4};
+use nalgebra::{Point3, Vector4};
 use palette::Srgb;
 use rfd::FileDialog;
 
