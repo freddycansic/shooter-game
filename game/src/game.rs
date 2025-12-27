@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
 
 use glium::Display;
@@ -16,7 +16,6 @@ use common::input::Input;
 use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Scene;
-use common::texture::Texture2D;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -53,7 +52,7 @@ pub struct Game {
 }
 
 impl Application for Game {
-    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
+    fn new(window: &Window, display: &Display<WindowSurface>, _event_loop: &ActiveEventLoop) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
@@ -128,16 +127,16 @@ impl Application for Game {
     fn device_event(
         &mut self,
         event: DeviceEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
+        _event_loop: &ActiveEventLoop,
+        _window: &Window,
+        _display: &Display<WindowSurface>,
     ) {
         self.input.process_device_event(event);
     }
 }
 
 impl Game {
-    fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
+    fn update(&mut self, window: &Window, _display: &Display<WindowSurface>) {
         self.state.is_moving_camera =
             self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
 
@@ -155,7 +154,7 @@ impl Game {
         self.input.reset_internal_state();
     }
 
-    fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
+    fn render(&mut self, _window: &Window, display: &Display<WindowSurface>) {
         let mut target = display.draw();
         {
             self.scene.render(
@@ -170,5 +169,5 @@ impl Game {
         target.finish().unwrap();
     }
 
-    fn render_gui(&mut self, window: &Window, display: &Display<WindowSurface>) {}
+    fn render_gui(&mut self, _window: &Window, _display: &Display<WindowSurface>) {}
 }

@@ -8,7 +8,6 @@ use petgraph::{
 };
 
 use crate::collision::collidable::{Hit, Intersectable};
-use crate::collision::colliders::Collider;
 use crate::maths::Ray;
 use crate::resources::Resources;
 use crate::{
