@@ -12,6 +12,8 @@ use crate::{
     serde::SerializeWithContext,
 };
 
+// list of layers
+// layer is list of quads
 pub struct QuadTree(pub Vec<Vec<Quad>>);
 
 pub type QuadBatches = FxHashMap<TextureHandle, Vec<QuadVertex>>;

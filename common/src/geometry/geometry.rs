@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 use std::path::PathBuf;
 
+use crate::collision::colliders::bvh::Bvh;
+use crate::geometry::GeometryVertex;
 use color_eyre::Result;
 use color_eyre::eyre::Context;
 use glium::glutin::surface::WindowSurface;
@@ -9,8 +11,6 @@ use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use itertools::Itertools;
 
-use crate::geometry::GeometryVertex;
-
 use crate::geometry::Primitive;
 use crate::ui;
 
@@ -18,6 +18,7 @@ use crate::ui;
 pub struct Geometry {
     pub name: String,
     pub primitives: Vec<Primitive>,
+    pub bvh: Bvh,
 }
 
 impl Geometry {
@@ -41,9 +42,12 @@ impl Geometry {
                     })
                     .collect::<Result<Vec<Primitive>>>()?;
 
+                let bvh = Bvh::from_primitives(&primitives);
+
                 Ok(Geometry {
                     name: mesh.name().unwrap_or(ui::default_name::model().as_str()).to_owned(),
                     primitives,
+                    bvh,
                 })
             })
             .collect::<Result<Vec<Geometry>>>()?;

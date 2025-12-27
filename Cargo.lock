@@ -1177,6 +1177,7 @@ dependencies = [
  "color-eyre",
  "common",
  "glium",
+ "nalgebra",
  "winit",
 ]
 

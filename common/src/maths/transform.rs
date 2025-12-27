@@ -9,7 +9,7 @@ pub struct Transform {
     rotation: UnitQuaternion<f32>,
     scale: f32,
     #[serde(skip)]
-    matrix: [[f32; 4]; 4],
+    matrix: Similarity3<f32>,
     #[serde(skip)]
     dirty: bool,
 }
@@ -22,7 +22,7 @@ impl Transform {
             matrix.append_rotation_mut(&self.rotation);
             matrix.append_translation_mut(&self.translation);
 
-            self.matrix = maths::raw_matrix(matrix.into());
+            self.matrix = matrix;
 
             self.dirty = false;
         }
@@ -49,7 +49,16 @@ impl Transform {
         combined
     }
 
-    pub fn matrix(&self) -> [[f32; 4]; 4] {
+    pub fn raw_matrix(&self) -> [[f32; 4]; 4] {
+        #[cfg(debug_assertions)]
+        if self.dirty {
+            log::warn!("Obtaining dirty raw transform matrix.")
+        }
+
+        maths::raw_matrix(self.matrix.into())
+    }
+
+    pub fn matrix(&self) -> Similarity3<f32> {
         #[cfg(debug_assertions)]
         if self.dirty {
             log::warn!("Obtaining dirty transform matrix.")
@@ -96,7 +105,7 @@ impl Default for Transform {
             translation: Translation3::identity(),
             rotation: UnitQuaternion::identity(),
             scale: 1.0,
-            matrix: maths::raw_identity_matrix(),
+            matrix: Similarity3::identity(),
             dirty: false,
         }
     }

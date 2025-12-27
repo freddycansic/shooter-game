@@ -1,4 +1,3 @@
-
 use crate::{collision::colliders::Collider, maths::Ray};
 
 pub trait Collidable {

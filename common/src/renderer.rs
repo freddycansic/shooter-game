@@ -23,7 +23,7 @@ use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::input::Input;
 use crate::light::Light;
-use crate::line::LinePoint;
+use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
 use crate::resources::Resources;
@@ -112,7 +112,7 @@ pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
 
-    viewport: Option<egui::Rect>,
+    pub viewport: Option<egui::Rect>,
 }
 
 impl Renderer {
@@ -223,14 +223,12 @@ impl Renderer {
         })
     }
 
-    fn get_viewport(&self) -> Option<glium::Rect> {
-        // Convert to bottom left rect from top right
-        self.viewport.map(|viewport| glium::Rect {
-            left: viewport.min.x as u32,
-            bottom: (viewport.height() - viewport.max.y) as u32,
-            width: viewport.width() as u32,
-            height: viewport.height() as u32,
-        })
+    pub fn perspective_projection(&self) -> Matrix4<f32> {
+        self.perspective_projection
+    }
+
+    pub fn orthographic_projection(&self) -> Matrix4<f32> {
+        self.orthograhic_projection
     }
 
     pub fn update_projection_matrices(&mut self, width: f32, height: f32) {
@@ -251,6 +249,16 @@ impl Renderer {
         input.mouse_position().is_some_and(|position| {
             self.viewport
                 .is_some_and(|viewport| viewport.contains(Pos2::new(position.x as f32, position.y as f32)))
+        })
+    }
+
+    fn get_glium_viewport(&self) -> Option<glium::Rect> {
+        // Convert to bottom left rect from top right
+        self.viewport.map(|viewport| glium::Rect {
+            left: viewport.min.x as u32,
+            bottom: (viewport.height() - viewport.max.y) as u32,
+            width: viewport.width() as u32,
+            height: viewport.height() as u32,
         })
     }
 
@@ -337,7 +345,7 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        let viewport = self.get_viewport();
+        let viewport = self.get_glium_viewport();
 
         for (texture_handle, quad_vertices) in quad_batches.iter() {
             let quad_buffer = RendererBuffers::get_vertex_buffer(
@@ -429,7 +437,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     blend: Blend::alpha_blending(),
-                    viewport: self.get_viewport(),
+                    viewport: self.get_glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -461,7 +469,7 @@ impl Renderer {
                     blend: Blend::alpha_blending(),
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
-                    viewport: self.get_viewport(),
+                    viewport: self.get_glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -499,69 +507,61 @@ impl Renderer {
                 &self.programs.skybox,
                 &uniforms,
                 &DrawParameters {
-                    viewport: self.get_viewport(),
+                    viewport: self.get_glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
             .unwrap();
     }
 
-    // pub fn render_lines(
-    //     &mut self,
-    //     lines: &[Line],
-    //     view: &Matrix4<f32>,
-    //     display: &Display<WindowSurface>,
-    //     target: &mut Frame,
-    // ) {
-    //     if lines.is_empty() {
-    //         return;
-    //     }
+    pub fn render_lines(
+        &mut self,
+        lines: &[Line],
+        view: &Matrix4<f32>,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        if lines.is_empty() {
+            return;
+        }
 
-    //     let mut batched_lines = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
+        let mut batched = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
 
-    //     for line in lines.iter() {
-    //         let line_points = vec![
-    //             LinePoint {
-    //                 position: <[f32; 3]>::from(line.p1),
-    //                 color: *line.color.as_ref(),
-    //             },
-    //             LinePoint {
-    //                 position: <[f32; 3]>::from(line.p2),
-    //                 color: *line.color.as_ref(),
-    //             },
-    //         ];
+        for line in lines {
+            batched.entry(line.width).or_default().extend_from_slice(&[
+                LinePoint {
+                    position: line.p1.into(),
+                    color: *line.color.as_ref(),
+                },
+                LinePoint {
+                    position: line.p2.into(),
+                    color: *line.color.as_ref(),
+                },
+            ]);
+        }
 
-    //         batched_lines
-    //             .entry(line.width)
-    //             .and_modify(|lines| lines.extend(&line_points))
-    //             .or_insert(line_points);
-    //     }
+        let vp = maths::raw_matrix(self.perspective_projection * view);
+        let viewport = self.get_glium_viewport();
 
-    //     let uniforms = uniform! {
-    //         vp: maths::raw_matrix(self.perspective_projection * view),
-    //     };
+        for (width, points) in batched {
+            let buffer =
+                RendererBuffers::get_vertex_buffer(&mut self.buffers.line_vertex_buffers, &width, &points, display);
 
-    //     for (width, line_points) in batched_lines {
-    //         Self::copy_into_buffers(display, width, &line_points, &mut self.line_vertex_buffers);
-
-    //         target
-    //             .draw(
-    //                 self.line_vertex_buffers
-    //                     .get(&width)
-    //                     .unwrap()
-    //                     .slice(0..line_points.len())
-    //                     .unwrap(),
-    //                 NoIndices(PrimitiveType::LinesList),
-    //                 &self.lines_program,
-    //                 &uniforms,
-    //                 &DrawParameters {
-    //                     line_width: Some(width as f32),
-    //                     ..DrawParameters::default()
-    //                 },
-    //             )
-    //             .unwrap();
-    //     }
-    // }
+            target
+                .draw(
+                    buffer.slice(0..points.len()).unwrap(),
+                    NoIndices(PrimitiveType::LinesList),
+                    &self.programs.lines,
+                    &uniform! { vp: vp },
+                    &DrawParameters {
+                        line_width: Some(width as f32),
+                        viewport,
+                        ..DrawParameters::default()
+                    },
+                )
+                .unwrap();
+        }
+    }
 
     // pub fn render_lights(
     //     &mut self,
@@ -625,7 +625,7 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        let viewport = self.get_viewport();
+        let viewport = self.get_glium_viewport();
 
         // Draw regular color buffer
         for (key, instances) in geometry_batches.iter() {
@@ -697,7 +697,7 @@ impl Renderer {
             vp: *vp,
         };
 
-        let viewport = self.get_viewport();
+        let viewport = self.get_glium_viewport();
 
         // Only draw selected models into mask
         for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {

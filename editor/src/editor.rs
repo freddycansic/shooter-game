@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use common::collision::colliders::bvh::Bvh;
 use common::debug::DebugCuboid;
-use common::maths::Transform;
+use common::maths::{Ray, Transform};
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::scene::Background;
 use common::serde::SerializedScene;
@@ -13,8 +13,9 @@ use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use itertools::Itertools;
 use log::info;
-use nalgebra::Point3;
+use nalgebra::{Point3, Vector3, Vector4};
 use palette::Srgb;
 use rfd::FileDialog;
 
@@ -50,6 +51,7 @@ struct GuiState {
     pub render_lights: bool,
     pub debug_cube_index: usize,
     pub debug_cube_opacity: f32,
+    pub render_debug_mouse_rays: bool,
 }
 
 impl FrameState {
@@ -79,6 +81,7 @@ pub struct Editor {
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
     debug_cuboids: Vec<DebugCuboid>,
+    lines: Vec<Line>,
 }
 
 impl Application for Editor {
@@ -230,9 +233,8 @@ impl Application for Editor {
         scene.graph.add_root_node(map_node);
 
         let geometry = scene.resources.get_geometry(map_handle);
-        let bvh = Bvh::from_geometry(geometry);
 
-        let debug_cuboids = bvh.get_debug_cuboids();
+        let debug_cuboids = geometry.bvh.get_debug_cuboids();
 
         // let tris_with_cents = Bvh::get_tris_with_centroids(&geometry);
         // let bounds = Bvh::pass_triangles_with_centroids(&tris_with_cents).bounds;
@@ -263,6 +265,7 @@ impl Application for Editor {
                 render_lights: true,
                 debug_cube_index: 0,
                 debug_cube_opacity: 0.5,
+                render_debug_mouse_rays: false,
             },
         };
 
@@ -278,6 +281,7 @@ impl Application for Editor {
             receiver,
             camera,
             debug_cuboids,
+            lines: vec![],
         }
     }
 
@@ -356,8 +360,27 @@ impl Editor {
             self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
 
         if self.input.mouse_button_just_released(MouseButton::Left) && self.renderer.is_mouse_in_viewport(&self.input) {
-            for node in self.scene.graph.graph.node_weights_mut() {
-                node.selected = false;
+            let ray = self.mouse_ray();
+
+            let intersection = self.scene.intersect_t(&ray);
+
+            if self.state.gui.render_debug_mouse_rays {
+                self.lines.push(Line::new(
+                    ray.origin,
+                    ray.origin + ray.direction() * 10.0,
+                    if intersection.is_some() {
+                        Srgb::new(0.0, 1.0, 0.0)
+                    } else {
+                        Srgb::new(1.0, 0.0, 0.0)
+                    },
+                    2,
+                ));
+            }
+
+            let indices = self.scene.graph.graph.node_indices().collect_vec();
+
+            for index in indices {
+                self.scene.graph.graph[index].selected = Some(index) == intersection;
             }
         }
 
@@ -422,6 +445,11 @@ impl Editor {
                 display,
                 &mut target,
             );
+
+            if self.state.gui.render_debug_mouse_rays {
+                self.renderer
+                    .render_lines(&self.lines, &self.camera.view(), display, &mut target);
+            }
 
             self.render_gui(window);
             self.gui.paint(display, &mut target);
@@ -527,11 +555,18 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
+                ui.label("Debug");
+
                 ui.add(
                     egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len() - 1).integer(),
                 );
 
                 ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
+
+                ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
+                if ui.button("Clear lines").clicked() {
+                    self.lines.clear();
+                }
 
                 ui.collapsing("Background", |ui| {
                     ui.horizontal(|ui| {
@@ -564,5 +599,41 @@ impl Editor {
 
             self.renderer.update_viewport(ctx.available_rect());
         });
+    }
+
+    fn mouse_ray(&self) -> Ray {
+        // mouse coordinates in window coordinates
+        let mouse = self.input.mouse_position().unwrap();
+
+        // mouse coordinates in viewport coordinates
+        let viewport = self.renderer.viewport.unwrap();
+        let x_in_viewport = (mouse.x as f32) - viewport.left();
+        let y_in_viewport = (mouse.y as f32) - viewport.top();
+
+        // mouse coordinates in ndc coordinates (-1..1)
+        let x_ndc = maths::linear_map(x_in_viewport, 0.0, viewport.width(), -1.0, 1.0);
+
+        // for y, 1 is top and -1 is bottom
+        let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
+
+        let vp = self.renderer.perspective_projection() * self.camera.view();
+        let inv_vp = vp.try_inverse().unwrap();
+
+        // position of mouse coordinate on near and far plane in clip space
+        let near_clip = Vector4::new(x_ndc, y_ndc, -1.0, 1.0);
+        let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
+
+        // unproject to get points in world space
+        let near_world_h = inv_vp * near_clip;
+        let far_world_h = inv_vp * far_clip;
+
+        // convert homogenous coordinates into cartesian
+        let near_world = near_world_h.xyz() / near_world_h.w;
+        let far_world = far_world_h.xyz() / far_world_h.w;
+
+        let origin = near_world;
+        let direction = (far_world - near_world).normalize();
+
+        Ray::new(origin.into(), direction.into())
     }
 }

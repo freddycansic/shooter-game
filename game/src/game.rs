@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use glium::Display;
@@ -58,7 +58,7 @@ impl Application for Game {
         debug::set_up_logging();
 
         let inner_size = window.inner_size();
-        let renderer = Renderer::new(inner_size.width as f32, inner_size.height as f32, display).unwrap();
+        let renderer = Renderer::new(inner_size.width as f32, inner_size.height as f32, None, display).unwrap();
         // let mut scene =
         //     Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
         let mut scene = Scene::default();
@@ -72,12 +72,16 @@ impl Application for Game {
             inner_size.width as f32 / inner_size.height as f32,
         );*/
 
-        scene.quads.add_node(Quad::new(
+        let crosshair_texture = scene
+            .resources
+            .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
+            .unwrap();
+
+        scene.quads.0 = vec![vec![Quad::new(
             Point2::new(0.1, 0.1),
             Vector2::new(0.2, 0.2),
-            Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
-            0,
-        ));
+            crosshair_texture,
+        )]];
 
         let state = FrameState::default();
         let input = Input::new();
