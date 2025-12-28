@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,10 +13,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Set nightly toolchain
-      run: rustup update nightly && rustup default nightly
-    - name: Download cranelift
-      run: rustup component add rustc-codegen-cranelift-preview --toolchain nightly
-    - name: Build
-      run: cargo build
+      - uses: actions/checkout@v4
+      - name: Set nightly toolchain
+        run: rustup update nightly && rustup default nightly
+      - name: Download cranelift
+        run: rustup component add rustc-codegen-cranelift-preview --toolchain nightly
+      - name: Build
+        run: cargo build
