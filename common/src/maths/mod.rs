@@ -10,6 +10,14 @@ pub fn linear_map(x: f32, original_min: f32, original_max: f32, target_min: f32,
     ((x - original_min) * (target_max - target_min) / (original_max - original_min)) + target_min
 }
 
+pub fn to_radians(degrees: f32) -> f32 {
+    degrees * std::f32::consts::PI / 180.0 /* pi / 180 */
+}
+
+pub fn to_degrees(radians: f32) -> f32 {
+    radians * std::f32::consts::FRAC_1_PI * 180.0 /* 180 / pi */
+}
+
 pub fn raw_matrix(matrix: Matrix4<f32>) -> [[f32; 4]; 4] {
     <[[f32; 4]; 4]>::from(matrix)
 }

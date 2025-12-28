@@ -1,4 +1,5 @@
 mod ui_graph;
+mod ui_transform;
 
 use egui_glium::egui_winit::egui::Ui;
 

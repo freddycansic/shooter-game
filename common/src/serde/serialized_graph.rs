@@ -14,7 +14,6 @@ use crate::{
 struct SerializedSceneNode {
     local_transform: Transform,
     visible: bool,
-    selected: bool,
 
     pub ty: SerializedNodeType,
 }
@@ -30,7 +29,6 @@ impl SerializedSceneNode {
 
         Self {
             local_transform: scene_node.local_transform.clone(),
-            selected: scene_node.selected,
             visible: scene_node.visible,
             ty: serialized_node_type,
         }
@@ -44,14 +42,7 @@ impl SerializedSceneNode {
             }
         };
 
-        SceneNode {
-            local_transform: self.local_transform,
-            world_transform: Transform::identity(),
-            world_transform_dirty: true,
-            selected: self.selected,
-            visible: self.visible,
-            ty: node_type,
-        }
+        SceneNode::new(node_type, self.local_transform, self.visible)
     }
 }
 
@@ -117,6 +108,10 @@ impl SerializedSceneGraph {
             |_, _| (),
         );
 
-        SceneGraph { graph, root: self.root }
+        SceneGraph {
+            graph,
+            root: self.root,
+            selection: vec![],
+        }
     }
 }

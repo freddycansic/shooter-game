@@ -71,8 +71,7 @@ impl Scene {
             .node_indices()
             .filter_map(|idx| {
                 let node = &self.graph.graph[idx];
-                node.intersect_t(ray, &mut self.resources)
-                    .map(|hit| (idx, hit))
+                node.intersect_t(ray, &mut self.resources).map(|hit| (idx, hit))
             })
             .min_by(|(_, a), (_, b)| a.tmin.partial_cmp(&b.tmin).unwrap())
             .map(|(idx, _)| idx)
@@ -149,7 +148,7 @@ impl Scene {
 
         let group_node = self
             .graph
-            .add_root_node(SceneNode::new(NodeType::Group, Transform::identity()));
+            .add_root_node(SceneNode::new_visible(NodeType::Group, Transform::identity()));
 
         let texture_handle = self
             .resources
@@ -161,7 +160,7 @@ impl Scene {
                 texture_handle,
             };
 
-            let scene_node = SceneNode::new(NodeType::Renderable(renderable), Transform::identity());
+            let scene_node = SceneNode::new_visible(NodeType::Renderable(renderable), Transform::identity());
 
             let node_index = self.graph.add_node(scene_node);
 
@@ -188,7 +187,6 @@ impl Scene {
         renderer: &mut Renderer,
         view: &Matrix4<f32>,
         camera_position: Point3<f32>,
-        _debug: bool,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {

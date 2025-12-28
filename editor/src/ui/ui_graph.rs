@@ -20,18 +20,13 @@ impl Show for SceneGraph {
             }
         });
 
-        // TODO now need to make it so that when i click in the viewer without clicking an object it deselects all
-
         for action in actions {
             match action {
                 Action::SetSelected(nodes) => {
-                    for node in self.graph.node_weights_mut() {
-                        node.selected = false;
-                    }
-
-                    for selected_node in nodes {
-                        self.graph[NodeIndex::new(selected_node as usize)].selected = true;
-                    }
+                    self.selection = nodes
+                        .into_iter()
+                        .map(|index| NodeIndex::new(index as usize))
+                        .collect_vec();
                 }
                 _ => (),
             }

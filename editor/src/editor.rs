@@ -227,7 +227,7 @@ impl Application for Editor {
             texture_handle: uv_test_handle,
         };
 
-        let map_node = SceneNode::new(NodeType::Renderable(map_renderable), Transform::identity());
+        let map_node = SceneNode::new_visible(NodeType::Renderable(map_renderable), Transform::identity());
 
         scene.graph.add_root_node(map_node);
 
@@ -376,10 +376,9 @@ impl Editor {
                 ));
             }
 
-            let indices = self.scene.graph.graph.node_indices().collect_vec();
-
-            for index in indices {
-                self.scene.graph.graph[index].selected = Some(index) == intersection;
+            self.scene.graph.selection = match intersection {
+                Some(node) => vec![node],
+                None => vec![],
             }
         }
 
@@ -423,7 +422,6 @@ impl Editor {
                 &mut self.renderer,
                 &self.camera.view(),
                 self.camera.position(),
-                self.state.gui.render_lights,
                 display,
                 &mut target,
             );
@@ -554,18 +552,30 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                ui.label("Debug");
+                ui.collapsing("Properties", |ui| {
+                    if self.scene.graph.selection.len() == 1 {
+                        let selected_node_index = self.scene.graph.selection[0];
+                        let selected_node = &mut self.scene.graph.graph[selected_node_index];
 
-                ui.add(
-                    egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len() - 1).integer(),
-                );
+                        selected_node.local_transform.show(ui);
+                    }
+                });
 
-                ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
+                ui.collapsing("Debug", |ui| {
+                    ui.add(
+                        egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len() - 1)
+                            .integer(),
+                    );
 
-                ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
-                if ui.button("Clear lines").clicked() {
-                    self.lines.clear();
-                }
+                    ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
+
+                    ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
+                    if ui.button("Clear lines").clicked() {
+                        self.lines.clear();
+                    }
+                });
+
+                ui.separator();
 
                 ui.collapsing("Background", |ui| {
                     ui.horizontal(|ui| {

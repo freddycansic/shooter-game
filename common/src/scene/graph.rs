@@ -1,11 +1,10 @@
-use std::hash::{Hash, Hasher};
-
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
 use petgraph::{
     Direction,
     graph::{EdgeIndex, NodeIndex},
 };
+use std::hash::{Hash, Hasher};
 
 use crate::collision::collidable::{Hit, Intersectable};
 use crate::maths::Ray;
@@ -16,29 +15,31 @@ use crate::{
     resources::{GeometryHandle, TextureHandle},
 };
 
-pub struct SceneNode {
-    pub local_transform: Transform,
-    pub world_transform: Transform,
-    pub world_transform_dirty: bool,
-    pub visible: bool,
-    pub selected: bool,
-
-    pub ty: NodeType,
-}
-
 pub enum NodeType {
     Renderable(Renderable),
     Group,
 }
 
+pub struct SceneNode {
+    pub local_transform: Transform,
+    world_transform: Transform,
+    pub world_transform_dirty: bool,
+    pub visible: bool,
+
+    pub ty: NodeType,
+}
+
 impl SceneNode {
-    pub fn new(ty: NodeType, local_transform: Transform) -> Self {
+    pub fn new_visible(ty: NodeType, local_transform: Transform) -> Self {
+        Self::new(ty, local_transform, true)
+    }
+
+    pub fn new(ty: NodeType, local_transform: Transform, visible: bool) -> Self {
         Self {
             local_transform,
             world_transform: Transform::identity(),
             world_transform_dirty: true,
-            visible: true,
-            selected: false,
+            visible,
             ty,
         }
     }
@@ -64,13 +65,21 @@ impl SceneNode {
         }
     }
 
+    pub fn world_transform(&self) -> &Transform {
+        #[cfg(debug_assertions)]
+        if self.world_transform_dirty {
+            log::warn!("Obtaining dirty world transform.")
+        }
+
+        &self.world_transform
+    }
+
     fn create_root() -> Self {
         Self {
             local_transform: Transform::identity(),
             world_transform: Transform::identity(),
             world_transform_dirty: false,
             visible: false,
-            selected: false,
             ty: NodeType::Group,
         }
     }
@@ -111,6 +120,7 @@ pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
 pub struct SceneGraph {
     pub graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
     pub root: NodeIndex,
+    pub selection: Vec<NodeIndex>,
 }
 
 impl SceneGraph {
@@ -118,7 +128,11 @@ impl SceneGraph {
         let mut graph = petgraph::stable_graph::StableDiGraph::<SceneNode, ()>::new();
         let root = graph.add_node(SceneNode::create_root());
 
-        Self { graph, root }
+        Self {
+            graph,
+            root,
+            selection: vec![],
+        }
     }
 
     pub fn add_edge(&mut self, a: NodeIndex, b: NodeIndex) -> EdgeIndex {
@@ -142,16 +156,20 @@ impl SceneGraph {
 
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
-        let visible_nodes = self.graph.node_weights().filter(|node| node.visible);
+        let visible_nodes = self
+            .graph
+            .node_weights()
+            .zip(self.graph.node_indices())
+            .filter(|(node, _)| node.visible);
 
-        for (_i, scene_node) in visible_nodes.enumerate() {
+        for (scene_node, index) in visible_nodes {
             // log::info!("Batching node {}", i);
             match &scene_node.ty {
                 NodeType::Renderable(renderable) => {
                     let node_key = GeometryBatchKey {
                         geometry_handle: renderable.geometry_handle,
                         texture_handle: renderable.texture_handle,
-                        selected: scene_node.selected,
+                        selected: self.selection.contains(&index),
                     };
 
                     let batch = batches.entry(node_key).or_insert(vec![]);
