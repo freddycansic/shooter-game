@@ -20,3 +20,5 @@ jobs:
         run: rustup component add rustc-codegen-cranelift-preview --toolchain nightly
       - name: Build
         run: cargo build
+      - name: Test
+        run: cargo test
