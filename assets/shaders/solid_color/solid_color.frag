@@ -9,5 +9,5 @@ in VS_OUT {
 uniform float opacity;
 
 void main() {
-    out_color = vec4(vs_in.color, opacity);
+    out_color = vec4(vs_in.color * opacity, opacity);
 }

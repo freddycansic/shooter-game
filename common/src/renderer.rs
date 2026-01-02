@@ -10,10 +10,7 @@ use glium::index::{IndicesSource, NoIndices, PrimitiveType};
 use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
-use glium::{
-    Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex, VertexBuffer, implement_vertex,
-    uniform,
-};
+use glium::{Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex, VertexBuffer, implement_vertex, uniform, BlendingFunction, LinearBlendingFactor};
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
 
@@ -387,6 +384,8 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
+        assert!(opacity > 0.0 && opacity <= 1.0);
+
         if cuboids.is_empty() {
             return;
         }
@@ -413,6 +412,18 @@ impl Renderer {
 
         let vp = maths::raw_matrix(self.perspective_projection * view);
 
+        let premultiplied_alpha = Blend {
+            color: BlendingFunction::Addition {
+                source: LinearBlendingFactor::One,
+                destination: LinearBlendingFactor::OneMinusSourceAlpha,
+            },
+            alpha: BlendingFunction::Addition {
+                source: LinearBlendingFactor::One,
+                destination: LinearBlendingFactor::OneMinusSourceAlpha,
+            },
+            constant_value: (0.0, 0.0, 0.0, 0.0),
+        };
+
         target
             .draw(
                 (
@@ -436,7 +447,7 @@ impl Renderer {
                         write: false,
                         ..Default::default()
                     },
-                    blend: Blend::alpha_blending(),
+                    blend: premultiplied_alpha,
                     viewport: self.get_glium_viewport(),
                     ..DrawParameters::default()
                 },
@@ -466,7 +477,7 @@ impl Renderer {
                         write: false,
                         ..Default::default()
                     },
-                    blend: Blend::alpha_blending(),
+                    blend: premultiplied_alpha,
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
                     viewport: self.get_glium_viewport(),
