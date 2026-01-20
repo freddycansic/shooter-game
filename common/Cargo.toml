@@ -36,8 +36,6 @@ winit = "0.30.5"
 serde = { version = "1.0.200", features = ["derive", "rc"] }
 serde_json = "1.0.148"
 rfd = "0.17.2"
-memoize = "0.5.1"
-uuid = { version = "1.8.0", features = ["v4", "fast-rng", "serde"] }
 petgraph = { version = "0.8.1", default-features = false, features = [
     "serde-1",
     "stable_graph",
