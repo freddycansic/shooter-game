@@ -8,6 +8,12 @@ pub struct Capsule {
     pub radius: f32,
 }
 
+impl Capsule {
+    pub fn new(p1: Vector3<f32>, p2: Vector3<f32>, radius: f32) -> Self {
+        Self { p1, p2, radius }
+    }
+}
+
 impl Intersectable for Capsule {
     fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
         let line_segment = self.p2 - self.p1;
