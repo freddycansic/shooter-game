@@ -361,7 +361,7 @@ impl Editor {
         if self.input.mouse_button_just_released(MouseButton::Left) && self.renderer.is_mouse_in_viewport(&self.input) {
             let ray = self.mouse_ray();
 
-            let intersection = self.scene.intersect_t(&ray);
+            let intersection = self.scene.intersect_ray(&ray);
 
             if self.state.gui.render_debug_mouse_rays {
                 self.lines.push(Line::new(

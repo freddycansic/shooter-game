@@ -1,7 +1,7 @@
 use nalgebra::Point3;
 
 use crate::{
-    collision::collidable::{Hit, Intersectable},
+    collision::collidable::{RayHit, Intersectable},
     maths::Ray,
 };
 
@@ -29,7 +29,7 @@ impl Aabb {
 }
 
 impl Intersectable for Aabb {
-    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
         let mut tmin = f32::NEG_INFINITY; // earliest possible intersection
         let mut tmax = f32::INFINITY; // latest possible intersection
 
@@ -46,7 +46,7 @@ impl Intersectable for Aabb {
         }
 
         if tmax >= tmin && tmax > 0.0 {
-            Some(Hit {
+            Some(RayHit {
                 tmin: tmin.max(0.0),
                 tmax,
             })
@@ -63,7 +63,7 @@ mod tests {
     use nalgebra::Vector3;
 
     #[test]
-    fn intersect_t_aabb_corner_hit() {
+    fn intersect_ray_aabb_corner_hit() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0).normalize());
 
         let aabb = Aabb {
@@ -71,12 +71,12 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.intersect_t(&ray).unwrap();
+        let result = aabb.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 3_f32.sqrt());
     }
 
     #[test]
-    fn intersect_t_aabb_face_hit() {
+    fn intersect_ray_aabb_face_hit() {
         let ray = Ray::new(Point3::new(0.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -84,12 +84,12 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.intersect_t(&ray).unwrap();
+        let result = aabb.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 
     #[test]
-    fn intersect_t_aabb_edge_hit() {
+    fn intersect_ray_aabb_edge_hit() {
         let ray = Ray::new(Point3::new(0.0, 1.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -97,12 +97,12 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.intersect_t(&ray).unwrap();
+        let result = aabb.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 
     #[test]
-    fn intersect_t_ray_inside_aabb() {
+    fn intersect_ray_ray_inside_aabb() {
         let ray = Ray::new(Point3::new(1.5, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -110,14 +110,14 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.intersect_t(&ray).unwrap();
+        let result = aabb.intersect_ray(&ray).unwrap();
 
         assert_relative_eq!(result.tmin, 0.0);
         assert_relative_eq!(result.tmax, 0.5);
     }
 
     #[test]
-    fn intersect_t_aabb_miss_parallel() {
+    fn intersect_ray_aabb_miss_parallel() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let aabb = Aabb {
@@ -125,11 +125,11 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        assert!(aabb.intersect_t(&ray).is_none());
+        assert!(aabb.intersect_ray(&ray).is_none());
     }
 
     #[test]
-    fn intersect_t_aabb_behind_ray() {
+    fn intersect_ray_aabb_behind_ray() {
         let ray = Ray::new(Point3::new(3.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -137,11 +137,11 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        assert!(aabb.intersect_t(&ray).is_none());
+        assert!(aabb.intersect_ray(&ray).is_none());
     }
 
     #[test]
-    fn intersect_t_aabb_grazing_hit() {
+    fn intersect_ray_aabb_grazing_hit() {
         let ray = Ray::new(Point3::new(0.0, 2.0, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
@@ -149,7 +149,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.intersect_t(&ray).unwrap();
+        let result = aabb.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 }

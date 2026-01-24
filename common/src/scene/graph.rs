@@ -6,7 +6,7 @@ use petgraph::{
 };
 use std::hash::{Hash, Hasher};
 
-use crate::collision::collidable::{Hit, Intersectable};
+use crate::collision::collidable::{RayHit, Intersectable};
 use crate::maths::Ray;
 use crate::resources::Resources;
 use crate::{
@@ -44,7 +44,7 @@ impl SceneNode {
         }
     }
 
-    pub fn intersect_t(&self, ray: &Ray, resources: &mut Resources) -> Option<Hit> {
+    pub fn intersect_ray(&self, ray: &Ray, resources: &mut Resources) -> Option<RayHit> {
         match &self.ty {
             NodeType::Renderable(renderable) => {
                 let geometry = resources.get_geometry(renderable.geometry_handle);
@@ -59,7 +59,7 @@ impl SceneNode {
                     Ray::new(local_origin, local_direction)
                 };
 
-                geometry.bvh.intersect_t(&local_ray)
+                geometry.bvh.intersect_ray(&local_ray)
             }
             NodeType::Group => None,
         }

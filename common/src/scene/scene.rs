@@ -65,13 +65,13 @@ impl Scene {
         }
     }
 
-    pub fn intersect_t(&mut self, ray: &Ray) -> Option<NodeIndex> {
+    pub fn intersect_ray(&mut self, ray: &Ray) -> Option<NodeIndex> {
         self.graph
             .graph
             .node_indices()
             .filter_map(|idx| {
                 let node = &self.graph.graph[idx];
-                node.intersect_t(ray, &mut self.resources).map(|hit| (idx, hit))
+                node.intersect_ray(ray, &mut self.resources).map(|hit| (idx, hit))
             })
             .min_by(|(_, a), (_, b)| a.tmin.partial_cmp(&b.tmin).unwrap())
             .map(|(idx, _)| idx)
