@@ -5,7 +5,7 @@ use petgraph::{Direction, Graph, graph::NodeIndex};
 use crate::geometry::Primitive;
 use crate::{
     collision::{
-        collidable::{Hit, Intersectable},
+        collidable::{RayHit, Intersectable},
         colliders::aabb::Aabb,
     },
     colors::Color,
@@ -61,7 +61,7 @@ impl Intersectable for Triangle {
     /// (t, u, v) are barycentric coordinates
     /// they sum to 1, and are weights towards triangle vertices
     /// if any are negative, then the Euclidean point is outside the triangle
-    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
+    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
         let v0v1 = self.0[1] - self.0[0];
         let v0v2 = self.0[2] - self.0[0];
         let pvec = ray.direction().cross(&v0v2);
@@ -97,7 +97,7 @@ impl Intersectable for Triangle {
 
         // Slightly inefficient to return redundant information
         // Can always remove it if this becomes a real problem
-        Some(Hit { tmin: t, tmax: t })
+        Some(RayHit { tmin: t, tmax: t })
     }
 }
 
@@ -294,18 +294,18 @@ impl Bvh {
         triangles
     }
 
-    fn intersect_t_inner(&self, ray: &Ray, node: NodeIndex) -> Option<Hit> {
+    fn intersect_ray_inner(&self, ray: &Ray, node: NodeIndex) -> Option<RayHit> {
         match &self.graph[node] {
-            BvhNode::Aabb(aabb) => aabb.intersect_t(ray).and_then(|_| {
+            BvhNode::Aabb(aabb) => aabb.intersect_ray(ray).and_then(|_| {
                 self.graph
                     .neighbors_directed(node, Direction::Outgoing)
-                    .filter_map(|child| self.intersect_t_inner(ray, child))
+                    .filter_map(|child| self.intersect_ray_inner(ray, child))
                     .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
             }),
-            BvhNode::Leaf { triangles, aabb } => aabb.intersect_t(ray).and_then(|_| {
+            BvhNode::Leaf { triangles, aabb } => aabb.intersect_ray(ray).and_then(|_| {
                 triangles
                     .iter()
-                    .filter_map(|tri| tri.intersect_t(ray))
+                    .filter_map(|tri| tri.intersect_ray(ray))
                     .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
             }),
         }
@@ -313,8 +313,8 @@ impl Bvh {
 }
 
 impl Intersectable for Bvh {
-    fn intersect_t(&self, ray: &Ray) -> Option<Hit> {
-        self.intersect_t_inner(ray, self.root)
+    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
+        self.intersect_ray_inner(ray, self.root)
     }
 }
 
@@ -325,7 +325,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn intersect_t_triangle_perpendicular() {
+    fn intersect_ray_triangle_perpendicular() {
         let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
 
         let triangle = Triangle([
@@ -334,13 +334,13 @@ mod tests {
             Vector3::new(-1.0, -1.0, 1.0),
         ]);
 
-        let result = triangle.intersect_t(&ray).unwrap();
+        let result = triangle.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 1.0);
     }
 
     #[test]
-    fn intersect_t_triangle_corner() {
+    fn intersect_ray_triangle_corner() {
         let ray = Ray::new(Point3::new(1.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
 
         let triangle = Triangle([
@@ -349,13 +349,13 @@ mod tests {
             Vector3::new(-1.0, -1.0, 1.0),
         ]);
 
-        let result = triangle.intersect_t(&ray).unwrap();
+        let result = triangle.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 1.0);
     }
 
     #[test]
-    fn intersect_t_triangle_edge() {
+    fn intersect_ray_triangle_edge() {
         let v0 = Vector3::new(1.0, 0.0, 1.0);
         let v1 = Vector3::new(-1.0, 1.0, 1.0);
         let v2 = Vector3::new(-1.0, -1.0, 1.0);
@@ -370,13 +370,13 @@ mod tests {
         // <--->
         let triangle = Triangle([v0, v1, v2]);
 
-        let result = triangle.intersect_t(&ray).unwrap();
+        let result = triangle.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 1.0);
     }
 
     #[test]
-    fn intersect_t_triangle_diagonal() {
+    fn intersect_ray_triangle_diagonal() {
         let ray = Ray::new(Point3::new(-1.0, -1.0, -1.0), Vector3::new(1.0, 1.0, 1.0).normalize());
 
         let triangle = Triangle([
@@ -385,7 +385,7 @@ mod tests {
             Vector3::new(-1.0, -1.0, 0.0),
         ]);
 
-        let result = triangle.intersect_t(&ray).unwrap();
+        let result = triangle.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 3.0_f32.sqrt());
         assert_relative_eq!(result.tmax, 3.0_f32.sqrt());
     }
