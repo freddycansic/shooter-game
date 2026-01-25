@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::time::Instant;
-
+use clap::Parser;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use nalgebra::{Point2, Vector2};
@@ -16,6 +16,7 @@ use common::input::Input;
 use common::quad::Quad;
 use common::renderer::Renderer;
 use common::scene::Scene;
+use common::serde::SerializedScene;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -44,6 +45,13 @@ impl Default for FrameState {
     }
 }
 
+#[derive(Parser, Debug)]
+#[command(about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    scene: Option<String>
+}
+
 pub struct Game {
     input: Input,
     scene: Scene,
@@ -58,9 +66,20 @@ impl Application for Game {
 
         let inner_size = window.inner_size();
         let renderer = Renderer::new(inner_size.width as f32, inner_size.height as f32, None, display).unwrap();
-        // let mut scene =
-        //     Scene::from_path(&PathBuf::from("assets/game_scenes/map.json"), display).unwrap();
-        let mut scene = Scene::default();
+
+        let args = Args::parse();
+
+        let mut scene = match args.scene {
+            Some(scene) => {
+                let mut path = std::env::temp_dir();
+                path.push(scene);
+
+                let serialized_scene_string = std::fs::read_to_string(path).unwrap();
+
+                serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap().into_scene(display).unwrap()
+            },
+            None => Scene::default()
+        };
 
         // scene.camera = scene.starting_camera.clone();
 
