@@ -17,7 +17,7 @@ use log::info;
 use nalgebra::{Point3, Vector3, Vector4};
 use palette::Srgb;
 use rfd::FileDialog;
-
+use uuid::Uuid;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -517,12 +517,22 @@ impl Editor {
 
                         ui.menu_button("Run", |ui| {
                             if ui.add(Button::new("Run game")).clicked() {
+                                let uuid = Uuid::new_v4().to_string();
+                                let mut temp_path = std::env::temp_dir();
+                                temp_path.push(uuid.clone());
+
+                                let serialized_scene = SerializedScene::from_scene(&self.scene);
+                                let serialized_string = serde_json::to_string(&serialized_scene).unwrap();
+
+                                std::fs::write(&temp_path, serialized_string).unwrap();
+
                                 std::process::Command::new("cargo")
                                     .arg("run")
                                     .arg("--package")
-                                    .arg("shooter-game")
-                                    .arg("--bin")
                                     .arg("game")
+                                    .arg("--")
+                                    .arg("--scene")
+                                    .arg(uuid)
                                     .spawn()
                                     .unwrap()
                                     .wait()

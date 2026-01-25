@@ -28,3 +28,4 @@ petgraph = { version = "0.8.1", default-features = false, features = [
     "stable_graph",
 ] }
 itertools = "0.14.0"
+uuid = { version = "1.20.0", features = ["v4"] }
