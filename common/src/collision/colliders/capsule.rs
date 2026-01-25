@@ -1,7 +1,7 @@
-use nalgebra::Vector3;
-use crate::collision::collidable::{RayHit, Intersectable};
-use crate::collision::colliders::{capsule, cylinder};
+use crate::collision::collidable::{Intersectable, RayHit};
+use crate::collision::colliders::cylinder;
 use crate::maths::Ray;
+use nalgebra::Vector3;
 
 pub struct Capsule {
     pub p1: Vector3<f32>,
@@ -76,9 +76,9 @@ pub fn ray_sphere(ray: &Ray, center: &Vector3<f32>, radius: f32) -> Option<RayHi
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use approx::assert_relative_eq;
     use nalgebra::Point3;
-    use super::*;
 
     #[test]
     fn intersect_ray_zero_length_origin_capsule_hit() {
@@ -128,7 +128,7 @@ mod tests {
     fn intersect_ray_axis_aligned_capsule_hit_center() {
         let capsule = Capsule {
             p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0,  1.0, 0.0),
+            p2: Vector3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
@@ -143,7 +143,7 @@ mod tests {
     fn intersect_ray_axis_aligned_capsule_miss_parallel() {
         let capsule = Capsule {
             p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0,  1.0, 0.0),
+            p2: Vector3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
@@ -156,7 +156,7 @@ mod tests {
     fn intersect_ray_axis_aligned_capsule_graze_cylinder() {
         let capsule = Capsule {
             p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0,  1.0, 0.0),
+            p2: Vector3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
@@ -213,7 +213,7 @@ mod tests {
     fn intersect_ray_inside_capsule() {
         let capsule = Capsule {
             p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0,  1.0, 0.0),
+            p2: Vector3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
@@ -223,5 +223,4 @@ mod tests {
         assert!(result.tmin <= 0.0);
         assert!(result.tmax > 0.0);
     }
-
 }

@@ -2,17 +2,17 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
+use crate::collision::colliders::triangle::Triangle;
 use crate::geometry::Primitive;
 use crate::{
     collision::{
-        collidable::{RayHit, Intersectable},
+        collidable::{Intersectable, RayHit},
         colliders::aabb::Aabb,
     },
     colors::Color,
     debug::DebugCuboid,
     maths::Ray,
 };
-use crate::collision::colliders::triangle::Triangle;
 
 #[derive(Debug, Clone)]
 enum Axis {

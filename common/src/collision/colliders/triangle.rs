@@ -1,8 +1,8 @@
-use nalgebra::{Point3, Vector3};
 use crate::collision::collidable::{Intersectable, RayHit, SweepHit};
 use crate::collision::colliders::cylinder;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Ray;
+use nalgebra::Vector3;
 
 #[derive(Debug)]
 pub struct Triangle(pub [Vector3<f32>; 3]);
@@ -13,13 +13,18 @@ impl Triangle {
     }
 
     pub fn contains_point(&self, plane_intersection: &Vector3<f32>, plane_normal: &Vector3<f32>) -> bool {
-        let e0 = (self.0[1] - self.0[0]).cross(&(plane_intersection - self.0[0])).dot(&plane_normal);
-        let e1 = (self.0[2] - self.0[1]).cross(&(plane_intersection - self.0[1])).dot(&plane_normal);
-        let e2 = (self.0[0] - self.0[2]).cross(&(plane_intersection - self.0[2])).dot(&plane_normal);
+        let e0 = (self.0[1] - self.0[0])
+            .cross(&(plane_intersection - self.0[0]))
+            .dot(&plane_normal);
+        let e1 = (self.0[2] - self.0[1])
+            .cross(&(plane_intersection - self.0[1]))
+            .dot(&plane_normal);
+        let e2 = (self.0[0] - self.0[2])
+            .cross(&(plane_intersection - self.0[2]))
+            .dot(&plane_normal);
 
         // Accept clockwise or counterclockwise
-        (e0 >= 0.0 && e1 >= 0.0 && e2 >= 0.0) ||
-            (e0 <= 0.0 && e1 <= 0.0 && e2 <= 0.0)
+        (e0 >= 0.0 && e1 >= 0.0 && e2 >= 0.0) || (e0 <= 0.0 && e1 <= 0.0 && e2 <= 0.0)
     }
 
     fn sweep_intersect_sphere_on_face(&self, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> {
@@ -54,16 +59,15 @@ impl Triangle {
 
         let p = sphere.origin + velocity * t - n * sphere.radius;
 
-        self.contains_point(&p, &n).then(||
-            SweepHit {
-                t,
-                normal: n,
-                point: p,
-            }
-        )
+        self.contains_point(&p, &n).then(|| SweepHit { t, normal: n, point: p })
     }
 
-    fn sweep_intersect_sphere_on_edge(p1: &Vector3<f32>, p2: &Vector3<f32>, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> {
+    fn sweep_intersect_sphere_on_edge(
+        p1: &Vector3<f32>,
+        p2: &Vector3<f32>,
+        sphere: &Sphere,
+        velocity: &Vector3<f32>,
+    ) -> Option<SweepHit> {
         let velocity_len = velocity.norm();
         if velocity_len == 0.0 {
             return None;
@@ -99,7 +103,11 @@ impl Triangle {
         })
     }
 
-    fn sweep_intersect_sphere_on_vertex(vertex: &Vector3<f32>, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> {
+    fn sweep_intersect_sphere_on_vertex(
+        vertex: &Vector3<f32>,
+        sphere: &Sphere,
+        velocity: &Vector3<f32>,
+    ) -> Option<SweepHit> {
         let m = sphere.origin - vertex;
         let a = velocity.dot(velocity);
         let b = 2.0 * m.dot(velocity);
@@ -114,7 +122,10 @@ impl Triangle {
         let t1 = (-b - sqrt_disc) / (2.0 * a);
         let t2 = (-b + sqrt_disc) / (2.0 * a);
 
-        let t = [t1, t2].into_iter().filter(|&t| t >= 0.0 && t <= 1.0).min_by(|a, b| a.partial_cmp(b).unwrap())?;
+        let t = [t1, t2]
+            .into_iter()
+            .filter(|&t| t >= 0.0 && t <= 1.0)
+            .min_by(|a, b| a.partial_cmp(b).unwrap())?;
 
         let sphere_center_at_collision = sphere.origin + velocity * t;
 
@@ -138,11 +149,17 @@ impl Intersectable for Triangle {
             closest_hit = Some(hit);
         }
 
-        for (i, j) in [(0,1), (1,2), (2,0)] {
+        for (i, j) in [(0, 1), (1, 2), (2, 0)] {
             if let Some(hit) = Self::sweep_intersect_sphere_on_edge(&self.0[i], &self.0[j], sphere, velocity) {
                 closest_hit = match closest_hit {
                     None => Some(hit),
-                    Some(closest) => if hit.t < closest.t { Some(hit) } else { Some(closest) }
+                    Some(closest) => {
+                        if hit.t < closest.t {
+                            Some(hit)
+                        } else {
+                            Some(closest)
+                        }
+                    }
                 }
             }
         }
@@ -151,7 +168,13 @@ impl Intersectable for Triangle {
             if let Some(hit) = Self::sweep_intersect_sphere_on_vertex(&self.0[i], sphere, velocity) {
                 closest_hit = match closest_hit {
                     None => Some(hit),
-                    Some(closest) => if hit.t < closest.t { Some(hit) } else { Some(closest) }
+                    Some(closest) => {
+                        if hit.t < closest.t {
+                            Some(hit)
+                        } else {
+                            Some(closest)
+                        }
+                    }
                 }
             }
         }
@@ -183,10 +206,7 @@ impl Intersectable for Triangle {
         // Plane intersection
         let p = ray.origin + ray.direction() * t;
 
-        self.contains_point(&p, &n).then(|| RayHit {
-            tmin: t,
-            tmax: t
-        })
+        self.contains_point(&p, &n).then(|| RayHit { tmin: t, tmax: t })
     }
 }
 
@@ -268,9 +288,15 @@ mod tests {
     fn sweep_intersect_sphere_perpendicular_face_direct() {
         let sphere = Sphere::new(Vector3::new(0.0, 3.0, 0.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, 0.0, 1.0), Vector3::new(-1.0, 0.0, -1.0), Vector3::new(1.0, 0.0, -1.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(-1.0, 0.0, -1.0),
+            Vector3::new(1.0, 0.0, -1.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(0.0, -2.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(0.0, -2.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0));
         assert_relative_eq!(result.t, 1.0);
         assert_relative_eq!(result.normal, Vector3::new(0.0, 1.0, 0.0));
@@ -280,9 +306,15 @@ mod tests {
     fn sweep_intersect_sphere_perpendicular_face_fast() {
         let sphere = Sphere::new(Vector3::new(0.0, 3.0, 0.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, 0.0, 1.0), Vector3::new(-1.0, 0.0, -1.0), Vector3::new(1.0, 0.0, -1.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(-1.0, 0.0, -1.0),
+            Vector3::new(1.0, 0.0, -1.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(0.0, -10.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(0.0, -10.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0));
         assert_relative_eq!(result.t, 0.2);
         assert_relative_eq!(result.normal, Vector3::new(0.0, 1.0, 0.0));
@@ -292,9 +324,15 @@ mod tests {
     fn sweep_intersect_sphere_angled_face_direct() {
         let sphere = Sphere::new(Vector3::new(2.0, 2.0, 0.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, 0.0, 2.0), Vector3::new(-2.0, 0.0, -2.0), Vector3::new(2.0, 0.0, -2.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, 0.0, 2.0),
+            Vector3::new(-2.0, 0.0, -2.0),
+            Vector3::new(2.0, 0.0, -2.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(-1.0, -1.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(-1.0, -1.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(1.0, 0.0, 0.0), epsilon = EPSILON);
         assert_relative_eq!(result.t, 1.0, epsilon = EPSILON);
         assert_relative_eq!(result.normal, Vector3::new(0.0, 1.0, 0.0), epsilon = EPSILON);
@@ -304,9 +342,15 @@ mod tests {
     fn sweep_intersect_sphere_angled_face_fast() {
         let sphere = Sphere::new(Vector3::new(2.0, 2.0, 0.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, 0.0, 2.0), Vector3::new(-2.0, 0.0, -2.0), Vector3::new(2.0, 0.0, -2.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, 0.0, 2.0),
+            Vector3::new(-2.0, 0.0, -2.0),
+            Vector3::new(2.0, 0.0, -2.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(-2.0, -2.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(-2.0, -2.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(1.0, 0.0, 0.0), epsilon = EPSILON);
         assert_relative_eq!(result.t, 0.5);
         assert_relative_eq!(result.normal, Vector3::new(0.0, 1.0, 0.0), epsilon = EPSILON);
@@ -316,9 +360,15 @@ mod tests {
     fn sweep_intersect_sphere_perpendicular_edge_direct() {
         let sphere = Sphere::new(Vector3::new(-2.0, 0.0, 0.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0), Vector3::new(2.0, 0.0, 0.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, -1.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(2.0, 0.0, 0.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(1.0, 0.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(1.0, 0.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0));
         assert_relative_eq!(result.t, 1.0);
         assert_relative_eq!(result.normal, Vector3::new(-1.0, 0.0, 0.0));
@@ -328,9 +378,18 @@ mod tests {
     fn sweep_intersect_sphere_angled_edge_direct() {
         let sphere = Sphere::new(Vector3::new(-2.0, 0.0, -2.0), 1.0);
 
-        let triangle = Triangle([Vector3::new(0.0, -2.0, 0.0), Vector3::new(0.0, 2.0, 0.0), Vector3::new(2.0, 0.0, 0.0)]);
+        let triangle = Triangle([
+            Vector3::new(0.0, -2.0, 0.0),
+            Vector3::new(0.0, 2.0, 0.0),
+            Vector3::new(2.0, 0.0, 0.0),
+        ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(2.0 - 2.0_f32.sqrt() / 2.0, 0.0, 2.0 - 2.0_f32.sqrt() / 2.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(
+                &sphere,
+                &Vector3::new(2.0 - 2.0_f32.sqrt() / 2.0, 0.0, 2.0 - 2.0_f32.sqrt() / 2.0),
+            )
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0));
         assert_relative_eq!(result.t, 1.0);
         assert_relative_eq!(result.normal, Vector3::new(-0.5_f32.sqrt(), 0.0, -0.5_f32.sqrt()));
@@ -346,7 +405,9 @@ mod tests {
             Vector3::new(0.0, 1.0, 0.0),
         ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(1.0, 0.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(&sphere, &Vector3::new(1.0, 0.0, 0.0))
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0), epsilon = EPSILON);
         assert_relative_eq!(result.t, 1.0);
         assert_relative_eq!(result.normal, Vector3::new(-1.0, 0.0, 0.0), epsilon = EPSILON);
@@ -362,10 +423,19 @@ mod tests {
             Vector3::new(0.0, 1.0, 0.0),
         ]);
 
-        let result = triangle.sweep_intersect_sphere(&sphere, &Vector3::new(2.0 - 2.0_f32.sqrt() / 2.0, 2.0 - 2.0_f32.sqrt() / 2.0, 0.0)).unwrap();
+        let result = triangle
+            .sweep_intersect_sphere(
+                &sphere,
+                &Vector3::new(2.0 - 2.0_f32.sqrt() / 2.0, 2.0 - 2.0_f32.sqrt() / 2.0, 0.0),
+            )
+            .unwrap();
         assert_relative_eq!(result.point, Vector3::new(0.0, 0.0, 0.0), epsilon = EPSILON);
         assert_relative_eq!(result.t, 1.0, epsilon = EPSILON);
-        assert_relative_eq!(result.normal, Vector3::new(-0.5_f32.sqrt(), -0.5_f32.sqrt(), 0.0), epsilon = EPSILON);
+        assert_relative_eq!(
+            result.normal,
+            Vector3::new(-0.5_f32.sqrt(), -0.5_f32.sqrt(), 0.0),
+            epsilon = EPSILON
+        );
     }
 
     #[test]

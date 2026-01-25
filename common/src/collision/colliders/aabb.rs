@@ -1,12 +1,11 @@
 use nalgebra::{Point3, Vector3};
 
-use crate::{
-    collision::collidable::{RayHit, Intersectable},
-    maths::Ray,
-};
-use crate::collision::collidable::SweepHit;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
+use crate::{
+    collision::collidable::{Intersectable, RayHit},
+    maths::Ray,
+};
 
 #[derive(Debug)]
 pub struct Aabb {
@@ -36,7 +35,7 @@ impl Aabb {
         let pb_t = Vector3::new(
             p_t.x.clamp(self.min.x, self.max.x),
             p_t.y.clamp(self.min.y, self.max.y),
-            p_t.z.clamp(self.min.z, self.max.z)
+            p_t.z.clamp(self.min.z, self.max.z),
         );
 
         (pb_t - p_t).magnitude_squared() <= capsule.radius * capsule.radius
@@ -48,7 +47,7 @@ impl Intersectable for Aabb {
         let clamped = Vector3::new(
             sphere.origin.x.clamp(self.min.x, self.max.x),
             sphere.origin.y.clamp(self.min.y, self.max.y),
-            sphere.origin.z.clamp(self.min.z, self.max.z)
+            sphere.origin.z.clamp(self.min.z, self.max.z),
         );
 
         (clamped - sphere.origin).magnitude_squared() <= sphere.radius * sphere.radius

@@ -10,7 +10,10 @@ use glium::index::{IndicesSource, NoIndices, PrimitiveType};
 use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
-use glium::{Blend, Depth, DepthTest, Display, DrawParameters, Frame, Program, Surface, Vertex, VertexBuffer, implement_vertex, uniform, BlendingFunction, LinearBlendingFactor};
+use glium::{
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
+};
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
 
