@@ -4,7 +4,9 @@ use crate::{
     collision::collidable::{RayHit, Intersectable},
     maths::Ray,
 };
+use crate::collision::collidable::SweepHit;
 use crate::collision::colliders::capsule::Capsule;
+use crate::collision::colliders::sphere::Sphere;
 
 #[derive(Debug)]
 pub struct Aabb {
@@ -42,6 +44,22 @@ impl Aabb {
 }
 
 impl Intersectable for Aabb {
+    fn intersects_sphere(&self, sphere: &Sphere) -> bool {
+        let clamped = Vector3::new(
+            sphere.origin.x.clamp(self.min.x, self.max.x),
+            sphere.origin.y.clamp(self.min.y, self.max.y),
+            sphere.origin.z.clamp(self.min.z, self.max.z)
+        );
+
+        (clamped - sphere.origin).magnitude_squared() <= sphere.radius * sphere.radius
+    }
+
+    fn sweep_intersects_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>) -> bool {
+        let swept_sphere = Capsule::new(sphere.origin, sphere.origin + velocity, sphere.radius);
+
+        self.intersects_capsule(&swept_sphere)
+    }
+
     fn intersects_capsule(&self, capsule: &Capsule) -> bool {
         let ba = capsule.p2 - capsule.p1;
 
@@ -110,7 +128,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_corner_hit() {
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0).normalize());
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0).normalize());
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -123,7 +141,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_face_hit() {
-        let ray = Ray::new(Point3::new(0.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -136,7 +154,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_edge_hit() {
-        let ray = Ray::new(Point3::new(0.0, 1.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.0, 1.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -149,7 +167,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_ray_inside_aabb() {
-        let ray = Ray::new(Point3::new(1.5, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(1.5, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -164,7 +182,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_miss_parallel() {
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -176,7 +194,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_behind_ray() {
-        let ray = Ray::new(Point3::new(3.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(3.0, 1.5, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),
@@ -188,7 +206,7 @@ mod tests {
 
     #[test]
     fn intersect_ray_aabb_grazing_hit() {
-        let ray = Ray::new(Point3::new(0.0, 2.0, 1.5), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.0, 2.0, 1.5), Vector3::new(1.0, 0.0, 0.0));
 
         let aabb = Aabb {
             min: Point3::new(1.0, 1.0, 1.0),

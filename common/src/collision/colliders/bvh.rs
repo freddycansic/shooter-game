@@ -12,6 +12,7 @@ use crate::{
     debug::DebugCuboid,
     maths::Ray,
 };
+use crate::collision::colliders::triangle::Triangle;
 
 #[derive(Debug, Clone)]
 enum Axis {
@@ -51,53 +52,6 @@ impl BvhPass {
                 position: self.centroid.z,
             }
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct Triangle([Vector3<f32>; 3]);
-
-impl Intersectable for Triangle {
-    /// (t, u, v) are barycentric coordinates
-    /// they sum to 1, and are weights towards triangle vertices
-    /// if any are negative, then the Euclidean point is outside the triangle
-    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
-        let v0v1 = self.0[1] - self.0[0];
-        let v0v2 = self.0[2] - self.0[0];
-        let pvec = ray.direction().cross(&v0v2);
-
-        let det = v0v1.dot(&pvec);
-
-        // If the determinant is negative, the triangle is back-facing.
-        // Just abs to ignore this
-        // If the determinant is close to 0, the ray misses the triangle.
-        if det.abs() < f32::EPSILON {
-            return None;
-        }
-
-        let inv_det = 1.0 / det;
-
-        let tvec = (ray.origin - self.0[0]).to_homogeneous().xyz();
-        let u = tvec.dot(&pvec) * inv_det;
-        if u < 0.0 || u > 1.0 {
-            return None;
-        }
-
-        let qvec = tvec.cross(&v0v1);
-        let v = ray.direction().dot(&qvec) * inv_det;
-        if v < 0.0 || u + v > 1.0 {
-            return None;
-        }
-
-        let t = v0v2.dot(&qvec) * inv_det;
-
-        debug_assert_ne!(t, f32::NAN);
-        debug_assert_ne!(t, f32::NEG_INFINITY);
-        debug_assert_ne!(t, f32::INFINITY);
-
-        // Slightly inefficient to return redundant information
-        // Can always remove it if this becomes a real problem
-        Some(RayHit { tmin: t, tmax: t })
     }
 }
 
@@ -315,78 +269,5 @@ impl Bvh {
 impl Intersectable for Bvh {
     fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
         self.intersect_ray_inner(ray, self.root)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use approx::assert_relative_eq;
-
-    use super::*;
-
-    #[test]
-    fn intersect_ray_triangle_perpendicular() {
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
-
-        let triangle = Triangle([
-            Vector3::new(1.0, 0.0, 1.0),
-            Vector3::new(-1.0, 1.0, 1.0),
-            Vector3::new(-1.0, -1.0, 1.0),
-        ]);
-
-        let result = triangle.intersect_ray(&ray).unwrap();
-        assert_relative_eq!(result.tmin, 1.0);
-        assert_relative_eq!(result.tmax, 1.0);
-    }
-
-    #[test]
-    fn intersect_ray_triangle_corner() {
-        let ray = Ray::new(Point3::new(1.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 1.0));
-
-        let triangle = Triangle([
-            Vector3::new(1.0, 0.0, 1.0),
-            Vector3::new(-1.0, 1.0, 1.0),
-            Vector3::new(-1.0, -1.0, 1.0),
-        ]);
-
-        let result = triangle.intersect_ray(&ray).unwrap();
-        assert_relative_eq!(result.tmin, 1.0);
-        assert_relative_eq!(result.tmax, 1.0);
-    }
-
-    #[test]
-    fn intersect_ray_triangle_edge() {
-        let v0 = Vector3::new(1.0, 0.0, 1.0);
-        let v1 = Vector3::new(-1.0, 1.0, 1.0);
-        let v2 = Vector3::new(-1.0, -1.0, 1.0);
-
-        let v0v1 = v1 - v0;
-        let midpoint = v0 + v0v1 / 2.0 - Vector3::new(0.0, 0.0, 1.0);
-
-        let ray = Ray::new(midpoint.into(), Vector3::new(0.0, 0.0, 1.0));
-
-        //   ^
-        //  <->
-        // <--->
-        let triangle = Triangle([v0, v1, v2]);
-
-        let result = triangle.intersect_ray(&ray).unwrap();
-        assert_relative_eq!(result.tmin, 1.0);
-        assert_relative_eq!(result.tmax, 1.0);
-    }
-
-    #[test]
-    fn intersect_ray_triangle_diagonal() {
-        let ray = Ray::new(Point3::new(-1.0, -1.0, -1.0), Vector3::new(1.0, 1.0, 1.0).normalize());
-
-        let triangle = Triangle([
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(-1.0, 1.0, 0.0),
-            Vector3::new(-1.0, -1.0, 0.0),
-        ]);
-
-        let result = triangle.intersect_ray(&ray).unwrap();
-        assert_relative_eq!(result.tmin, 3.0_f32.sqrt());
-        assert_relative_eq!(result.tmax, 3.0_f32.sqrt());
     }
 }
