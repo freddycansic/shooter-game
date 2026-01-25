@@ -15,7 +15,6 @@ use crate::{
 #[derive(Serialize, Deserialize)]
 pub struct SerializedScene {
     pub title: String,
-    pub camera: FpsCamera,
     pub graph: SerializedSceneGraph,
     pub background: SerializedBackground,
     pub lights: Vec<Light>,
@@ -27,7 +26,6 @@ impl SerializedScene {
     pub fn from_scene(value: &Scene) -> Self {
         Self {
             title: value.title.clone(),
-            camera: value.camera.clone(),
             quads: value.quads.serialize_with(&value.resources),
             graph: SerializedSceneGraph::from_scene_graph(&value.graph, &value.resources),
             background: SerializedBackground::from_background(&value.background, &value.resources),
@@ -42,7 +40,6 @@ impl SerializedScene {
 
         Ok(Scene {
             title: self.title,
-            camera: self.camera,
             quads: QuadTree::deserialize_with(self.quads, display, &mut resources),
             graph: self.graph.into_scene_graph(display, &mut resources),
             background: self.background.into_background(display, &mut resources),

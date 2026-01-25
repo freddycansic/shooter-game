@@ -10,7 +10,7 @@ use winit::keyboard::KeyCode;
 use winit::window::Window;
 
 use common::application::Application;
-use common::camera::Camera;
+use common::camera::{Camera, OrbitalCamera};
 use common::debug;
 use common::input::Input;
 use common::quad::Quad;
@@ -57,6 +57,7 @@ pub struct Game {
     scene: Scene,
     renderer: Renderer,
     state: FrameState,
+    camera: OrbitalCamera,
 }
 
 impl Application for Game {
@@ -103,12 +104,14 @@ impl Application for Game {
 
         let state = FrameState::default();
         let input = Input::new();
+        let camera = OrbitalCamera::default();
 
         Self {
             renderer,
             scene,
             state,
             input,
+            camera,
         }
     }
 
@@ -160,7 +163,7 @@ impl Game {
             self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
 
         if self.state.is_moving_camera {
-            self.scene.camera.update(&self.input, self.state.deltatime as f32);
+            self.camera.update(&self.input, self.state.deltatime as f32);
 
             self.capture_cursor(window);
             window.set_cursor_visible(false);
@@ -178,8 +181,8 @@ impl Game {
         {
             self.scene.render(
                 &mut self.renderer,
-                &self.scene.camera.view(),
-                self.scene.camera.position(),
+                &self.camera.view(),
+                self.camera.position(),
                 display,
                 &mut target,
             );
