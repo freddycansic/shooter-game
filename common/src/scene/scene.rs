@@ -40,7 +40,6 @@ pub struct RenderQueue {
 
 pub struct Scene {
     pub title: String,
-    pub camera: FpsCamera, // the camera state to be used when starting the game
     pub graph: SceneGraph,
     pub background: Background,
     pub lights: Vec<Light>,
@@ -57,7 +56,6 @@ impl Scene {
             lines: vec![],
             quads: QuadTree::new(),
             title: title.to_owned(),
-            camera: FpsCamera::default(),
             background: Background::default(),
             terrain_bvh: None,
             lights: vec![],
