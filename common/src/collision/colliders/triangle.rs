@@ -68,25 +68,16 @@ impl Triangle {
         sphere: &Sphere,
         velocity: &Vector3<f32>,
     ) -> Option<SweepHit> {
-        let velocity_len = velocity.norm();
-        if velocity_len == 0.0 {
-            return None;
-        }
+        let ray = Ray::new(sphere.origin, *velocity);
 
-        let ray_dir = velocity / velocity_len;
-        let ray = Ray::new(sphere.origin, ray_dir);
-
-        // Represent the edge as a cylinder i.e. inflated line segment
         let hit = cylinder::intersect_ray(&ray, p1, p2, sphere.radius)?;
 
-        // Convert hit.tmin from unit ray distance to fraction along full velocity
-        // Reject if outside of the sweep i.e. not during a single step of velocity
-        let t = hit.tmin / velocity_len;
-        if t < -f32::EPSILON || t > 1.0 + f32::EPSILON {
+        // Reject if outside of the velocity
+        if hit.tmin < -f32::EPSILON || hit.tmin > 1.0 + f32::EPSILON {
             return None;
         }
 
-        let origin_at_collision = sphere.origin + velocity * t;
+        let origin_at_collision = sphere.origin + velocity * hit.tmin;
 
         // Find closest point to sphere at point of collision
         let edge_dir = (p2 - p1).normalize();
@@ -97,7 +88,7 @@ impl Triangle {
         let edge_normal = (origin_at_collision - closest).normalize();
 
         Some(SweepHit {
-            t,
+            t: hit.tmin,
             point: closest,
             normal: edge_normal,
         })
