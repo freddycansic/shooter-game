@@ -6,7 +6,7 @@ use petgraph::{
 };
 use std::hash::{Hash, Hasher};
 
-use crate::collision::collidable::{RayHit, Intersectable};
+use crate::collision::collidable::{Intersectable, RayHit};
 use crate::maths::Ray;
 use crate::resources::Resources;
 use crate::{

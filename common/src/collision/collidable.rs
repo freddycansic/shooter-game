@@ -1,7 +1,7 @@
-use nalgebra::Vector3;
-use crate::{maths::Ray};
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
+use crate::maths::Ray;
+use nalgebra::Vector3;
 
 pub struct RayHit {
     pub tmin: f32, // entry point
@@ -15,11 +15,21 @@ pub struct SweepHit {
 }
 
 pub trait Intersectable {
-    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> { unimplemented!("Ray intersection unsupported.");}
+    fn intersect_ray(&self, _ray: &Ray) -> Option<RayHit> {
+        unimplemented!("Ray intersection unsupported.");
+    }
 
-    fn intersects_capsule(&self, capsule: &Capsule) -> bool { unimplemented!("Capsule intersection unsupported.") }
-    fn intersects_sphere(&self, sphere: &Sphere) -> bool { unimplemented!("Sphere intersection unsupported.") }
+    fn intersects_capsule(&self, _capsule: &Capsule) -> bool {
+        unimplemented!("Capsule intersection unsupported.")
+    }
+    fn intersects_sphere(&self, _sphere: &Sphere) -> bool {
+        unimplemented!("Sphere intersection unsupported.")
+    }
 
-    fn sweep_intersects_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>) -> bool { unimplemented!("Sweep sphere intersection unsupported.") }
-    fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> { unimplemented!("Sweep sphere intersection unsupported.") }
+    fn sweep_intersects_sphere(&self, _sphere: &Sphere, _velocity: &Vector3<f32>) -> bool {
+        unimplemented!("Sweep sphere intersection unsupported.")
+    }
+    fn sweep_intersect_sphere(&self, _sphere: &Sphere, _velocity: &Vector3<f32>) -> Option<SweepHit> {
+        unimplemented!("Sweep sphere intersection unsupported.")
+    }
 }

@@ -1,6 +1,6 @@
 use glium::implement_vertex;
 use log::warn;
-use nalgebra::{Point3, Vector3};
+use nalgebra::Vector3;
 use palette::Srgb;
 
 #[derive(Clone)]
