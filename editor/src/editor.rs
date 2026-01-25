@@ -14,7 +14,7 @@ use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
-use nalgebra::{Point3, Vector4};
+use nalgebra::{Point3, Vector3, Vector4};
 use palette::Srgb;
 use rfd::FileDialog;
 
@@ -93,20 +93,20 @@ impl Application for Editor {
         let mut scene = Scene {
             lines: vec![
                 Line::new(
-                    Point3::new(-1000.0, 0.0, 0.0),
-                    Point3::new(1000.0, 0.0, 0.0),
+                    Vector3::new(-1000.0, 0.0, 0.0),
+                    Vector3::new(1000.0, 0.0, 0.0),
                     Srgb::from(palette::named::RED),
                     2,
                 ),
                 Line::new(
-                    Point3::new(0.0, -1000.0, 0.0),
-                    Point3::new(0.0, 1000.0, 0.0),
+                    Vector3::new(0.0, -1000.0, 0.0),
+                    Vector3::new(0.0, 1000.0, 0.0),
                     Srgb::from(palette::named::GREEN),
                     2,
                 ),
                 Line::new(
-                    Point3::new(0.0, 0.0, -1000.0),
-                    Point3::new(0.0, 0.0, 1000.0),
+                    Vector3::new(0.0, 0.0, -1000.0),
+                    Vector3::new(0.0, 0.0, 1000.0),
                     Srgb::from(palette::named::BLUE),
                     2,
                 ),

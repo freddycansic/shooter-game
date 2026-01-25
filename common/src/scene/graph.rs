@@ -53,7 +53,7 @@ impl SceneNode {
                 let local_ray = {
                     let world_inverse = self.world_transform.matrix().inverse();
 
-                    let local_origin = world_inverse.transform_point(&ray.origin);
+                    let local_origin = world_inverse * ray.origin;
                     let local_direction = world_inverse.transform_vector(&ray.direction()).normalize();
 
                     Ray::new(local_origin, local_direction)

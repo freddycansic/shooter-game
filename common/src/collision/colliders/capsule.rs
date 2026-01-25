@@ -1,5 +1,6 @@
 use nalgebra::Vector3;
 use crate::collision::collidable::{RayHit, Intersectable};
+use crate::collision::colliders::{capsule, cylinder};
 use crate::maths::Ray;
 
 pub struct Capsule {
@@ -16,60 +17,34 @@ impl Capsule {
 
 impl Intersectable for Capsule {
     fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
-        let line_segment = self.p2 - self.p1;
-        let length = line_segment.norm();
+        let length_squared = (self.p1 - self.p2).magnitude_squared();
 
         // it's just a sphere
-        if length == 0.0 {
-            return ray_sphere(ray, self.p1, self.radius);
+        if length_squared == 0.0 {
+            return ray_sphere(ray, &self.p1, self.radius);
         }
-
-        let unit_segment = line_segment / length;
-        let p1_to_ray_origin = (ray.origin - self.p1).to_homogeneous().xyz();
-        let d_perp = ray.direction() - unit_segment * ray.direction().dot(&unit_segment);
-        let ao_perp = p1_to_ray_origin - unit_segment * p1_to_ray_origin.dot(&unit_segment);
-
-        let a_q = d_perp.dot(&d_perp);
-        let b_q = 2.0 * d_perp.dot(&ao_perp);
-        let c_q = ao_perp.dot(&ao_perp) - self.radius * self.radius;
 
         let mut tmin = f32::INFINITY;
         let mut tmax = f32::NEG_INFINITY;
 
-        if a_q > 0.0 {
-            let disc = b_q * b_q - 4.0 * a_q * c_q;
-            if disc >= 0.0 {
-                let sqrt_disc = disc.sqrt();
-                for &t in &[(-b_q - sqrt_disc) / (2.0 * a_q), (-b_q + sqrt_disc) / (2.0 * a_q)] {
-                    if t >= 0.0 {
-                        // is the collision contained within the line segment?
-                        let y = (p1_to_ray_origin + ray.direction() * t).dot(&unit_segment);
-                        if y >= 0.0 && y <= length {
-                            tmin = tmin.min(t);
-                            tmax = tmax.max(t);
-                        }
-                    }
-                }
-            }
+        if let Some(hit) = cylinder::intersect_ray(ray, &self.p1, &self.p2, self.radius) {
+            tmin = hit.tmin;
+            tmax = hit.tmax;
         }
 
         // end spheres
         for end in &[self.p1, self.p2] {
-            if let Some(hit) = ray_sphere(ray, *end, self.radius) {
+            if let Some(hit) = ray_sphere(ray, end, self.radius) {
                 tmin = tmin.min(hit.tmin);
                 tmax = tmax.max(hit.tmax);
             }
         }
 
-        if tmin <= tmax {
-            Some(RayHit { tmin, tmax })
-        } else {
-            None
-        }
+        (tmin <= tmax).then(|| RayHit { tmin, tmax })
     }
 }
 
-fn ray_sphere(ray: &Ray, center: Vector3<f32>, radius: f32) -> Option<RayHit> {
+pub fn ray_sphere(ray: &Ray, center: &Vector3<f32>, radius: f32) -> Option<RayHit> {
     let oc = (ray.origin - center).to_homogeneous().xyz();
     let a = ray.direction().dot(&ray.direction());
     let b = 2.0 * oc.dot(&ray.direction());
@@ -113,7 +88,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -128,7 +103,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let result = capsule.intersect_ray(&ray);
         assert!(result.is_none());
@@ -142,7 +117,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 2.0);
@@ -157,7 +132,7 @@ mod tests {
             radius: 0.5,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.5);
@@ -172,7 +147,7 @@ mod tests {
             radius: 0.5,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         assert!(capsule.intersect_ray(&ray).is_none());
     }
@@ -185,7 +160,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -200,7 +175,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 2.0 - 0.75_f32.sqrt());
@@ -215,7 +190,7 @@ mod tests {
             radius: 0.25,
         };
 
-        let ray = Ray::new(Point3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert!(result.tmin <= result.tmax);
@@ -229,7 +204,7 @@ mod tests {
             radius: 0.25,
         };
 
-        let ray = Ray::new(Point3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Vector3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         assert!(capsule.intersect_ray(&ray).is_none());
     }
@@ -242,7 +217,7 @@ mod tests {
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert!(result.tmin <= 0.0);
