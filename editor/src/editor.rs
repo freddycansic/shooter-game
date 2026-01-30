@@ -32,9 +32,10 @@ use common::line::Line;
 use common::renderer::Renderer;
 // use common::scene::Background;
 use common::*;
+use common::collision::colliders::sphere::Sphere;
+use common::components::component::Component;
 use input::Input;
 use scene::Scene;
-
 use crate::ui::Show;
 
 struct FrameState {
@@ -227,7 +228,7 @@ impl Application for Editor {
             texture_handle: uv_test_handle,
         };
 
-        let map_node = SceneNode::new_visible(NodeType::Renderable(map_renderable), Transform::identity());
+        let map_node = SceneNode::new(NodeType::Renderable(map_renderable));
 
         scene.graph.add_root_node(map_node);
 
@@ -568,6 +569,19 @@ impl Editor {
                         let selected_node = &mut self.scene.graph.graph[selected_node_index];
 
                         selected_node.local_transform.show(ui);
+
+                        ui.separator();
+
+                        ui.label("Components");
+
+                        // TODO
+                        for component in &selected_node.components {
+                            ui.label(component.name());
+                        }
+
+                        if ui.button("+").clicked() {
+                            selected_node.components.push(Component::PlayerSpawn);
+                        }
                     }
                 });
 

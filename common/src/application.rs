@@ -41,6 +41,9 @@ pub trait Application {
         let dimensions = window.inner_size();
         let center = LogicalPosition::new(dimensions.width / 2, dimensions.height / 2);
 
-        window.set_cursor_position(center).unwrap();
+        match window.set_cursor_position(center) {
+            Ok(_) => (),
+            Err(e) => log::warn!("Failed to set cursor position: {:?}", e),
+        }
     }
 }

@@ -15,7 +15,7 @@ pub struct OrbitalCamera {
 }
 
 impl OrbitalCamera {
-    fn new(target: Point3<f32>, radius: f32) -> Self {
+    pub fn new(target: Point3<f32>, radius: f32) -> Self {
         Self {
             position: Point3::new(radius, 0.0, 0.0),
             radius,

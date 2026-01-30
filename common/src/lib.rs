@@ -19,3 +19,4 @@ pub mod serde;
 pub mod terrain;
 pub mod texture;
 pub mod ui;
+pub mod components;
