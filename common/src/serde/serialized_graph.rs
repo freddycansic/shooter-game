@@ -9,11 +9,13 @@ use crate::{
     resources::Resources,
     scene::graph::{NodeType, Renderable, SceneGraph, SceneNode},
 };
+use crate::components::component::Component;
 
 #[derive(Serialize, Deserialize)]
 struct SerializedSceneNode {
     local_transform: Transform,
     visible: bool,
+    components: Vec<Component>,
 
     pub ty: SerializedNodeType,
 }
@@ -31,6 +33,7 @@ impl SerializedSceneNode {
             local_transform: scene_node.local_transform.clone(),
             visible: scene_node.visible,
             ty: serialized_node_type,
+            components: scene_node.components.clone(),
         }
     }
 
@@ -42,7 +45,12 @@ impl SerializedSceneNode {
             }
         };
 
-        SceneNode::new(node_type, self.local_transform, self.visible)
+        let mut node = SceneNode::new(node_type);
+        node.local_transform = self.local_transform;
+        node.visible = self.visible;
+        node.components = self.components;
+
+        node
     }
 }
 

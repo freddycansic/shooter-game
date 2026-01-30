@@ -10,6 +10,7 @@ let
     pkgs.xorg.libXi
     pkgs.xorg.libXcursor
     pkgs.pkg-config
+    pkgs.dbus
   ]);
 in {
   env.WINIT_UNIX_BACKEND = "wayland";

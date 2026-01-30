@@ -983,8 +983,11 @@ dependencies = [
  "clap",
  "color-eyre",
  "common",
+ "fxhash",
  "glium",
  "nalgebra",
+ "palette",
+ "petgraph",
  "serde_json",
  "winit",
 ]

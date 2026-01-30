@@ -1,16 +1,21 @@
+use std::mem::Discriminant;
 use std::path::Path;
 
 use color_eyre::eyre::Result;
+use fxhash::FxHashMap;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Frame, Surface};
-use nalgebra::{Matrix4, Point3};
+use itertools::Itertools;
+use nalgebra::{Matrix4, Point3, Vector3};
 use petgraph::graph::NodeIndex;
 use rfd::FileDialog;
 
 use crate::camera::FpsCamera;
-use crate::collision::collidable::Intersectable;
+use crate::collision::collidable::{Intersectable, SweepHit};
 use crate::collision::colliders::bvh::Bvh;
+use crate::collision::colliders::sphere::Sphere;
 use crate::colors::{Color, ColorExt};
+use crate::components::component::Component;
 use crate::light::Light;
 use crate::line::Line;
 use crate::maths::{Ray, Transform};
@@ -75,58 +80,33 @@ impl Scene {
             .map(|(idx, _)| idx)
     }
 
-    // pub fn from_path(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
-    //     let serialized_scene_string = std::fs::read_to_string(path)?;
+    pub fn sweep_intersect_sphere(&mut self, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> {
+        self.graph
+            .graph
+            .node_indices()
+            .filter_map(|idx| {
+                let node = &self.graph.graph[idx];
+                node.sweep_intersect_sphere(sphere, velocity, &mut self.resources)
+            })
+            .min_by(|a, b| a.partial_cmp(&b).unwrap())
+    }
 
-    //     let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string)?;
+    // TODO: caching, rebuild on change component
+    pub fn components(&self) -> FxHashMap<Discriminant<Component>, Vec<NodeIndex>> {
+        let mut component_map = FxHashMap::<Discriminant<Component>, Vec<NodeIndex>>::default();
 
-    //     serialized_scene.into_scene(display)
-    // }
+        let node_indices = self.graph.graph.node_indices().collect_vec();
 
-    // pub fn from_string(scene_string: &str, display: &Display<WindowSurface>) -> Result<Self> {
-    //     let mut scene = serde_json::from_str::<Scene>(scene_string)?;
+        for node_index in node_indices.into_iter() {
+            let node = &self.graph.graph[node_index];
+            for component in &node.components {
+                let node_vec = component_map.entry(std::mem::discriminant(component)).or_insert(vec![]);
+                node_vec.push(node_index);
+            }
+        }
 
-    //     let node_indices = scene.graph.node_indices().collect_vec();
-
-    //     // Load assets which require Display
-    //     for node_index in node_indices {
-    //         // Cannot change call to unwrap to "?" because Mutex is not Send, and ErrReport must be Send
-    //         // TODO
-    //         // if scene.graph[node_index]
-    //         //     .model
-    //         //     .meshes
-    //         //     .lock()
-    //         //     .unwrap()
-    //         //     .is_none()
-    //         // {
-    //         //     scene.graph[node_index].model.load_meshes(display).unwrap()
-    //         // }
-
-    //         // if let Some(material) = scene.graph[node_index].material.as_mut() {
-    //         //     material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
-    //         // }
-    //     }
-
-    //     // for (_, model_instance) in scene.graph.node_references() {
-    //     //     if model_instance.model.meshes.lock().unwrap().is_none() {
-    //     //         model_instance.model.load_meshes(display).unwrap()
-    //     //     }
-    //     //
-    //     //     if let Some(material) = model_instance.material.as_mut() {
-    //     //         material.diffuse = Texture2D::load(material.diffuse.path.clone(), display)?;
-    //     //     }
-    //     // }
-
-    //     if let Background::HDRI(cubemap) = scene.background {
-    //         scene.background = Background::HDRI(Cubemap::load(cubemap.directory.clone(), display)?);
-    //     }
-
-    //     for quad in scene.quads.node_weights_mut() {
-    //         quad.texture = Texture2D::load(quad.texture.path.clone(), display)?;
-    //     }
-
-    //     Ok(scene)
-    // }
+        component_map
+    }
 
     pub fn save_as(&self) {
         let serialized_scene = SerializedScene::from_scene(self);
@@ -146,7 +126,7 @@ impl Scene {
 
         let group_node = self
             .graph
-            .add_root_node(SceneNode::new_visible(NodeType::Group, Transform::identity()));
+            .add_root_node(SceneNode::new(NodeType::Group));
 
         let texture_handle = self
             .resources
@@ -158,7 +138,7 @@ impl Scene {
                 texture_handle,
             };
 
-            let scene_node = SceneNode::new_visible(NodeType::Renderable(renderable), Transform::identity());
+            let scene_node = SceneNode::new(NodeType::Renderable(renderable));
 
             let node_index = self.graph.add_node(scene_node);
 
@@ -216,7 +196,7 @@ impl Scene {
         //     renderer.render_terrain(terrain, view, camera_position, target);
         // }
 
-        // renderer.render_lines(&self.lines, view, display, target);
+        renderer.render_lines(&self.lines, view, display, target);
 
         // if debug {
         //     renderer.render_lights(&self.lights, view, display, target);

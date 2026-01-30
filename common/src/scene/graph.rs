@@ -5,8 +5,8 @@ use petgraph::{
     graph::{EdgeIndex, NodeIndex},
 };
 use std::hash::{Hash, Hasher};
-
-use crate::collision::collidable::{Intersectable, RayHit};
+use nalgebra::Vector3;
+use crate::collision::collidable::{Intersectable, RayHit, SweepHit};
 use crate::maths::Ray;
 use crate::resources::Resources;
 use crate::{
@@ -14,6 +14,8 @@ use crate::{
     renderer::Instance,
     resources::{GeometryHandle, TextureHandle},
 };
+use crate::collision::colliders::sphere::Sphere;
+use crate::components::component::Component;
 
 pub enum NodeType {
     Renderable(Renderable),
@@ -22,25 +24,24 @@ pub enum NodeType {
 
 pub struct SceneNode {
     pub local_transform: Transform,
-    world_transform: Transform,
+    /* TEMP TODO dont make this public its for debug onlyy */ pub world_transform: Transform,
     pub world_transform_dirty: bool,
     pub visible: bool,
+
+    pub components: Vec<Component>,
 
     pub ty: NodeType,
 }
 
 impl SceneNode {
-    pub fn new_visible(ty: NodeType, local_transform: Transform) -> Self {
-        Self::new(ty, local_transform, true)
-    }
-
-    pub fn new(ty: NodeType, local_transform: Transform, visible: bool) -> Self {
+    pub fn new(ty: NodeType) -> Self {
         Self {
-            local_transform,
+            local_transform: Transform::identity(),
             world_transform: Transform::identity(),
-            world_transform_dirty: true,
-            visible,
-            ty,
+            world_transform_dirty: false,
+            visible: true,
+            components: vec![],
+            ty
         }
     }
 
@@ -65,6 +66,27 @@ impl SceneNode {
         }
     }
 
+    pub fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>, resources: &mut Resources) -> Option<SweepHit> {
+        match &self.ty {
+            NodeType::Renderable(renderable) => {
+                let geometry = resources.get_geometry(renderable.geometry_handle);
+
+                let world_inverse = self.world_transform.matrix().inverse();
+
+                let local_sphere = {
+                    let local_origin = world_inverse * sphere.origin;
+
+                    Sphere::new(local_origin, sphere.radius)
+                };
+
+                let local_velocity = world_inverse.transform_vector(&velocity);
+
+                geometry.bvh.sweep_intersect_sphere(&local_sphere, &local_velocity)
+            }
+            NodeType::Group => None,
+        }
+    }
+
     pub fn world_transform(&self) -> &Transform {
         #[cfg(debug_assertions)]
         if self.world_transform_dirty {
@@ -80,6 +102,7 @@ impl SceneNode {
             world_transform: Transform::identity(),
             world_transform_dirty: false,
             visible: false,
+            components: vec![],
             ty: NodeType::Group,
         }
     }
@@ -163,7 +186,6 @@ impl SceneGraph {
             .filter(|(node, _)| node.visible);
 
         for (scene_node, index) in visible_nodes {
-            // log::info!("Batching node {}", i);
             match &scene_node.ty {
                 NodeType::Renderable(renderable) => {
                     let node_key = GeometryBatchKey {
@@ -177,19 +199,10 @@ impl SceneGraph {
                     let transform = scene_node.world_transform.raw_matrix();
 
                     batch.push(Instance { transform });
-
-                    // dbg!(batch.last().unwrap().transform_x);
-                    // dbg!(batch.last().unwrap().transform_x);
-                    // dbg!(batch.last().unwrap().transform_x);
-                    // dbg!(batch.last().unwrap().transform_x);
                 }
                 NodeType::Group => (),
             }
         }
-
-        // for (i, batch) in batches.iter().enumerate() {
-        //     log::info!("Batch {} len {}", i, batch.1.instances.len());
-        // }
 
         batches
     }

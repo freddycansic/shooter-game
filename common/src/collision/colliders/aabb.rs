@@ -7,7 +7,7 @@ use crate::{
     maths::Ray,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Aabb {
     pub min: Point3<f32>,
     pub max: Point3<f32>,
