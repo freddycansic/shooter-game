@@ -236,9 +236,9 @@ impl Bvh {
         for primitive in primitives {
             for chunk in primitive.indices.chunks(3) {
                 let triangle = Triangle([
-                    Vector3::from_row_slice(primitive.vertices[chunk[0] as usize].position.as_slice()),
-                    Vector3::from_row_slice(primitive.vertices[chunk[1] as usize].position.as_slice()),
-                    Vector3::from_row_slice(primitive.vertices[chunk[2] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.vertices[chunk[0] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.vertices[chunk[1] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.vertices[chunk[2] as usize].position.as_slice()),
                 ]);
 
                 let mut centroid = Centroid::zeros();
@@ -281,13 +281,13 @@ impl Bvh {
                 self.graph
                     .neighbors_directed(node, Direction::Outgoing)
                     .filter_map(|child| self.sweep_intersect_sphere_inner(sphere, velocity, child))
-                    .min_by(|a, b| a.partial_cmp(&b).unwrap())
+                    .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
             }).and_then(|x| x),
             BvhNode::Leaf { triangles, aabb } => aabb.sweep_intersects_sphere(sphere, velocity).then(|| {
                 triangles
                     .iter()
                     .filter_map(|tri| tri.sweep_intersect_sphere(sphere, velocity))
-                    .min_by(|a, b| a.partial_cmp(&b).unwrap())
+                    .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
             }).and_then(|x| x),
         }
     }

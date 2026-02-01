@@ -1,92 +1,24 @@
 use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
 use petgraph::{
-    Direction,
     graph::{EdgeIndex, NodeIndex},
+    Direction,
 };
 use std::hash::{Hash, Hasher};
 use nalgebra::Vector3;
 use crate::collision::collidable::{Intersectable, RayHit, SweepHit};
-use crate::maths::Ray;
-use crate::resources::Resources;
 use crate::{
     maths::Transform,
-    renderer::Instance,
-    resources::{GeometryHandle, TextureHandle},
 };
-use crate::collision::colliders::sphere::Sphere;
-use crate::components::component::Component;
-
-pub enum NodeType {
-    Renderable(Renderable),
-    Group,
-}
 
 pub struct SceneNode {
     pub local_transform: Transform,
-    /* TEMP TODO dont make this public its for debug onlyy */ pub world_transform: Transform,
+    world_transform: Transform,
     pub world_transform_dirty: bool,
     pub visible: bool,
-
-    pub components: Vec<Component>,
-
-    pub ty: NodeType,
 }
 
 impl SceneNode {
-    pub fn new(ty: NodeType) -> Self {
-        Self {
-            local_transform: Transform::identity(),
-            world_transform: Transform::identity(),
-            world_transform_dirty: false,
-            visible: true,
-            components: vec![],
-            ty
-        }
-    }
-
-    pub fn intersect_ray(&self, ray: &Ray, resources: &mut Resources) -> Option<RayHit> {
-        match &self.ty {
-            NodeType::Renderable(renderable) => {
-                let geometry = resources.get_geometry(renderable.geometry_handle);
-
-                // geometry bvh is in local space, incoming ray is world space
-                let local_ray = {
-                    let world_inverse = self.world_transform.matrix().inverse();
-
-                    let local_origin = world_inverse * ray.origin;
-                    let local_direction = world_inverse.transform_vector(&ray.direction()).normalize();
-
-                    Ray::new(local_origin, local_direction)
-                };
-
-                geometry.bvh.intersect_ray(&local_ray)
-            }
-            NodeType::Group => None,
-        }
-    }
-
-    pub fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>, resources: &mut Resources) -> Option<SweepHit> {
-        match &self.ty {
-            NodeType::Renderable(renderable) => {
-                let geometry = resources.get_geometry(renderable.geometry_handle);
-
-                let world_inverse = self.world_transform.matrix().inverse();
-
-                let local_sphere = {
-                    let local_origin = world_inverse * sphere.origin;
-
-                    Sphere::new(local_origin, sphere.radius)
-                };
-
-                let local_velocity = world_inverse.transform_vector(&velocity);
-
-                geometry.bvh.sweep_intersect_sphere(&local_sphere, &local_velocity)
-            }
-            NodeType::Group => None,
-        }
-    }
-
     pub fn world_transform(&self) -> &Transform {
         #[cfg(debug_assertions)]
         if self.world_transform_dirty {
@@ -102,43 +34,20 @@ impl SceneNode {
             world_transform: Transform::identity(),
             world_transform_dirty: false,
             visible: false,
-            components: vec![],
-            ty: NodeType::Group,
         }
     }
 }
 
-pub struct Renderable {
-    pub geometry_handle: GeometryHandle,
-    pub texture_handle: TextureHandle,
-}
-
-#[derive(Clone)]
-pub struct GeometryBatchKey {
-    pub geometry_handle: GeometryHandle,
-    pub texture_handle: TextureHandle,
-    pub selected: bool,
-}
-
-impl Hash for GeometryBatchKey {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.geometry_handle.hash(state);
-        self.texture_handle.hash(state);
-        self.selected.hash(state);
+impl Default for SceneNode {
+    fn default() -> Self {
+        Self {
+            local_transform: Transform::identity(),
+            world_transform: Transform::identity(),
+            world_transform_dirty: false,
+            visible: true,
+        }
     }
 }
-
-impl PartialEq for GeometryBatchKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.geometry_handle == other.geometry_handle
-            && self.texture_handle == other.texture_handle
-            && self.selected == other.selected
-    }
-}
-
-impl Eq for GeometryBatchKey {}
-
-pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
 
 pub struct SceneGraph {
     pub graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
@@ -174,40 +83,7 @@ impl SceneGraph {
         node_index
     }
 
-    pub fn batch_geometry(&mut self) -> GeometryBatches {
-        self.calculate_world_matrices();
-
-        let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
-
-        let visible_nodes = self
-            .graph
-            .node_weights()
-            .zip(self.graph.node_indices())
-            .filter(|(node, _)| node.visible);
-
-        for (scene_node, index) in visible_nodes {
-            match &scene_node.ty {
-                NodeType::Renderable(renderable) => {
-                    let node_key = GeometryBatchKey {
-                        geometry_handle: renderable.geometry_handle,
-                        texture_handle: renderable.texture_handle,
-                        selected: self.selection.contains(&index),
-                    };
-
-                    let batch = batches.entry(node_key).or_insert(vec![]);
-
-                    let transform = scene_node.world_transform.raw_matrix();
-
-                    batch.push(Instance { transform });
-                }
-                NodeType::Group => (),
-            }
-        }
-
-        batches
-    }
-
-    fn calculate_world_matrices(&mut self) {
+    pub fn calculate_world_matrices(&mut self) {
         self.calculate_world_matrices_inner(self.root);
     }
 

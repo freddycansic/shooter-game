@@ -3,11 +3,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::camera::camera::Camera;
 use crate::input::Input;
+use crate::maths;
 
 #[derive(Serialize, Deserialize)]
 pub struct OrbitalCamera {
     pub target: Point3<f32>,
     pub radius: f32,
+
+    orthograhic_projection: Matrix4<f32>,
+    perspective_projection: Matrix4<f32>,
 
     position: Point3<f32>,
     yaw: f32,
@@ -15,14 +19,29 @@ pub struct OrbitalCamera {
 }
 
 impl OrbitalCamera {
-    pub fn new(target: Point3<f32>, radius: f32) -> Self {
+    pub fn new(target: Point3<f32>, radius: f32, width: f32, height: f32) -> Self {
         Self {
             position: Point3::new(radius, 0.0, 0.0),
             radius,
             target,
             yaw: 0.0,
             pitch: std::f32::consts::FRAC_PI_2,
+            perspective_projection: maths::perspective_matrix_from_dimensions(width, height),
+            orthograhic_projection: maths::orthographic_matrix_from_dimensions(width, height),
         }
+    }
+
+    pub fn perspective_projection(&self) -> Matrix4<f32> {
+        self.perspective_projection
+    }
+
+    pub fn orthographic_projection(&self) -> Matrix4<f32> {
+        self.orthograhic_projection
+    }
+
+    pub fn update_projection_matrices(&mut self, width: f32, height: f32) {
+        self.perspective_projection = maths::perspective_matrix_from_dimensions(width, height);
+        self.orthograhic_projection = maths::orthographic_matrix_from_dimensions(width, height);
     }
 
     pub fn update_zoom(&mut self, input: &Input) {
@@ -69,11 +88,5 @@ impl Camera for OrbitalCamera {
 
     fn direction(&self) -> Vector3<f32> {
         (self.target - self.position).normalize()
-    }
-}
-
-impl Default for OrbitalCamera {
-    fn default() -> Self {
-        Self::new(Point3::new(0.0, 0.0, 0.0), 5.0)
     }
 }

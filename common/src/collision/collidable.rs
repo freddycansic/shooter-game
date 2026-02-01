@@ -2,31 +2,30 @@ use std::cmp::Ordering;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Ray;
-use nalgebra::Vector3;
+use nalgebra::{Point3, Vector3};
+use petgraph::prelude::NodeIndex;
 
-#[derive(PartialEq)]
+#[derive(Debug)]
 pub struct RayHit {
     pub tmin: f32, // entry point
     pub tmax: f32, // exit point
 }
 
-impl PartialOrd for RayHit {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.tmin.partial_cmp(&other.tmin)
-    }
+pub struct RayHitNode {
+    pub hit: RayHit,
+    pub node: NodeIndex,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug)]
 pub struct SweepHit {
     pub t: f32, // time of hit along velocity
     pub normal: Vector3<f32>,
-    pub point: Vector3<f32>,
+    pub point: Point3<f32>,
 }
 
-impl PartialOrd for SweepHit {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.t.partial_cmp(&other.t)
-    }
+pub struct SweepHitNode {
+    pub hit: SweepHit,
+    pub node: NodeIndex,
 }
 
 pub trait Intersectable {

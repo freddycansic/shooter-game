@@ -1,8 +1,8 @@
 use crate::collision::collidable::RayHit;
 use crate::maths::Ray;
-use nalgebra::Vector3;
+use nalgebra::{Point3, Vector3};
 
-pub fn intersect_ray(ray: &Ray, p1: &Vector3<f32>, p2: &Vector3<f32>, radius: f32) -> Option<RayHit> {
+pub fn intersect_ray(ray: &Ray, p1: &Point3<f32>, p2: &Point3<f32>, radius: f32) -> Option<RayHit> {
     let line_segment = p2 - p1;
 
     let length = line_segment.norm();

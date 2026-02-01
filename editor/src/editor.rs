@@ -1,12 +1,11 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::debug::DebugCuboid;
 use common::maths::{Ray, Transform};
-use common::scene::graph::{NodeType, Renderable, SceneNode};
-use common::scene::scene::Background;
+use common::scene::graph::{SceneGraph, SceneNode};
 use common::serde::SerializedScene;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
@@ -16,6 +15,7 @@ use itertools::Itertools;
 use log::info;
 use nalgebra::{Point3, Vector3, Vector4};
 use palette::Srgb;
+use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 use uuid::Uuid;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
@@ -29,11 +29,13 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
-use common::renderer::Renderer;
+use common::systems::renderer::{Renderable, Renderer};
 // use common::scene::Background;
 use common::*;
 use common::collision::colliders::sphere::Sphere;
 use common::components::component::Component;
+use common::engine::Engine;
+use common::resources::Resources;
 use input::Input;
 use scene::Scene;
 use crate::ui::Show;
@@ -72,16 +74,14 @@ enum EngineEvent {
 }
 
 pub struct Editor {
-    input: Input,
-    scene: Scene,
+    engine: Engine,
     camera: OrbitalCamera,
-    renderer: Renderer,
-    gui: EguiGlium,
     state: FrameState,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
     debug_cuboids: Vec<DebugCuboid>,
-    lines: Vec<Line>,
+    selection: Vec<NodeIndex>,
+    lights: Vec<Light>,
 }
 
 impl Application for Editor {
@@ -92,164 +92,27 @@ impl Application for Editor {
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
 
         let mut scene = Scene {
-            lines: vec![
-                Line::new(
-                    Vector3::new(-1000.0, 0.0, 0.0),
-                    Vector3::new(1000.0, 0.0, 0.0),
-                    Srgb::from(palette::named::RED),
-                    2,
-                ),
-                Line::new(
-                    Vector3::new(0.0, -1000.0, 0.0),
-                    Vector3::new(0.0, 1000.0, 0.0),
-                    Srgb::from(palette::named::GREEN),
-                    2,
-                ),
-                Line::new(
-                    Vector3::new(0.0, 0.0, -1000.0),
-                    Vector3::new(0.0, 0.0, 1000.0),
-                    Srgb::from(palette::named::BLUE),
-                    2,
-                ),
-            ],
-            // terrain: Some(
-            //     Terrain::load(
-            //         &PathBuf::from("assets/terrain/terrain_heightmap.png"),
-            //         &Material {
-            //             diffuse: Texture2D::load(
-            //                 PathBuf::from("assets/terrain/terrain_diffuse.jpg"),
-            //                 display,
-            //             )
-            //             .unwrap(),
-            //             ..Material::default(display).unwrap()
-            //         },
-            //         display,
-            //     )
-            //     .unwrap(),
-            // ),
+
             ..Default::default()
         };
 
-        // scene.quads.add_node(Quad::new(
-        //     Point2::new(400.0, 300.0),
-        //     Vector2::new(50.0, 50.0),
-        //     Texture2D::default_diffuse(display).unwrap(),
-        //     1,
-        // ));
-        // scene.quads.add_node(Quad::new(
-        //     Point2::new(200.0, 200.0),
-        //     Vector2::new(100.0, 100.0),
-        //     Texture2D::load(PathBuf::from("assets/textures/crosshair.png"), display).unwrap(),
-        //     1,
-        // ));
-
-        let camera = OrbitalCamera::default();
-
-        // let mut model_instance = ModelInstance::from(
-        //     Model::load(PathBuf::from("assets/models/cube.glb"), display).unwrap(),
-        // );
-        // model_instance.material = Some(Material {
-        //     diffuse: Texture2D::load(PathBuf::from("assets/textures/container.png"), display)
-        //         .unwrap(),
-        //     specular: Texture2D::load(
-        //         PathBuf::from("assets/textures/container_specular.png"),
-        //         display,
-        //     )
-        //     .unwrap(),
-        // });
-
-        // scene.graph.add_node(model_instance.clone());
-        // let child1 = scene.graph.add_node(model_instance.clone());
-        // scene.graph.add_edge(root1, child1, ());
-        //
-        // let grandchild1 = scene.graph.add_node(model_instance.clone());
-        // let grandchild2 = scene.graph.add_node(model_instance.clone());
-        // scene.graph.add_edge(child1, grandchild1, ());
-        // scene.graph.add_edge(child1, grandchild2, ());
+        let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
 
         let inner_size = window.inner_size();
         let renderer = Renderer::new(
-            inner_size.width as f32,
-            inner_size.height as f32,
             None, // full size
             display,
         )
         .unwrap();
 
-        scene.lights.push(Light {
+        renderer.lines
+
+        let lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
-        });
+        }];
 
-        let _cube_handle = scene
-            .resources
-            .get_geometry_handles(&PathBuf::from("assets/models/cube.glb"), display)
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap();
-
-        let uv_test_handle = scene
-            .resources
-            .get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)
-            .unwrap();
-
-        let _size = 10;
-
-        // for x in -(size / 2)..(size / 2) {
-        //     for y in -(size / 2)..(size / 2) {
-        //         let mut transform = Transform::identity();
-        //         transform.set_translation(Translation3::new(x as f32 * 6.0, y as f32 * 3.5, 0.0));
-
-        //         let renderable = Renderable {
-        //             geometry_handle: cube_handle,
-        //             texture_handle: uv_test_handle,
-        //         };
-
-        //         let mut node = SceneNode::new(NodeType::Renderable(renderable), transform);
-        //         if y % 2 == 0 {
-        //             node.selected = true;
-        //         }
-
-        //         scene.graph.add_root_node(node);
-        //     }
-        // }
-
-        let map_handle = scene
-            .resources
-            .get_geometry_handles(&PathBuf::from("assets/game_scenes/map.glb"), display)
-            .unwrap()
-            .into_iter()
-            .next()
-            .unwrap();
-
-        let map_renderable = Renderable {
-            geometry_handle: map_handle,
-            texture_handle: uv_test_handle,
-        };
-
-        let map_node = SceneNode::new(NodeType::Renderable(map_renderable));
-
-        scene.graph.add_root_node(map_node);
-
-        let geometry = scene.resources.get_geometry(map_handle);
-
-        let debug_cuboids = geometry.bvh.get_debug_cuboids();
-
-        // let tris_with_cents = Bvh::get_tris_with_centroids(&geometry);
-        // let bounds = Bvh::pass_triangles_with_centroids(&tris_with_cents).bounds;
-
-        // let debug_cuboids = vec![DebugCuboid {
-        //     min: bounds.min.to_homogeneous().xyz(),
-        //     max: bounds.max.to_homogeneous().xyz(),
-        //     color: Color::from_named(palette::named::PURPLE),
-        // }];
-
-        // scene.quads.0.push(vec![Quad::new(
-        //     Point2::new(100.0, 100.0),
-        //     Vector2::new(50.0, 50.0),
-        //     uv_test_handle,
-        // )]);
+        let mut resources = Resources::new();
 
         let input = Input::new();
 
@@ -271,17 +134,23 @@ impl Application for Editor {
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
-        Self {
-            scene,
+        let engine = Engine {
+            scene_graph,
             renderer,
             input,
             gui,
+            resources
+        };
+
+        Self {
+            engine,
             state,
             sender,
             receiver,
             camera,
             debug_cuboids,
-            lines: vec![],
+            selection: vec![],
+            lights,
         }
     }
 
@@ -292,18 +161,18 @@ impl Application for Editor {
         window: &Window,
         display: &Display<WindowSurface>,
     ) {
-        self.input.process_window_event(&event);
+        self.engine.input.process_window_event(&event);
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(new_size) => {
                 display.resize((new_size.width, new_size.height));
 
-                self.renderer
+                self.camera
                     .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
-                if self.input.key_pressed(KeyCode::Escape) {
+                if self.engine.input.key_pressed(KeyCode::Escape) {
                     event_loop.exit();
                 }
 
@@ -315,7 +184,7 @@ impl Application for Editor {
             _ => (),
         };
 
-        let gui_event_response = self.gui.on_event(window, &event);
+        let gui_event_response = self.engine.gui.on_event(window, &event);
 
         if gui_event_response.repaint {
             window.request_redraw();
@@ -329,7 +198,7 @@ impl Application for Editor {
         _window: &Window,
         _display: &Display<WindowSurface>,
     ) {
-        self.input.process_device_event(device_event);
+        self.engine.input.process_device_event(device_event);
     }
 }
 
@@ -337,54 +206,56 @@ impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         for engine_event in self.receiver.try_iter() {
             match engine_event {
-                EngineEvent::LoadScene(serialized_scene_string) => {
-                    let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
-
-                    self.scene = serialized_scene.into_scene(display).unwrap();
-                }
-                EngineEvent::ImportModel(model_path) => self.scene.import_model(model_path.as_path(), display).unwrap(),
-                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                    self.scene.background = Background::HDRI(
-                        self.scene
-                            .resources
-                            .get_cubemap_handle(&hdri_directory_path, display)
-                            .unwrap(),
-                    )
-                }
+                // EngineEvent::LoadScene(serialized_scene_string) => {
+                //     let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
+                //
+                //     self.engine.scene_graph = serialized_scene.into_scene(display).unwrap();
+                // }
+                // EngineEvent::ImportModel(model_path) => self.scene.import_model(model_path.as_path(), display).unwrap(),
+                // EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+                //     self.scene.background = Background::HDRI(
+                //         self.scene
+                //             .resources
+                //             .get_cubemap_handle(&hdri_directory_path, display)
+                //             .unwrap(),
+                //     )
+                // }
+                _ => unimplemented!()
             }
         }
 
-        self.camera.update_zoom(&self.input);
+        self.camera.update_zoom(&self.engine.input);
 
         self.state.is_moving_camera =
-            self.input.mouse_button_down(MouseButton::Middle) || self.input.key_down(KeyCode::Space);
+            self.engine.input.mouse_button_down(MouseButton::Middle) || self.engine.input.key_down(KeyCode::Space);
 
-        if self.input.mouse_button_just_released(MouseButton::Left) && self.renderer.is_mouse_in_viewport(&self.input) {
-            let ray = self.mouse_ray();
-
-            let intersection = self.scene.intersect_ray(&ray);
-
-            if self.state.gui.render_debug_mouse_rays {
-                self.lines.push(Line::new(
-                    ray.origin,
-                    ray.origin + ray.direction() * 10.0,
-                    if intersection.is_some() {
-                        Srgb::new(0.0, 1.0, 0.0)
-                    } else {
-                        Srgb::new(1.0, 0.0, 0.0)
-                    },
-                    2,
-                ));
-            }
-
-            self.scene.graph.selection = match intersection {
-                Some(node) => vec![node],
-                None => vec![],
-            }
+        if self.engine.input.mouse_button_just_released(MouseButton::Left) && self.engine.renderer.is_mouse_in_viewport(&self.engine.input) {
+            log::warn!("Mouse click not implemented");
+            // let ray = self.mouse_ray();
+            //
+            // let intersection = self.scene.intersect_ray(&ray);
+            //
+            // if self.state.gui.render_debug_mouse_rays {
+            //     self.lines.push(Line::new(
+            //         ray.origin,
+            //         ray.origin + ray.direction() * 10.0,
+            //         if intersection.is_some() {
+            //             Srgb::new(0.0, 1.0, 0.0)
+            //         } else {
+            //             Srgb::new(1.0, 0.0, 0.0)
+            //         },
+            //         2,
+            //     ));
+            // }
+            //
+            // self.scene.graph.selection = match intersection {
+            //     Some(node) => vec![node],
+            //     None => vec![],
+            // }
         }
 
         if self.state.is_moving_camera {
-            self.camera.update(&self.input, self.state.deltatime as f32);
+            self.camera.update(&self.engine.input, self.state.deltatime as f32);
             self.capture_cursor(window);
             window.set_cursor_visible(false);
             self.center_cursor(window);
@@ -393,7 +264,7 @@ impl Editor {
             window.set_cursor_visible(true);
         }
 
-        self.input.reset_internal_state();
+        self.engine.input.reset_internal_state();
 
         // if self.state.frame_count % 5 == 0 {
         //     info!("{} FPS", self.state.fps);
@@ -419,50 +290,31 @@ impl Editor {
 
         let mut target = display.draw();
         {
-            self.scene.render(
-                &mut self.renderer,
-                &self.camera.view(),
-                self.camera.position(),
+            self.engine.renderer.render(
+                &self.camera,
+                &self.engine.resources,
+                &self.engine.scene_graph,
+                &self.selection,
+                &self.lights,
                 display,
                 &mut target,
             );
-
-            let cube = vec![
-                self.debug_cuboids
-                    .iter()
-                    .nth(self.state.gui.debug_cube_index)
-                    .unwrap()
-                    .clone(),
-            ];
-
-            self.renderer.render_debug_cuboids(
-                // &self.debug_cuboids,
-                &cube,
-                self.state.gui.debug_cube_opacity,
-                &self.camera.view(),
-                display,
-                &mut target,
-            );
-
-            if self.state.gui.render_debug_mouse_rays {
-                self.renderer
-                    .render_lines(&self.lines, &self.camera.view(), display, &mut target);
-            }
 
             self.render_gui(window);
-            self.gui.paint(display, &mut target);
+            self.engine.gui.paint(display, &mut target);
         }
         target.finish().unwrap();
     }
 
     fn render_gui(&mut self, window: &Window) {
-        self.gui.run(window, |ctx| {
+        self.engine.gui.run(window, |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.scene = Scene::default();
+                                self.engine.scene_graph = SceneGraph::new();
+                                self.engine.renderer.clear();
 
                                 ui.close();
                             }
@@ -490,7 +342,8 @@ impl Editor {
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving scene...");
-                                self.scene.save_as();
+                                // self.scene.save_as();
+                                unimplemented!();
                                 ui.close();
                             }
                         });
@@ -522,24 +375,25 @@ impl Editor {
                                 let mut temp_path = std::env::temp_dir();
                                 temp_path.push(uuid.clone());
 
-                                let serialized_scene = SerializedScene::from_scene(&self.scene);
-                                let serialized_string = serde_json::to_string(&serialized_scene).unwrap();
-
-                                std::fs::write(&temp_path, serialized_string).unwrap();
-
-                                std::process::Command::new("cargo")
-                                    .arg("run")
-                                    .arg("--package")
-                                    .arg("game")
-                                    .arg("--")
-                                    .arg("--scene")
-                                    .arg(uuid)
-                                    .spawn()
-                                    .unwrap()
-                                    .wait()
-                                    .unwrap();
-
-                                ui.close();
+                                unimplemented!();
+                                // let serialized_scene = SerializedScene::from_scene(&self.scene);
+                                // let serialized_string = serde_json::to_string(&serialized_scene).unwrap();
+                                //
+                                // std::fs::write(&temp_path, serialized_string).unwrap();
+                                //
+                                // std::process::Command::new("cargo")
+                                //     .arg("run")
+                                //     .arg("--package")
+                                //     .arg("game")
+                                //     .arg("--")
+                                //     .arg("--scene")
+                                //     .arg(uuid)
+                                //     .spawn()
+                                //     .unwrap()
+                                //     .wait()
+                                //     .unwrap();
+                                //
+                                // ui.close();
                             }
                         });
                     });
@@ -549,7 +403,7 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    self.scene.graph.show(ui);
+                    self.engine.scene_graph.show(ui);
 
                     ui.add(egui::Separator::default().horizontal());
 
@@ -563,27 +417,27 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                ui.collapsing("Properties", |ui| {
-                    if self.scene.graph.selection.len() == 1 {
-                        let selected_node_index = self.scene.graph.selection[0];
-                        let selected_node = &mut self.scene.graph.graph[selected_node_index];
-
-                        selected_node.local_transform.show(ui);
-
-                        ui.separator();
-
-                        ui.label("Components");
-
-                        // TODO
-                        for component in &selected_node.components {
-                            ui.label(component.name());
-                        }
-
-                        if ui.button("+").clicked() {
-                            selected_node.components.push(Component::PlayerSpawn);
-                        }
-                    }
-                });
+                // ui.collapsing("Properties", |ui| {
+                //     if self.scene.graph.selection.len() == 1 {
+                //         let selected_node_index = self.scene.graph.selection[0];
+                //         let selected_node = &mut self.scene.graph.graph[selected_node_index];
+                //
+                //         selected_node.local_transform.show(ui);
+                //
+                //         ui.separator();
+                //
+                //         ui.label("Components");
+                //
+                //         // TODO
+                //         for component in &selected_node.components {
+                //             ui.label(component.name());
+                //         }
+                //
+                //         if ui.button("+").clicked() {
+                //             selected_node.components.push(Component::PlayerSpawn);
+                //         }
+                //     }
+                // });
 
                 ui.collapsing("Debug", |ui| {
                     ui.add(
@@ -595,7 +449,8 @@ impl Editor {
 
                     ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
                     if ui.button("Clear lines").clicked() {
-                        self.lines.clear();
+                        // self.engine.renderer.lines.clear();
+                        unimplemented!();
                     }
                 });
 
@@ -630,16 +485,59 @@ impl Editor {
                 });
             });
 
-            self.renderer.update_viewport(ctx.available_rect());
+            // Update the viewport size with the amount of space after then panels have been added
+            self.engine.renderer.update_viewport(ctx.available_rect());
         });
+    }
+
+    fn save_as(&self) {
+        unimplemented!()
+        // let serialized_scene = SerializedScene::from_scene(self);
+        //
+        // let serialized = serde_json::to_string(&serialized_scene).unwrap();
+        //
+        // std::thread::spawn(move || {
+        //     if let Some(save_path) = FileDialog::new().save_file() {
+        //         std::fs::write(save_path, serialized).unwrap();
+        //     }
+        // });
+    }
+
+    /// Load a models and create an instance of it in the scene
+    fn import_model(&mut self, resources: &mut Resources, renderer: &mut Renderer, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
+        // let handles = resources.get_geometry_handles(path, display)?;
+        //
+        // let group_node = self
+        //     .graph
+        //     .add_root_node(SceneNode::default());
+        //
+        // let texture_handle = resources
+        //     .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
+        //
+        // for geometry_handle in handles {
+        //     let scene_node = SceneNode::default();
+        //     let scene_graph_node = self.graph.add_node(scene_node);
+        //     self.graph.add_edge(group_node, scene_graph_node);
+        //
+        //     let renderable = Renderable {
+        //         geometry_handle,
+        //         texture_handle,
+        //         node: scene_graph_node
+        //     };
+        //
+        //     renderer.renderables.push(renderable);
+        // }
+        //
+        // Ok(())
+        unimplemented!()
     }
 
     fn mouse_ray(&self) -> Ray {
         // mouse coordinates in window coordinates
-        let mouse = self.input.mouse_position().unwrap();
+        let mouse = self.engine.input.mouse_position().unwrap();
 
         // mouse coordinates in viewport coordinates
-        let viewport = self.renderer.viewport.unwrap();
+        let viewport = self.engine.renderer.viewport.unwrap();
         let x_in_viewport = (mouse.x as f32) - viewport.left();
         let y_in_viewport = (mouse.y as f32) - viewport.top();
 
@@ -649,7 +547,7 @@ impl Editor {
         // for y, 1 is top and -1 is bottom
         let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
 
-        let vp = self.renderer.perspective_projection() * self.camera.view();
+        let vp = self.camera.perspective_projection() * self.camera.view();
         let inv_vp = vp.try_inverse().unwrap();
 
         // position of mouse coordinate on near and far plane in clip space
