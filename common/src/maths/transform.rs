@@ -1,4 +1,4 @@
-use nalgebra::{Similarity3, Translation3, UnitQuaternion};
+use nalgebra::{Matrix4, Scale3, Similarity3, Transform3, Translation3, UnitQuaternion, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::maths;
@@ -7,9 +7,9 @@ use crate::maths;
 pub struct Transform {
     translation: Translation3<f32>,
     rotation: UnitQuaternion<f32>,
-    scale: f32,
+    scale: Scale3<f32>,
     #[serde(skip)]
-    matrix: Similarity3<f32>,
+    matrix: Matrix4<f32>,
     #[serde(skip)]
     dirty: bool,
 }
@@ -17,12 +17,11 @@ pub struct Transform {
 impl Transform {
     pub fn compute_transform_matrix(&mut self) {
         if self.dirty {
-            let mut matrix = Similarity3::identity();
-            matrix.append_scaling_mut(self.scale);
-            matrix.append_rotation_mut(&self.rotation);
-            matrix.append_translation_mut(&self.translation);
+            let scale_matrix = Matrix4::new_nonuniform_scaling(&self.scale.vector);
+            let rotation_matrix = self.rotation.to_homogeneous();
+            let translation_matrix = Translation3::from(self.translation).to_homogeneous();
 
-            self.matrix = matrix;
+            self.matrix = translation_matrix * rotation_matrix * scale_matrix;
 
             self.dirty = false;
         }
@@ -31,18 +30,21 @@ impl Transform {
     pub fn combine(&self, parent: &Transform) -> Transform {
         let mut combined = self.clone();
 
-        // log::debug!("From {:?}", combined);
+        combined.scale.x *= parent.scale.x;
+        combined.scale.y *= parent.scale.y;
+        combined.scale.z *= parent.scale.z;
 
-        combined.scale *= parent.scale;
         combined.rotation = parent.rotation * combined.rotation;
-        combined.translation = Translation3::from(
-            parent.translation.vector
-                + parent
-                    .rotation
-                    .transform_vector(&(combined.translation.vector * parent.scale)),
+
+        let scaled_translation = Vector3::new(
+            combined.translation.vector.x * parent.scale.x,
+            combined.translation.vector.y * parent.scale.y,
+            combined.translation.vector.z * parent.scale.z,
         );
 
-        // log::debug!("To {:?}", combined);
+        combined.translation = Translation3::from(
+            parent.translation.vector + parent.rotation.transform_vector(&scaled_translation)
+        );
 
         combined.dirty = true;
         combined.compute_transform_matrix();
@@ -50,15 +52,10 @@ impl Transform {
     }
 
     pub fn raw_matrix(&self) -> [[f32; 4]; 4] {
-        #[cfg(debug_assertions)]
-        if self.dirty {
-            log::warn!("Obtaining dirty raw transform matrix.")
-        }
-
-        maths::raw_matrix(self.matrix.into())
+        maths::raw_matrix(self.matrix().into())
     }
 
-    pub fn matrix(&self) -> Similarity3<f32> {
+    pub fn matrix(&self) -> Matrix4<f32> {
         #[cfg(debug_assertions)]
         if self.dirty {
             log::warn!("Obtaining dirty transform matrix.")
@@ -67,16 +64,16 @@ impl Transform {
         self.matrix
     }
 
-    pub fn get_scale(&self) -> f32 {
+    pub fn scale(&self) -> Scale3<f32> {
         self.scale
     }
 
-    pub fn set_scale(&mut self, scale: f32) {
+    pub fn set_scale(&mut self, scale: Scale3<f32>) {
         self.scale = scale;
         self.dirty = true;
     }
 
-    pub fn get_rotation(&self) -> UnitQuaternion<f32> {
+    pub fn rotation(&self) -> UnitQuaternion<f32> {
         self.rotation
     }
 
@@ -85,7 +82,7 @@ impl Transform {
         self.dirty = true;
     }
 
-    pub fn get_translation(&self) -> Translation3<f32> {
+    pub fn translation(&self) -> Translation3<f32> {
         self.translation
     }
 
@@ -104,8 +101,8 @@ impl Default for Transform {
         Self {
             translation: Translation3::identity(),
             rotation: UnitQuaternion::identity(),
-            scale: 1.0,
-            matrix: Similarity3::identity(),
+            scale: Scale3::identity(),
+            matrix: Matrix4::identity(),
             dirty: false,
         }
     }

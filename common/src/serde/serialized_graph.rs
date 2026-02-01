@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     maths::Transform,
     resources::Resources,
-    scene::graph::{NodeType, Renderable, SceneGraph, SceneNode},
+    scene::graph::{SceneGraph, SceneNode},
 };
 use crate::components::component::Component;
+use crate::systems::renderer::Renderable;
 
 #[derive(Serialize, Deserialize)]
 struct SerializedSceneNode {
@@ -22,35 +23,38 @@ struct SerializedSceneNode {
 
 impl SerializedSceneNode {
     fn from_scene_node(scene_node: &SceneNode, resources: &Resources) -> Self {
-        let serialized_node_type = match &scene_node.ty {
-            NodeType::Group => SerializedNodeType::Group,
-            NodeType::Renderable(renderable) => {
-                SerializedNodeType::SerializedRenderable(SerializedRenderable::from_renderable(renderable, resources))
-            }
-        };
-
-        Self {
-            local_transform: scene_node.local_transform.clone(),
-            visible: scene_node.visible,
-            ty: serialized_node_type,
-            components: scene_node.components.clone(),
-        }
+        unimplemented!()
+        // let serialized_node_type = match &scene_node.ty {
+        //     NodeType::Group => SerializedNodeType::Group,
+        //     NodeType::Renderable(renderable) => {
+        //         SerializedNodeType::SerializedRenderable(SerializedRenderable::from_renderable(renderable, resources))
+        //     }
+        // };
+        //
+        // Self {
+        //     local_transform: scene_node.local_transform.clone(),
+        //     visible: scene_node.visible,
+        //     ty: serialized_node_type,
+        //     components: scene_node.components.clone(),
+        // }
     }
 
     fn into_scene_node(self, display: &Display<WindowSurface>, resources: &mut Resources) -> SceneNode {
-        let node_type = match self.ty {
-            SerializedNodeType::Group => NodeType::Group,
-            SerializedNodeType::SerializedRenderable(serialized_renderable) => {
-                NodeType::Renderable(serialized_renderable.into_renderable(resources, display))
-            }
-        };
+        unimplemented!()
 
-        let mut node = SceneNode::new(node_type);
-        node.local_transform = self.local_transform;
-        node.visible = self.visible;
-        node.components = self.components;
-
-        node
+        // let node_type = match self.ty {
+        //     SerializedNodeType::Group => NodeType::Group,
+        //     SerializedNodeType::SerializedRenderable(serialized_renderable) => {
+        //         NodeType::Renderable(serialized_renderable.into_renderable(resources, display))
+        //     }
+        // };
+        //
+        // let mut node = SceneNode::new(node_type);
+        // node.local_transform = self.local_transform;
+        // node.visible = self.visible;
+        // node.components = self.components;
+        //
+        // node
     }
 }
 
@@ -84,10 +88,11 @@ impl SerializedRenderable {
 
         let texture_handle = resources.get_texture_handle(&self.texture_path, display).unwrap();
 
-        Renderable {
-            geometry_handle,
-            texture_handle,
-        }
+        panic!()
+        // Renderable {
+        //     geometry_handle,
+        //     texture_handle,
+        // }
     }
 }
 

@@ -22,10 +22,11 @@ use common::collision::colliders::sphere::Sphere;
 use common::colors::Color;
 use common::components::component::Component;
 use common::debug;
+use common::engine::Engine;
 use common::input::Input;
 use common::line::Line;
 use common::quad::Quad;
-use common::renderer::Renderer;
+use common::systems::renderer::Renderer;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::Scene;
 use common::serde::SerializedScene;
@@ -66,12 +67,10 @@ struct Args {
 }
 
 pub struct Game {
-    input: Input,
+    engine: Engine,
     scene: Scene,
-    renderer: Renderer,
     state: FrameState,
     camera: OrbitalCamera,
-    components: FxHashMap<Discriminant<Component>, Vec<NodeIndex>>,
     player: PlayerController,
     player_sphere: NodeIndex,
 }
@@ -131,7 +130,7 @@ impl Application for Game {
 
         dbg!(&components);
 
-        let player_position = scene.graph.graph.node_weight(*player_node).unwrap().local_transform.get_translation().vector;
+        let player_position = scene.graph.graph.node_weight(*player_node).unwrap().local_transform.translation().vector;
 
         let player = PlayerController {
             position: player_position.clone(),
@@ -156,6 +155,13 @@ impl Application for Game {
         scene.graph.add_edge(player_node.clone(), sphere_graph_node);
 
         let camera = OrbitalCamera::new(Point3::from(player_position), 5.0);
+
+        let engine = Engine {
+            renderer,
+            input,
+            gui: None,
+            scene
+        }
 
         Self {
             renderer,
@@ -192,7 +198,7 @@ impl Application for Game {
                 }
 
                 self.update(window, display);
-                self.render(window, display);
+                self.engine.renderer.render(window, display);
 
                 self.state.update_statistics();
             }
@@ -235,11 +241,11 @@ impl Game {
                     let root_aabb = geometry.bvh.get_root_aabb();
                     dbg!(root_aabb.min, root_aabb.max);
 
-                    let origin_world = player_node.world_transform().get_translation();
+                    let origin_world = player_node.world_transform().translation();
 
                     let extent = root_aabb.max - root_aabb.min;
                     let longest_side_local = extent.x.max(extent.y).max(extent.z);
-                    let longest_side_world = longest_side_local * player_node.world_transform().get_scale();
+                    let longest_side_world = longest_side_local * player_node.world_transform().scale();
 
                     Sphere::new(origin_world.vector, longest_side_world / 2.0)
                 } else {

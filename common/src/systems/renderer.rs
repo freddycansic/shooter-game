@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 
 use color_eyre::Result;
 use egui_glium::egui_winit::egui::{self, Pos2};
@@ -7,17 +7,17 @@ use fxhash::{FxBuildHasher, FxHashMap};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{IndicesSource, NoIndices, PrimitiveType};
-use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
+use glium::texture::{MipmapsOption, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
     Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    Vertex, VertexBuffer, implement_vertex, uniform, Texture2d
 };
 use itertools::Itertools;
-use nalgebra::{Matrix4, Point3, Translation3};
-
-use crate::colors::{self, ColorExt};
+use nalgebra::{Matrix4, Point3, Translation3, Vector3};
+use petgraph::graph::NodeIndex;
+use crate::colors::{self, Color, ColorExt};
 use crate::debug::DebugCuboid;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
@@ -25,13 +25,14 @@ use crate::input::Input;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
-use crate::quad::QuadVertex;
-use crate::resources::Resources;
+use crate::quad::{Quad, QuadVertex};
+use crate::resources::{GeometryHandle, Resources};
 use crate::resources::{CubemapHandle, TextureHandle};
-use crate::scene::QuadBatches;
-use crate::scene::graph::{GeometryBatchKey, GeometryBatches};
-use crate::scene::scene::RenderQueue;
+use crate::scene::{QuadBatches};
+use crate::scene::graph::{SceneGraph};
 use crate::{context, maths};
+use crate::camera::{Camera, OrbitalCamera};
+use crate::world::World;
 
 struct Programs {
     outline: Program,
@@ -51,7 +52,7 @@ pub struct RendererBuffers {
     pub line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
     pub quad_vertex_buffers: FxHashMap<TextureHandle, VertexBuffer<QuadVertex>>,
     pub cube_vertex_buffer: VertexBuffer<SimplePoint>,
-    pub debug_cube_instance_buffer: VertexBuffer<SolidColorInstance>,
+    pub cube_instance_buffer: VertexBuffer<Instance>
 }
 
 impl RendererBuffers {
@@ -105,10 +106,58 @@ impl RendererBuffers {
     }
 }
 
-pub struct Renderer {
-    orthograhic_projection: Matrix4<f32>,
-    perspective_projection: Matrix4<f32>,
 
+#[derive(Clone)]
+pub struct GeometryBatchKey {
+    pub geometry_handle: GeometryHandle,
+    pub texture_handle: TextureHandle,
+    pub selected: bool,
+}
+
+impl Hash for GeometryBatchKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.geometry_handle.hash(state);
+        self.texture_handle.hash(state);
+        self.selected.hash(state);
+    }
+}
+
+impl PartialEq for GeometryBatchKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.geometry_handle == other.geometry_handle
+            && self.texture_handle == other.texture_handle
+            && self.selected == other.selected
+    }
+}
+
+impl Eq for GeometryBatchKey {}
+
+pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
+
+pub struct RenderQueue {
+    pub geometry_batches: GeometryBatches,
+    pub quad_batches: QuadBatches,
+}
+
+pub struct Renderable {
+    pub node: NodeIndex,
+    pub geometry_handle: GeometryHandle,
+    pub texture_handle: TextureHandle,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Background {
+    Color(Color),
+    HDRI(CubemapHandle),
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        Background::Color(Color::from_named(palette::named::GRAY))
+    }
+}
+
+pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
 
@@ -117,8 +166,6 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(
-        window_width: f32,
-        window_height: f32,
         viewport: Option<egui::Rect>,
         display: &Display<WindowSurface>,
     ) -> Result<Self> {
@@ -198,13 +245,11 @@ impl Renderer {
         let hasher = FxBuildHasher::new();
 
         Ok(Self {
-            perspective_projection: maths::perspective_matrix_from_dimensions(window_width, window_height),
-            orthograhic_projection: maths::orthographic_matrix_from_dimensions(window_width, window_height),
             buffers: RendererBuffers {
                 instance_buffers: FxHashMap::with_hasher(hasher.clone()),
                 line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
                 quad_vertex_buffers: FxHashMap::with_hasher(hasher),
-                debug_cube_instance_buffer: VertexBuffer::empty(display, 10 /* ? */).unwrap(),
+                cube_instance_buffer: VertexBuffer::new(display, &[]).unwrap(),
                 cube_vertex_buffer,
             },
             programs: Programs {
@@ -223,21 +268,8 @@ impl Renderer {
         })
     }
 
-    pub fn perspective_projection(&self) -> Matrix4<f32> {
-        self.perspective_projection
-    }
-
-    pub fn orthographic_projection(&self) -> Matrix4<f32> {
-        self.orthograhic_projection
-    }
-
-    pub fn update_projection_matrices(&mut self, width: f32, height: f32) {
-        self.perspective_projection = maths::perspective_matrix_from_dimensions(width, height);
-        self.orthograhic_projection = maths::orthographic_matrix_from_dimensions(width, height);
-    }
-
-    pub fn update_viewport(&mut self, viewport: egui::Rect) {
-        self.update_projection_matrices(viewport.width(), viewport.height());
+    pub fn update_viewport(&mut self, viewport: egui::Rect, camera: &mut OrbitalCamera) {
+        camera.update_projection_matrices(viewport.width(), viewport.height());
         self.viewport = Some(viewport);
     }
 
@@ -262,17 +294,80 @@ impl Renderer {
         })
     }
 
+    pub fn render_world(&mut self,
+                        world: &World,
+                  camera: &OrbitalCamera,
+                  resources: &Resources, scene_graph: &SceneGraph, selection: &[NodeIndex], lights: &[Light], display: &Display<WindowSurface>, target: &mut Frame) {
+        let render_queue = self.build_render_queue(&world.renderables, scene_graph, selection);
+
+        self.render_background(&world.background, camera, resources, target);
+        self.render_queue(render_queue, camera, resources, lights, display, target);
+        self.render_lines(camera, display, target);
+    }
+
+    fn render_background(&mut self, background: &Background, camera: &OrbitalCamera, resources: &Resources, target: &mut Frame) {
+        match background {
+            Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
+            Background::HDRI(cubemap_handle) => {
+                target.clear_all(
+                    Color::from_named(palette::named::WHITE).to_rgb_components_tuple(),
+                    1.0,
+                    0,
+                );
+                self.render_skybox(camera, *cubemap_handle, resources, target);
+            }
+        }
+    }
+
+    fn build_render_queue(&mut self, renderables: &[Renderable], scene_graph: &SceneGraph, selection: &[NodeIndex]) -> RenderQueue {
+        let geometry_batches = self.batch_geometry(renderables, scene_graph, selection);
+        // let quad_batches = self.quads.batch();
+
+        RenderQueue {
+            geometry_batches,
+            quad_batches: FxHashMap::default(),
+        }
+    }
+
+    fn batch_geometry(&self, renderables: &[Renderable], scene_graph: &SceneGraph, selection: &[NodeIndex]) -> GeometryBatches {
+        // TODO do this outside of this method
+        // scene_graph.calculate_world_matrices();
+
+        let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
+
+        for renderable in renderables {
+            let node = scene_graph.graph.node_weight(renderable.node).unwrap();
+
+            if !node.visible {
+                continue;
+            }
+
+            let node_key = GeometryBatchKey {
+                geometry_handle: renderable.geometry_handle,
+                texture_handle: renderable.texture_handle,
+                selected: selection.contains(&renderable.node),
+            };
+
+            let batch = batches.entry(node_key).or_insert(vec![]);
+
+            let transform = node.world_transform().raw_matrix();
+
+            batch.push(Instance { transform });
+        }
+
+        batches
+    }
+
     pub fn render_queue(
         &mut self,
         queue: RenderQueue,
+        camera: &OrbitalCamera,
         resources: &Resources,
-        view: &Matrix4<f32>,
-        camera_position: Point3<f32>,
         lights: &[Light],
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        let vp = maths::raw_matrix(self.perspective_projection * view);
+        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 
         let dimensions = target.get_dimensions();
 
@@ -283,7 +378,7 @@ impl Renderer {
             resources,
             &vp,
             lights,
-            camera_position,
+            camera.position(),
             display,
             target,
         );
@@ -292,7 +387,7 @@ impl Renderer {
         self.render_outline(outline_texture, target);
 
         // Render quads last so they stay on top
-        self.render_quads(&queue.quad_batches, resources, display, target);
+        self.render_quads(camera, &queue.quad_batches, resources, display, target);
     }
 
     // pub fn render_terrain(
@@ -332,68 +427,20 @@ impl Renderer {
     //         .unwrap()
     // }
 
-    pub fn render_quads(
+    pub fn render_cuboids(
         &mut self,
-        quad_batches: &QuadBatches,
-        resources: &Resources,
-        display: &Display<WindowSurface>,
-        target: &mut Frame,
-    ) {
-        let sample_behaviour = SamplerBehavior {
-            minify_filter: MinifySamplerFilter::Nearest,
-            magnify_filter: MagnifySamplerFilter::Nearest,
-            ..SamplerBehavior::default()
-        };
-
-        let viewport = self.get_glium_viewport();
-
-        for (texture_handle, quad_vertices) in quad_batches.iter() {
-            let quad_buffer = RendererBuffers::get_vertex_buffer(
-                &mut self.buffers.quad_vertex_buffers,
-                &texture_handle,
-                quad_vertices,
-                display,
-            );
-
-            let texture = resources.get_texture(*texture_handle);
-
-            let uniforms = uniform! {
-                diffuse_texture: Sampler(&texture.inner_texture, sample_behaviour),
-                projection: maths::raw_matrix(self.orthograhic_projection)
-            };
-
-            target
-                .draw(
-                    quad_buffer.slice(0..quad_vertices.len()).unwrap(),
-                    NoIndices(PrimitiveType::Points),
-                    &self.programs.quad,
-                    &uniforms,
-                    &DrawParameters {
-                        // Depth buffer is disabled so that they appear on top
-                        blend: Blend::alpha_blending(),
-                        viewport,
-                        ..Default::default()
-                    },
-                )
-                .unwrap();
-        }
-    }
-
-    pub fn render_debug_cuboids(
-        &mut self,
-        cuboids: &[DebugCuboid],
+        camera: &OrbitalCamera,
         opacity: f32,
-        view: &Matrix4<f32>,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
         assert!(opacity > 0.0 && opacity <= 1.0);
 
-        if cuboids.is_empty() {
+        if self.cuboids.is_empty() {
             return;
         }
 
-        let instances = cuboids
+        let instances = self.cuboids
             .iter()
             .map(|cuboid| {
                 let scale_vec = cuboid.max - cuboid.min;
@@ -411,9 +458,9 @@ impl Renderer {
             })
             .collect_vec();
 
-        RendererBuffers::ensure_vertex_buffer_size(&mut self.buffers.debug_cube_instance_buffer, &instances, display);
+        RendererBuffers::ensure_vertex_buffer_size(&mut self.debug_cube_instance_buffer, &instances, display);
 
-        let vp = maths::raw_matrix(self.perspective_projection * view);
+        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 
         let premultiplied_alpha = Blend {
             color: BlendingFunction::Addition {
@@ -433,7 +480,7 @@ impl Renderer {
                     &self.buffers.cube_vertex_buffer,
                     self.buffers
                         .debug_cube_instance_buffer
-                        .slice(0..cuboids.len())
+                        .slice(0..self.cuboids.len())
                         .unwrap()
                         .per_instance()
                         .unwrap(),
@@ -462,7 +509,7 @@ impl Renderer {
                 (
                     &self.buffers.cube_vertex_buffer,
                     self.buffers
-                        .debug_cube_instance_buffer
+                        .cube_instance_buffer
                         .slice(0..cuboids.len())
                         .unwrap()
                         .per_instance()
@@ -490,16 +537,64 @@ impl Renderer {
             .unwrap();
     }
 
+    pub fn render_quads(
+        &mut self,
+        camera: &OrbitalCamera,
+        quad_batches: &QuadBatches,
+        resources: &Resources,
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
+        let sample_behaviour = SamplerBehavior {
+            minify_filter: MinifySamplerFilter::Nearest,
+            magnify_filter: MagnifySamplerFilter::Nearest,
+            ..SamplerBehavior::default()
+        };
+
+        let viewport = self.get_glium_viewport();
+
+        for (texture_handle, quad_vertices) in quad_batches.iter() {
+            let quad_buffer = RendererBuffers::get_vertex_buffer(
+                &mut self.buffers.quad_vertex_buffers,
+                &texture_handle,
+                quad_vertices,
+                display,
+            );
+
+            let texture = resources.get_texture(*texture_handle);
+
+            let uniforms = uniform! {
+                diffuse_texture: Sampler(&texture.inner_texture, sample_behaviour),
+                projection: maths::raw_matrix(camera.orthographic_projection())
+            };
+
+            target
+                .draw(
+                    quad_buffer.slice(0..quad_vertices.len()).unwrap(),
+                    NoIndices(PrimitiveType::Points),
+                    &self.programs.quad,
+                    &uniforms,
+                    &DrawParameters {
+                        // Depth buffer is disabled so that they appear on top
+                        blend: Blend::alpha_blending(),
+                        viewport,
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        }
+    }
+
     pub fn render_skybox(
         &mut self,
+        camera: &OrbitalCamera,
         cubemap_handle: CubemapHandle,
         resources: &Resources,
-        view: &Matrix4<f32>,
         target: &mut Frame,
     ) {
         // Strip translation from view matrix = skybox is always in the same place
-        let stripped_view = view.stripped_w();
-        let vp = self.perspective_projection * stripped_view;
+        let stripped_view = camera.view().stripped_w();
+        let vp = camera.perspective_projection() * stripped_view;
 
         let sample_behaviour = SamplerBehavior {
             minify_filter: MinifySamplerFilter::Nearest,
@@ -530,18 +625,17 @@ impl Renderer {
 
     pub fn render_lines(
         &mut self,
-        lines: &[Line],
-        view: &Matrix4<f32>,
+        camera: &OrbitalCamera,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        if lines.is_empty() {
+        if self.lines.is_empty() {
             return;
         }
 
         let mut batched = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
 
-        for line in lines {
+        for line in &self.lines {
             batched.entry(line.width).or_default().extend_from_slice(&[
                 LinePoint {
                     position: line.p1.into(),
@@ -554,7 +648,7 @@ impl Renderer {
             ]);
         }
 
-        let vp = maths::raw_matrix(self.perspective_projection * view);
+        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
         let viewport = self.get_glium_viewport();
 
         for (width, points) in batched {
@@ -696,7 +790,7 @@ impl Renderer {
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
         display: &Display<WindowSurface>,
-    ) -> Texture2d {
+    ) -> Texture2D {
         let mask_texture = Texture2d::empty_with_format(
             display,
             UncompressedFloatFormat::U8,

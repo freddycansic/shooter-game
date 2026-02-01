@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use glium::{Display, glutin::surface::WindowSurface};
 use serde::{Deserialize, Serialize};
 
-use crate::{colors::Color, resources::Resources, scene::Background};
+use crate::{colors::Color, resources::Resources};
+use crate::systems::renderer::Background;
 
 #[derive(Serialize, Deserialize)]
 pub enum SerializedBackground {

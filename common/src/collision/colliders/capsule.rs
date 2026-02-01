@@ -1,16 +1,16 @@
 use crate::collision::collidable::{Intersectable, RayHit};
 use crate::collision::colliders::cylinder;
 use crate::maths::Ray;
-use nalgebra::Vector3;
+use nalgebra::{Point3, Vector3};
 
 pub struct Capsule {
-    pub p1: Vector3<f32>,
-    pub p2: Vector3<f32>,
+    pub p1: Point3<f32>,
+    pub p2: Point3<f32>,
     pub radius: f32,
 }
 
 impl Capsule {
-    pub fn new(p1: Vector3<f32>, p2: Vector3<f32>, radius: f32) -> Self {
+    pub fn new(p1: Point3<f32>, p2: Point3<f32>, radius: f32) -> Self {
         Self { p1, p2, radius }
     }
 }
@@ -44,7 +44,7 @@ impl Intersectable for Capsule {
     }
 }
 
-pub fn ray_sphere(ray: &Ray, center: &Vector3<f32>, radius: f32) -> Option<RayHit> {
+pub fn ray_sphere(ray: &Ray, center: &Point3<f32>, radius: f32) -> Option<RayHit> {
     let oc = (ray.origin - center).to_homogeneous().xyz();
     let a = ray.direction().dot(&ray.direction());
     let b = 2.0 * oc.dot(&ray.direction());
@@ -83,12 +83,12 @@ mod tests {
     #[test]
     fn intersect_ray_zero_length_origin_capsule_hit() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, 0.0, 0.0),
-            p2: Vector3::new(0.0, 0.0, 0.0),
+            p1: Point3::new(0.0, 0.0, 0.0),
+            p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -98,12 +98,12 @@ mod tests {
     #[test]
     fn intersect_ray_zero_length_origin_capsule_miss() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, 0.0, 0.0),
-            p2: Vector3::new(0.0, 0.0, 0.0),
+            p1: Point3::new(0.0, 0.0, 0.0),
+            p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let result = capsule.intersect_ray(&ray);
         assert!(result.is_none());
@@ -112,12 +112,12 @@ mod tests {
     #[test]
     fn intersect_ray_zero_length_origin_capsule_graze() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, 0.0, 0.0),
-            p2: Vector3::new(0.0, 0.0, 0.0),
+            p1: Point3::new(0.0, 0.0, 0.0),
+            p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 2.0);
@@ -127,12 +127,12 @@ mod tests {
     #[test]
     fn intersect_ray_axis_aligned_capsule_hit_center() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0, 1.0, 0.0),
+            p1: Point3::new(0.0, -1.0, 0.0),
+            p2: Point3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.5);
@@ -142,12 +142,12 @@ mod tests {
     #[test]
     fn intersect_ray_axis_aligned_capsule_miss_parallel() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0, 1.0, 0.0),
+            p1: Point3::new(0.0, -1.0, 0.0),
+            p2: Point3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         assert!(capsule.intersect_ray(&ray).is_none());
     }
@@ -155,12 +155,12 @@ mod tests {
     #[test]
     fn intersect_ray_axis_aligned_capsule_graze_cylinder() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0, 1.0, 0.0),
+            p1: Point3::new(0.0, -1.0, 0.0),
+            p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
@@ -170,12 +170,12 @@ mod tests {
     #[test]
     fn intersect_ray_axis_aligned_capsule_hit_endcap() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0, 1.0, 0.0),
+            p1: Point3::new(0.0, -1.0, 0.0),
+            p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert_relative_eq!(result.tmin, 2.0 - 0.75_f32.sqrt());
@@ -185,12 +185,12 @@ mod tests {
     #[test]
     fn intersect_ray_diagonal_capsule_hit() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, 0.0, 0.0),
-            p2: Vector3::new(1.0, 1.0, 0.0),
+            p1: Point3::new(0.0, 0.0, 0.0),
+            p2: Point3::new(1.0, 1.0, 0.0),
             radius: 0.25,
         };
 
-        let ray = Ray::new(Vector3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Point3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert!(result.tmin <= result.tmax);
@@ -199,12 +199,12 @@ mod tests {
     #[test]
     fn intersect_ray_diagonal_capsule_miss() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, 0.0, 0.0),
-            p2: Vector3::new(1.0, 1.0, 0.0),
+            p1: Point3::new(0.0, 0.0, 0.0),
+            p2: Point3::new(1.0, 1.0, 0.0),
             radius: 0.25,
         };
 
-        let ray = Ray::new(Vector3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Ray::new(Point3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
 
         assert!(capsule.intersect_ray(&ray).is_none());
     }
@@ -212,12 +212,12 @@ mod tests {
     #[test]
     fn intersect_ray_inside_capsule() {
         let capsule = Capsule {
-            p1: Vector3::new(0.0, -1.0, 0.0),
-            p2: Vector3::new(0.0, 1.0, 0.0),
+            p1: Point3::new(0.0, -1.0, 0.0),
+            p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
         let result = capsule.intersect_ray(&ray).unwrap();
         assert!(result.tmin <= 0.0);

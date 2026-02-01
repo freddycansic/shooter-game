@@ -20,7 +20,7 @@ impl Show for Transform {
 fn show_translation(transform: &mut Transform, ui: &mut Ui) {
     ui.label("Translation");
 
-    let mut translation = transform.get_translation();
+    let mut translation = transform.translation();
     let mut changed = false;
 
     let speed = 0.1;
@@ -55,7 +55,7 @@ fn show_translation(transform: &mut Transform, ui: &mut Ui) {
 fn show_rotation(transform: &mut Transform, ui: &mut Ui) {
     ui.label("Rotation");
 
-    let (mut rotation_x, mut rotation_y, mut rotation_z) = transform.get_rotation().euler_angles();
+    let (mut rotation_x, mut rotation_y, mut rotation_z) = transform.rotation().euler_angles();
     rotation_x = maths::to_degrees(rotation_x);
     rotation_y = maths::to_degrees(rotation_y);
     rotation_z = maths::to_degrees(rotation_z);
@@ -102,7 +102,7 @@ fn show_rotation(transform: &mut Transform, ui: &mut Ui) {
 fn show_scale(transform: &mut Transform, ui: &mut Ui) {
     ui.label("Scale");
 
-    let mut scale = transform.get_scale();
+    let mut scale = transform.scale();
 
     let changed = ui
         .add(egui::DragValue::new(&mut scale).speed(0.01).max_decimals(MAX_DECIMALS))
