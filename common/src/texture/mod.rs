@@ -1,5 +1,5 @@
 pub use cubemap::Cubemap;
-pub use texture2d::Texture2D;
+pub use texture2d::Texture2DResource;
 
 mod texture;
 

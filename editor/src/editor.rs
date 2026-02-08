@@ -3,10 +3,10 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
-use common::debug::DebugCuboid;
+use common::debug::Cuboid;
 use common::maths::{Ray, Transform};
 use common::scene::graph::{SceneGraph, SceneNode};
-use common::serde::SerializedScene;
+use common::serde::SerializedWorld;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
@@ -29,15 +29,15 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::light::Light;
 use common::line::Line;
-use common::systems::renderer::{Renderable, Renderer};
+use common::systems::renderer::{Background, Renderable, Renderer};
 // use common::scene::Background;
 use common::*;
 use common::collision::colliders::sphere::Sphere;
 use common::components::component::Component;
 use common::engine::Engine;
 use common::resources::Resources;
+use common::world::World;
 use input::Input;
-use scene::Scene;
 use crate::ui::Show;
 
 struct FrameState {
@@ -69,7 +69,7 @@ impl FrameState {
 
 enum EngineEvent {
     ImportHDRIBackground(PathBuf),
-    LoadScene(String),
+    LoadProject(String),
     ImportModel(PathBuf),
 }
 
@@ -79,9 +79,9 @@ pub struct Editor {
     state: FrameState,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
-    debug_cuboids: Vec<DebugCuboid>,
+    debug_cuboids: Vec<Cuboid>,
     selection: Vec<NodeIndex>,
-    lights: Vec<Light>,
+    world: World,
 }
 
 impl Application for Editor {
@@ -91,28 +91,15 @@ impl Application for Editor {
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
 
-        let mut scene = Scene {
-
-            ..Default::default()
-        };
-
         let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
 
-        let inner_size = window.inner_size();
         let renderer = Renderer::new(
             None, // full size
             display,
         )
         .unwrap();
 
-        renderer.lines
-
-        let lights = vec![Light {
-            position: Point3::new(3.0, 2.0, 1.0),
-            color: Color::from_named(palette::named::WHITE),
-        }];
-
-        let mut resources = Resources::new();
+        let resources = Resources::new();
 
         let input = Input::new();
 
@@ -134,8 +121,13 @@ impl Application for Editor {
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
+        let mut world = World::new();
+        world.lights = vec![Light {
+            position: Point3::new(3.0, 2.0, 1.0),
+            color: Color::from_named(palette::named::WHITE),
+        }];
+
         let engine = Engine {
-            scene_graph,
             renderer,
             input,
             gui,
@@ -148,9 +140,9 @@ impl Application for Editor {
             sender,
             receiver,
             camera,
-            debug_cuboids,
+            world,
+            debug_cuboids: vec![],
             selection: vec![],
-            lights,
         }
     }
 
@@ -204,23 +196,26 @@ impl Application for Editor {
 
 impl Editor {
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        for engine_event in self.receiver.try_iter() {
+        let events = self.receiver.try_iter().collect_vec();
+
+        for engine_event in events.into_iter() {
             match engine_event {
-                // EngineEvent::LoadScene(serialized_scene_string) => {
-                //     let serialized_scene = serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap();
-                //
-                //     self.engine.scene_graph = serialized_scene.into_scene(display).unwrap();
-                // }
-                // EngineEvent::ImportModel(model_path) => self.scene.import_model(model_path.as_path(), display).unwrap(),
-                // EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                //     self.scene.background = Background::HDRI(
-                //         self.scene
-                //             .resources
-                //             .get_cubemap_handle(&hdri_directory_path, display)
-                //             .unwrap(),
-                //     )
-                // }
-                _ => unimplemented!()
+                EngineEvent::LoadProject(serialized_project) => {
+                    // At the moment this just loads a world
+                    // In the future it might be necessary to have multiple worlds in one project.
+                    let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
+
+                    self.world = serialized_world.into_world(display).unwrap();
+                }
+                EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
+                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+                    self.world.background = Background::HDRI(
+                        self.engine
+                            .resources
+                            .get_cubemap_handle(&hdri_directory_path, display)
+                            .unwrap(),
+                    )
+                }
             }
         }
 
@@ -290,12 +285,11 @@ impl Editor {
 
         let mut target = display.draw();
         {
-            self.engine.renderer.render(
+            self.engine.renderer.render_world(
+                &self.world,
                 &self.camera,
                 &self.engine.resources,
-                &self.engine.scene_graph,
                 &self.selection,
-                &self.lights,
                 display,
                 &mut target,
             );
@@ -313,13 +307,12 @@ impl Editor {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.engine.scene_graph = SceneGraph::new();
-                                self.engine.renderer.clear();
+                                self.world = World::new();
 
                                 ui.close();
                             }
 
-                            if ui.add(Button::new("Open scene")).clicked() {
+                            if ui.add(Button::new("Open project")).clicked() {
                                 let sender = self.sender.clone();
 
                                 std::thread::spawn(move || {
@@ -329,11 +322,11 @@ impl Editor {
                                         .set_directory("/")
                                         .pick_file()
                                     {
-                                        log::info!("Loading scene {:?}", file);
+                                        log::info!("Loading project {:?}", file);
 
-                                        let scene_string = std::fs::read_to_string(file).unwrap();
+                                        let project_string = std::fs::read_to_string(file).unwrap();
 
-                                        sender.send(EngineEvent::LoadScene(scene_string)).unwrap();
+                                        sender.send(EngineEvent::LoadProject(project_string)).unwrap();
                                     }
                                 });
 
@@ -348,7 +341,7 @@ impl Editor {
                             }
                         });
 
-                        ui.menu_button("Scene", |ui| {
+                        ui.menu_button("Project", |ui| {
                             if ui.add(Button::new("Import models")).clicked() {
                                 let sender = self.sender.clone();
 
@@ -403,7 +396,7 @@ impl Editor {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |ui| {
-                    self.engine.scene_graph.show(ui);
+                    self.world.graph.show(ui);
 
                     ui.add(egui::Separator::default().horizontal());
 
@@ -486,7 +479,7 @@ impl Editor {
             });
 
             // Update the viewport size with the amount of space after then panels have been added
-            self.engine.renderer.update_viewport(ctx.available_rect());
+            self.engine.renderer.update_viewport(ctx.available_rect(), &mut self.camera);
         });
     }
 
@@ -504,32 +497,31 @@ impl Editor {
     }
 
     /// Load a models and create an instance of it in the scene
-    fn import_model(&mut self, resources: &mut Resources, renderer: &mut Renderer, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
-        // let handles = resources.get_geometry_handles(path, display)?;
-        //
-        // let group_node = self
-        //     .graph
-        //     .add_root_node(SceneNode::default());
-        //
-        // let texture_handle = resources
-        //     .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
-        //
-        // for geometry_handle in handles {
-        //     let scene_node = SceneNode::default();
-        //     let scene_graph_node = self.graph.add_node(scene_node);
-        //     self.graph.add_edge(group_node, scene_graph_node);
-        //
-        //     let renderable = Renderable {
-        //         geometry_handle,
-        //         texture_handle,
-        //         node: scene_graph_node
-        //     };
-        //
-        //     renderer.renderables.push(renderable);
-        // }
-        //
-        // Ok(())
-        unimplemented!()
+    fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
+        let handles = self.engine.resources.get_geometry_handles(path, display)?;
+
+        let group_node = self
+            .world.graph
+            .add_root_node(SceneNode::default());
+
+        let texture_handle = self.engine.resources
+            .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
+
+        for geometry_handle in handles {
+            let scene_node = SceneNode::default();
+            let world_graph_node = self.world.graph.add_node(scene_node);
+            self.world.graph.add_edge(group_node, world_graph_node);
+
+            let renderable = Renderable {
+                geometry_handle,
+                texture_handle,
+                node: world_graph_node
+            };
+
+            self.world.renderables.push(renderable);
+        }
+
+        Ok(())
     }
 
     fn mouse_ray(&self) -> Ray {

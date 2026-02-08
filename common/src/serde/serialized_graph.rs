@@ -103,7 +103,7 @@ pub struct SerializedSceneGraph {
 }
 
 impl SerializedSceneGraph {
-    pub fn from_scene_graph(scene: &SceneGraph, resources: &Resources) -> Self {
+    pub fn from_world_graph(scene: &SceneGraph, resources: &Resources) -> Self {
         let serialized_graph = scene.graph.map(
             |_, scene_node| SerializedSceneNode::from_scene_node(scene_node, resources),
             |_, _| (),
@@ -115,7 +115,7 @@ impl SerializedSceneGraph {
         }
     }
 
-    pub fn into_scene_graph(self, display: &Display<WindowSurface>, resources: &mut Resources) -> SceneGraph {
+    pub fn into_world_graph(self, display: &Display<WindowSurface>, resources: &mut Resources) -> SceneGraph {
         let graph = self.serialized_graph.map_owned(
             |_, serialized_scene_node| serialized_scene_node.into_scene_node(display, resources),
             |_, _| (),

@@ -10,7 +10,7 @@ use crate::{
         colliders::aabb::Aabb,
     },
     colors::Color,
-    debug::DebugCuboid,
+    debug::Cuboid,
     maths::Ray,
 };
 use crate::collision::collidable::SweepHit;
@@ -94,12 +94,12 @@ impl Bvh {
         }
     }
     
-    pub fn get_debug_cuboids(&self) -> Vec<DebugCuboid> {
+    pub fn get_debug_cuboids(&self) -> Vec<Cuboid> {
         self.graph
             .node_indices()
             .into_iter()
             .filter_map(|node| match &self.graph[node] {
-                BvhNode::Aabb(aabb) => Some(DebugCuboid {
+                BvhNode::Aabb(aabb) => Some(Cuboid {
                     min: aabb.min.to_homogeneous().xyz().cast::<f32>(),
                     max: aabb.max.to_homogeneous().xyz().cast::<f32>(),
                     color: Color::from_components((

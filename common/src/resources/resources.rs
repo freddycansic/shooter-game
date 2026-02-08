@@ -9,12 +9,12 @@ use itertools::Itertools;
 use crate::{
     geometry::Geometry,
     resources::handle::{CubemapHandle, GeometryHandle, TextureHandle},
-    texture::{Cubemap, Texture2D},
+    texture::{Cubemap, Texture2DResource},
 };
 
 pub struct Resources {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
-    textures: FxHashMap<TextureHandle, Texture2D>,
+    textures: FxHashMap<TextureHandle, Texture2DResource>,
 
     geometry_handles: FxHashMap<PathBuf, Vec<GeometryHandle>>,
     geometry: FxHashMap<GeometryHandle, Geometry>,
@@ -43,7 +43,7 @@ impl Resources {
         }
     }
 
-    pub fn get_texture(&self, texture_handle: TextureHandle) -> &Texture2D {
+    pub fn get_texture(&self, texture_handle: TextureHandle) -> &Texture2DResource {
         self.textures
             .get(&texture_handle)
             .expect(format!("TextureHandle {} not loaded!", texture_handle.0).as_str())
@@ -58,7 +58,7 @@ impl Resources {
 
         let handle = TextureHandle(self.new_handle());
 
-        self.textures.insert(handle, Texture2D::load(path, display)?);
+        self.textures.insert(handle, Texture2DResource::load(path, display)?);
         self.textures_handles.insert(path.to_path_buf(), handle);
 
         Ok(handle)
