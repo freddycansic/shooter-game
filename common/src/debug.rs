@@ -5,7 +5,7 @@ use nalgebra::Vector3;
 use crate::colors::Color;
 
 #[derive(Clone, Debug)]
-pub struct DebugCuboid {
+pub struct Cuboid {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,
     pub color: Color,

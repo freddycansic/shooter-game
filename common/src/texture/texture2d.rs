@@ -7,17 +7,17 @@ use glium::texture::CompressedTexture2d;
 
 use crate::texture::texture;
 
-pub struct Texture2D {
+pub struct Texture2DResource {
     pub path: PathBuf,
     pub inner_texture: CompressedTexture2d,
 }
 
-impl Texture2D {
+impl Texture2DResource {
     pub fn load(path: &Path, display: &Display<WindowSurface>) -> Result<Self> {
         let raw_image = texture::load_raw_image(path)?;
         let opengl_texture = CompressedTexture2d::new(display, raw_image).unwrap();
 
-        Ok(Texture2D {
+        Ok(Texture2DResource {
             inner_texture: opengl_texture,
             path: path.to_path_buf(),
         })
@@ -36,7 +36,7 @@ impl Texture2D {
         )
         .unwrap();
 
-        Ok(Texture2D {
+        Ok(Texture2DResource {
             inner_texture: opengl_texture,
             path: PathBuf::new(),
         })

@@ -7,18 +7,18 @@ use fxhash::{FxBuildHasher, FxHashMap};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{IndicesSource, NoIndices, PrimitiveType};
-use glium::texture::{MipmapsOption, UncompressedFloatFormat};
+use glium::texture::{MipmapsOption, UncompressedFloatFormat, Texture2d};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
     Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform, Texture2d
+    Vertex, VertexBuffer, implement_vertex, uniform
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3, Vector3};
 use petgraph::graph::NodeIndex;
 use crate::colors::{self, Color, ColorExt};
-use crate::debug::DebugCuboid;
+use crate::debug::Cuboid;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::input::Input;
@@ -33,6 +33,7 @@ use crate::scene::graph::{SceneGraph};
 use crate::{context, maths};
 use crate::camera::{Camera, OrbitalCamera};
 use crate::world::World;
+use crate::texture::Texture2DResource;
 
 struct Programs {
     outline: Program,
@@ -52,7 +53,10 @@ pub struct RendererBuffers {
     pub line_vertex_buffers: FxHashMap<u8, VertexBuffer<LinePoint>>,
     pub quad_vertex_buffers: FxHashMap<TextureHandle, VertexBuffer<QuadVertex>>,
     pub cube_vertex_buffer: VertexBuffer<SimplePoint>,
-    pub cube_instance_buffer: VertexBuffer<Instance>
+    pub cube_instance_buffer: VertexBuffer<Instance>,
+
+    // debug cuboids
+    pub solid_color_cube_instance_buffer: VertexBuffer<SolidColorInstance>,
 }
 
 impl RendererBuffers {
@@ -250,6 +254,7 @@ impl Renderer {
                 line_vertex_buffers: FxHashMap::with_hasher(hasher.clone()),
                 quad_vertex_buffers: FxHashMap::with_hasher(hasher),
                 cube_instance_buffer: VertexBuffer::new(display, &[]).unwrap(),
+                solid_color_cube_instance_buffer: VertexBuffer::new(display, &[]).unwrap(),
                 cube_vertex_buffer,
             },
             programs: Programs {
@@ -297,12 +302,12 @@ impl Renderer {
     pub fn render_world(&mut self,
                         world: &World,
                   camera: &OrbitalCamera,
-                  resources: &Resources, scene_graph: &SceneGraph, selection: &[NodeIndex], lights: &[Light], display: &Display<WindowSurface>, target: &mut Frame) {
-        let render_queue = self.build_render_queue(&world.renderables, scene_graph, selection);
+                  resources: &Resources, selection: &[NodeIndex], display: &Display<WindowSurface>, target: &mut Frame) {
+        let render_queue = self.build_render_queue(&world.renderables, &world.graph, selection);
 
         self.render_background(&world.background, camera, resources, target);
-        self.render_queue(render_queue, camera, resources, lights, display, target);
-        self.render_lines(camera, display, target);
+        self.render_queue(render_queue, camera, resources, &world.lights, display, target);
+        self.render_lines(&world.lines, camera, display, target);
     }
 
     fn render_background(&mut self, background: &Background, camera: &OrbitalCamera, resources: &Resources, target: &mut Frame) {
@@ -319,8 +324,8 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(&mut self, renderables: &[Renderable], scene_graph: &SceneGraph, selection: &[NodeIndex]) -> RenderQueue {
-        let geometry_batches = self.batch_geometry(renderables, scene_graph, selection);
+    fn build_render_queue(&mut self, renderables: &[Renderable], world_graph: &SceneGraph, selection: &[NodeIndex]) -> RenderQueue {
+        let geometry_batches = self.batch_geometry(renderables, world_graph, selection);
         // let quad_batches = self.quads.batch();
 
         RenderQueue {
@@ -329,14 +334,14 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, renderables: &[Renderable], scene_graph: &SceneGraph, selection: &[NodeIndex]) -> GeometryBatches {
+    fn batch_geometry(&self, renderables: &[Renderable], world_graph: &SceneGraph, selection: &[NodeIndex]) -> GeometryBatches {
         // TODO do this outside of this method
-        // scene_graph.calculate_world_matrices();
+        // world_graph.calculate_world_matrices();
 
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         for renderable in renderables {
-            let node = scene_graph.graph.node_weight(renderable.node).unwrap();
+            let node = world_graph.graph.node_weight(renderable.node).unwrap();
 
             if !node.visible {
                 continue;
@@ -429,6 +434,7 @@ impl Renderer {
 
     pub fn render_cuboids(
         &mut self,
+        cuboids: &[Cuboid],
         camera: &OrbitalCamera,
         opacity: f32,
         display: &Display<WindowSurface>,
@@ -436,11 +442,11 @@ impl Renderer {
     ) {
         assert!(opacity > 0.0 && opacity <= 1.0);
 
-        if self.cuboids.is_empty() {
+        if cuboids.is_empty() {
             return;
         }
 
-        let instances = self.cuboids
+        let instances = cuboids
             .iter()
             .map(|cuboid| {
                 let scale_vec = cuboid.max - cuboid.min;
@@ -458,7 +464,7 @@ impl Renderer {
             })
             .collect_vec();
 
-        RendererBuffers::ensure_vertex_buffer_size(&mut self.debug_cube_instance_buffer, &instances, display);
+        RendererBuffers::ensure_vertex_buffer_size(&mut self.buffers.solid_color_cube_instance_buffer, &instances, display);
 
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 
@@ -479,8 +485,8 @@ impl Renderer {
                 (
                     &self.buffers.cube_vertex_buffer,
                     self.buffers
-                        .debug_cube_instance_buffer
-                        .slice(0..self.cuboids.len())
+                        .solid_color_cube_instance_buffer
+                        .slice(0..cuboids.len())
                         .unwrap()
                         .per_instance()
                         .unwrap(),
@@ -625,17 +631,18 @@ impl Renderer {
 
     pub fn render_lines(
         &mut self,
+        lines: &[Line],
         camera: &OrbitalCamera,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        if self.lines.is_empty() {
+        if lines.is_empty() {
             return;
         }
 
         let mut batched = FxHashMap::<u8, Vec<LinePoint>>::with_hasher(FxBuildHasher::new());
 
-        for line in &self.lines {
+        for line in lines {
             batched.entry(line.width).or_default().extend_from_slice(&[
                 LinePoint {
                     position: line.p1.into(),
@@ -790,7 +797,7 @@ impl Renderer {
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
         display: &Display<WindowSurface>,
-    ) -> Texture2D {
+    ) -> glium::texture::Texture2d {
         let mask_texture = Texture2d::empty_with_format(
             display,
             UncompressedFloatFormat::U8,
@@ -869,7 +876,7 @@ impl Renderer {
 
     fn render_outline_texture(
         &self,
-        mask_texture: Texture2d,
+        mask_texture: glium::texture::Texture2d,
         dimensions: (u32, u32),
         display: &Display<WindowSurface>,
     ) -> Texture2d {

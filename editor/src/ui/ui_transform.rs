@@ -103,12 +103,33 @@ fn show_scale(transform: &mut Transform, ui: &mut Ui) {
     ui.label("Scale");
 
     let mut scale = transform.scale();
+    let mut changed = false;
 
-    let changed = ui
-        .add(egui::DragValue::new(&mut scale).speed(0.01).max_decimals(MAX_DECIMALS))
+    let speed = 0.1;
+
+    changed |= ui
+        .add(
+            egui::DragValue::new(&mut scale.x)
+                .speed(speed)
+                .max_decimals(MAX_DECIMALS),
+        )
+        .changed();
+    changed |= ui
+        .add(
+            egui::DragValue::new(&mut scale.y)
+                .speed(speed)
+                .max_decimals(MAX_DECIMALS),
+        )
+        .changed();
+    changed |= ui
+        .add(
+            egui::DragValue::new(&mut scale.z)
+                .speed(speed)
+                .max_decimals(MAX_DECIMALS),
+        )
         .changed();
 
-    if changed && scale != 0.0 {
+    if changed {
         transform.set_scale(scale);
     }
 }

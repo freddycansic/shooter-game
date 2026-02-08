@@ -21,4 +21,4 @@ pub mod ui;
 pub mod components;
 pub mod engine;
 pub mod systems;
-mod world;
+pub mod world;

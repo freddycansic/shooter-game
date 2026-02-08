@@ -29,7 +29,7 @@ use common::quad::Quad;
 use common::systems::renderer::Renderer;
 use common::scene::graph::{NodeType, Renderable, SceneNode};
 use common::scene::Scene;
-use common::serde::SerializedScene;
+use common::serde::SerializedWorld;
 use crate::controllers::player::PlayerController;
 
 struct FrameState {
@@ -97,7 +97,7 @@ impl Application for Game {
 
             let serialized_scene_string = std::fs::read_to_string(scene_path).unwrap();
 
-            serde_json::from_str::<SerializedScene>(&serialized_scene_string).unwrap().into_scene(display).unwrap()
+            serde_json::from_str::<SerializedWorld>(&serialized_scene_string).unwrap().into_scene(display).unwrap()
         };
 
         // scene.camera = scene.starting_camera.clone();
