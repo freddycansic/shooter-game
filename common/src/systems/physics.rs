@@ -4,7 +4,7 @@ use crate::collision::collidable::{Intersectable, RayHit, SweepHit, RayHitNode, 
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Ray;
 use crate::resources::{GeometryHandle, Resources};
-use crate::scene::graph::{SceneGraph};
+use crate::world::{WorldGraph};
 
 pub enum ColliderType {
     Geometry(GeometryHandle),
@@ -21,7 +21,7 @@ pub struct Physics {
 }
 
 impl Physics {
-    pub fn intersect_ray(&self, ray: &Ray, world_graph: &SceneGraph, resources: &mut Resources) -> Option<RayHitNode> {
+    pub fn intersect_ray(&self, ray: &Ray, world_graph: &WorldGraph, resources: &mut Resources) -> Option<RayHitNode> {
         self.colliders.iter().filter_map(|collider| {
             // collider is in local space, ray is in world space
             let node = world_graph.graph.node_weight(collider.node)?;
@@ -59,7 +59,7 @@ impl Physics {
         })
     }
 
-    pub fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>, world_graph: &SceneGraph, resources: &mut Resources) -> Option<SweepHitNode> {
+    pub fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>, world_graph: &WorldGraph, resources: &mut Resources) -> Option<SweepHitNode> {
         self.colliders.iter().filter_map(|collider| {
             let node = world_graph.graph.node_weight(collider.node)?;
 

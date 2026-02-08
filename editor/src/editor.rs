@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use common::debug::Cuboid;
 use common::maths::{Ray, Transform};
-use common::scene::graph::{SceneGraph, SceneNode};
+use common::world::{WorldGraph, WorldNode};
 use common::serde::SerializedWorld;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
@@ -334,7 +334,7 @@ impl Editor {
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
-                                info!("Saving scene...");
+                                info!("Saving project...");
                                 // self.scene.save_as();
                                 unimplemented!();
                                 ui.close();
@@ -496,20 +496,20 @@ impl Editor {
         // });
     }
 
-    /// Load a models and create an instance of it in the scene
+    /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
         let handles = self.engine.resources.get_geometry_handles(path, display)?;
 
         let group_node = self
             .world.graph
-            .add_root_node(SceneNode::default());
+            .add_root_node(WorldNode::default());
 
         let texture_handle = self.engine.resources
             .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
 
         for geometry_handle in handles {
-            let scene_node = SceneNode::default();
-            let world_graph_node = self.world.graph.add_node(scene_node);
+            let world_node = WorldNode::default();
+            let world_graph_node = self.world.graph.add_node(world_node);
             self.world.graph.add_edge(group_node, world_graph_node);
 
             let renderable = Renderable {

@@ -6,19 +6,24 @@ use petgraph::{
 };
 use std::hash::{Hash, Hasher};
 use nalgebra::Vector3;
+use serde::{Deserialize, Serialize};
 use crate::collision::collidable::{Intersectable, RayHit, SweepHit};
 use crate::{
     maths::Transform,
 };
 
-pub struct SceneNode {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WorldNode {
     pub local_transform: Transform,
-    world_transform: Transform,
-    pub world_transform_dirty: bool,
     pub visible: bool,
+
+    #[serde(skip)]
+    world_transform: Transform,
+    #[serde(skip)]
+    pub world_transform_dirty: bool,
 }
 
-impl SceneNode {
+impl WorldNode {
     pub fn world_transform(&self) -> &Transform {
         #[cfg(debug_assertions)]
         if self.world_transform_dirty {
@@ -38,7 +43,7 @@ impl SceneNode {
     }
 }
 
-impl Default for SceneNode {
+impl Default for WorldNode {
     fn default() -> Self {
         Self {
             local_transform: Transform::identity(),
@@ -49,16 +54,17 @@ impl Default for SceneNode {
     }
 }
 
-pub struct SceneGraph {
-    pub graph: petgraph::stable_graph::StableDiGraph<SceneNode, ()>,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct WorldGraph {
+    pub graph: petgraph::stable_graph::StableDiGraph<WorldNode, ()>,
     pub root: NodeIndex,
     pub selection: Vec<NodeIndex>,
 }
 
-impl SceneGraph {
+impl WorldGraph {
     pub fn new() -> Self {
-        let mut graph = petgraph::stable_graph::StableDiGraph::<SceneNode, ()>::new();
-        let root = graph.add_node(SceneNode::create_root());
+        let mut graph = petgraph::stable_graph::StableDiGraph::<WorldNode, ()>::new();
+        let root = graph.add_node(WorldNode::create_root());
 
         Self {
             graph,
@@ -71,11 +77,11 @@ impl SceneGraph {
         self.graph.add_edge(a, b, ())
     }
 
-    pub fn add_node(&mut self, node: SceneNode) -> NodeIndex {
+    pub fn add_node(&mut self, node: WorldNode) -> NodeIndex {
         self.graph.add_node(node)
     }
 
-    pub fn add_root_node(&mut self, node: SceneNode) -> NodeIndex {
+    pub fn add_root_node(&mut self, node: WorldNode) -> NodeIndex {
         let node_index = self.graph.add_node(node);
 
         self.graph.add_edge(self.root, node_index, ());

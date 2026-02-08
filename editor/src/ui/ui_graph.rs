@@ -1,4 +1,4 @@
-use common::scene::graph::SceneGraph;
+use common::world::WorldGraph;
 use egui_glium::egui_winit::egui::Ui;
 use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
 use itertools::Itertools;
@@ -6,9 +6,9 @@ use petgraph::{Direction, graph::NodeIndex};
 
 use crate::ui::Show;
 
-impl Show for SceneGraph {
+impl Show for WorldGraph {
     fn show(&mut self, ui: &mut Ui) {
-        let id = ui.make_persistent_id("Scene graph tree view");
+        let id = ui.make_persistent_id("World graph tree view");
         let (_, actions) = TreeView::new(id).show(ui, |builder| {
             let top_level_children = self
                 .graph
@@ -34,7 +34,7 @@ impl Show for SceneGraph {
     }
 }
 
-fn show_tree_view_inner(graph: &SceneGraph, node: NodeIndex, builder: &mut TreeViewBuilder<'_, i32>) {
+fn show_tree_view_inner(graph: &WorldGraph, node: NodeIndex, builder: &mut TreeViewBuilder<'_, i32>) {
     let children = graph.graph.neighbors_directed(node, Direction::Outgoing).collect_vec();
 
     if children.is_empty() {
