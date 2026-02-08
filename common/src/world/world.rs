@@ -1,9 +1,9 @@
 use crate::light::Light;
 use crate::line::Line;
 use crate::quad::Quad;
-use crate::scene::graph::SceneGraph;
-use crate::scene::QuadTree;
 use crate::systems::renderer::{Background, Renderable};
+use crate::world::graph::WorldGraph;
+use crate::world::QuadTree;
 
 pub struct World {
     pub title: String,
@@ -11,7 +11,7 @@ pub struct World {
     pub lines: Vec<Line>,
     pub quads: QuadTree,
     pub background: Background,
-    pub graph: SceneGraph,
+    pub graph: WorldGraph,
     pub lights: Vec<Light>,
 }
 
@@ -23,7 +23,7 @@ impl World {
             background: Background::default(),
             quads: QuadTree::new(),
             lines: vec![],
-            graph: SceneGraph::new(),
+            graph: WorldGraph::new(),
             lights: vec![],
         }
     }

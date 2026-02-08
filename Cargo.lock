@@ -983,6 +983,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "common",
+ "egui_glium",
  "fxhash",
  "glium",
  "nalgebra",

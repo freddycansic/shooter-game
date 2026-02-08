@@ -7,16 +7,15 @@ use crate::{
     light::Light,
     resources::Resources,
     serde::{
-        SerializeWithContext, serialized_background::SerializedBackground, serialized_graph::SerializedSceneGraph,
+        SerializeWithContext, serialized_background::SerializedBackground,
     },
 };
-use crate::scene::SerializedQuadTree;
-use crate::world::World;
+use crate::world::{SerializedQuadTree, World, WorldGraph};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedWorld {
     pub title: String,
-    pub graph: SerializedSceneGraph,
+    pub graph: WorldGraph,
     pub background: SerializedBackground,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
@@ -28,7 +27,7 @@ impl SerializedWorld {
         Self {
             title: value.title.clone(),
             quads: value.quads.serialize_with(&resources),
-            graph: SerializedSceneGraph::from_world_graph(&value.graph, &resources),
+            graph: value.graph.clone(),
             background: SerializedBackground::from_background(&value.background, &resources),
             lights: value.lights.clone(),
             // terrain: value.terrain.clone(),

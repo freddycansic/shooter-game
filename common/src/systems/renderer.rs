@@ -28,11 +28,9 @@ use crate::maths::Matrix4Ext;
 use crate::quad::{Quad, QuadVertex};
 use crate::resources::{GeometryHandle, Resources};
 use crate::resources::{CubemapHandle, TextureHandle};
-use crate::scene::{QuadBatches};
-use crate::scene::graph::{SceneGraph};
+use crate::world::{QuadBatches, WorldGraph, World};
 use crate::{context, maths};
 use crate::camera::{Camera, OrbitalCamera};
-use crate::world::World;
 use crate::texture::Texture2DResource;
 
 struct Programs {
@@ -324,7 +322,7 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(&mut self, renderables: &[Renderable], world_graph: &SceneGraph, selection: &[NodeIndex]) -> RenderQueue {
+    fn build_render_queue(&mut self, renderables: &[Renderable], world_graph: &WorldGraph, selection: &[NodeIndex]) -> RenderQueue {
         let geometry_batches = self.batch_geometry(renderables, world_graph, selection);
         // let quad_batches = self.quads.batch();
 
@@ -334,7 +332,7 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, renderables: &[Renderable], world_graph: &SceneGraph, selection: &[NodeIndex]) -> GeometryBatches {
+    fn batch_geometry(&self, renderables: &[Renderable], world_graph: &WorldGraph, selection: &[NodeIndex]) -> GeometryBatches {
         // TODO do this outside of this method
         // world_graph.calculate_world_matrices();
 
