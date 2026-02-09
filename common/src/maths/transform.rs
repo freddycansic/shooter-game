@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Scale3, Similarity3, Transform3, Translation3, UnitQuaternion, Vector3};
+use nalgebra::{Matrix4, Scale3, Translation3, UnitQuaternion, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::maths;

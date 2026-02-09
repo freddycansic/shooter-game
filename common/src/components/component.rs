@@ -1,4 +1,3 @@
-use crate::collision::colliders::sphere::Sphere;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]

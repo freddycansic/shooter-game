@@ -1,4 +1,4 @@
-use nalgebra::{Point3, Vector3};
+use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
