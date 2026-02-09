@@ -1,9 +1,12 @@
-use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitNode, Sweep, SweepHit, SweepHitNode};
+use crate::collision::collidable::{
+    BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitNode, Sweep, SweepHit, SweepHitNode,
+};
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::{Local, Ray};
 use crate::resources::{GeometryHandle, Resources};
+use crate::systems::renderer::Renderable;
 use crate::world::{World, WorldGraph};
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
@@ -23,9 +26,11 @@ impl BroadPhaseCollisionQuery<Local<Ray>> for Collider {
             Collider::Capsule(capsule) => capsule.narrow_intersect(query, resources).is_some(),
             Collider::Sphere(_sphere) => unimplemented!(),
             Collider::Geometry(_geometry_handle) => {
-                log::warn!("Using geometry for broad phase ray collision. Geometry should be used for narrow phase only");
+                log::warn!(
+                    "Using geometry for broad phase ray collision. Geometry should be used for narrow phase only"
+                );
                 false
-            },
+            }
         }
     }
 }
@@ -41,7 +46,7 @@ impl NarrowPhaseCollisionQuery<Local<Ray>> for Collider {
             Collider::Geometry(geometry_handle) => {
                 let geometry = resources.get_geometry(*geometry_handle);
                 geometry.bvh.narrow_intersect(query, resources)
-            },
+            }
         }
     }
 }
@@ -53,7 +58,9 @@ impl BroadPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
             Collider::Capsule(_capsule) => unimplemented!(),
             Collider::Sphere(_sphere) => unimplemented!(),
             Collider::Geometry(_geometry_handle) => {
-                log::warn!("Using geometry for broad phase ray collision. Geometry should be used for narrow phase only");
+                log::warn!(
+                    "Using geometry for broad phase ray collision. Geometry should be used for narrow phase only"
+                );
                 false
             }
         }
@@ -77,9 +84,17 @@ impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
 }
 
 pub struct ColliderSet {
-    pub node: NodeIndex,
     pub broad: Option<Collider>,
     pub narrow: Collider,
+}
+
+impl From<&Renderable> for ColliderSet {
+    fn from(renderable: &Renderable) -> Self {
+        Self {
+            broad: None,
+            narrow: Collider::Geometry(renderable.geometry_handle),
+        }
+    }
 }
 
 impl ColliderSet {
@@ -94,11 +109,7 @@ impl ColliderSet {
         self.narrow.narrow_intersect(local_ray, resources)
     }
 
-    pub fn spherecast(
-        &self,
-        query: &Local<Sweep<Sphere>>,
-        resources: &Resources,
-    ) -> Option<SweepHit> {
+    pub fn spherecast(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Option<SweepHit> {
         if let Some(broad_collider) = &self.broad {
             if broad_collider.broad_intersect(query, resources) {
                 return None;
@@ -124,7 +135,7 @@ impl PhysicsContext {
         }
     }
 
-    pub fn raycast(&self, ray: &Ray, world_graph: &WorldGraph, resources: &mut Resources) -> Option<RayHitNode> {
+    pub fn raycast(&self, ray: &Ray, world_graph: &WorldGraph, resources: &Resources) -> Option<RayHitNode> {
         self.colliders
             .iter()
             .filter_map(|(node_index, collider_set)| {
@@ -172,7 +183,8 @@ impl PhysicsContext {
                 let world_inverse = node.world_transform().matrix().try_inverse().unwrap();
 
                 let local_query = {
-                    let local_sphere = Sphere::new(world_inverse.transform_point(&query.object.origin), query.object.radius);
+                    let local_sphere =
+                        Sphere::new(world_inverse.transform_point(&query.object.origin), query.object.radius);
                     let local_velocity = world_inverse.transform_vector(&query.velocity);
 
                     Local(Sweep {

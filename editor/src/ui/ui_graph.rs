@@ -2,7 +2,7 @@ use common::world::WorldGraph;
 use egui_glium::egui_winit::egui::Ui;
 use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
 use itertools::Itertools;
-use petgraph::{Direction, graph::NodeIndex};
+use petgraph::{graph::NodeIndex, Direction};
 
 use crate::ui::Show;
 
@@ -23,10 +23,13 @@ impl Show for WorldGraph {
         for action in actions {
             match action {
                 Action::SetSelected(nodes) => {
-                    self.selection = nodes
-                        .into_iter()
-                        .map(|index| NodeIndex::new(index as usize))
-                        .collect_vec();
+                    // self.selection = nodes
+                    //     .into_iter()
+                    //     .map(|index| NodeIndex::new(index as usize))
+                    //     .collect_vec();
+                    log::warn!(
+                        "Cant select nodes from list rn . need to figure out a way to link the ui and editor",
+                    );
                 }
                 _ => (),
             }

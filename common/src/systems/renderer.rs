@@ -25,8 +25,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
+    Program, Surface, Vertex, VertexBuffer,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
@@ -107,7 +107,7 @@ impl RendererBuffers {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GeometryBatchKey {
     pub geometry_handle: GeometryHandle,
     pub texture_handle: TextureHandle,
