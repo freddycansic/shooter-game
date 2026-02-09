@@ -2,6 +2,8 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
+use crate::collision::collidable::SweepHit;
+use crate::collision::colliders::sphere::Sphere;
 use crate::collision::colliders::triangle::Triangle;
 use crate::geometry::Primitive;
 use crate::{
@@ -13,8 +15,6 @@ use crate::{
     debug::Cuboid,
     maths::Ray,
 };
-use crate::collision::collidable::SweepHit;
-use crate::collision::colliders::sphere::Sphere;
 
 #[derive(Debug, Clone)]
 enum Axis {
@@ -93,7 +93,7 @@ impl Bvh {
             panic!("The root isnt an aabb?")
         }
     }
-    
+
     pub fn get_debug_cuboids(&self) -> Vec<Cuboid> {
         self.graph
             .node_indices()
@@ -275,20 +275,31 @@ impl Bvh {
         }
     }
 
-    fn sweep_intersect_sphere_inner(&self, sphere: &Sphere, velocity: &Vector3<f32>, node: NodeIndex) -> Option<SweepHit> {
+    fn sweep_intersect_sphere_inner(
+        &self,
+        sphere: &Sphere,
+        velocity: &Vector3<f32>,
+        node: NodeIndex,
+    ) -> Option<SweepHit> {
         match &self.graph[node] {
-            BvhNode::Aabb(aabb) => aabb.sweep_intersects_sphere(sphere, velocity).then(|| {
-                self.graph
-                    .neighbors_directed(node, Direction::Outgoing)
-                    .filter_map(|child| self.sweep_intersect_sphere_inner(sphere, velocity, child))
-                    .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
-            }).and_then(|x| x),
-            BvhNode::Leaf { triangles, aabb } => aabb.sweep_intersects_sphere(sphere, velocity).then(|| {
-                triangles
-                    .iter()
-                    .filter_map(|tri| tri.sweep_intersect_sphere(sphere, velocity))
-                    .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
-            }).and_then(|x| x),
+            BvhNode::Aabb(aabb) => aabb
+                .sweep_intersects_sphere(sphere, velocity)
+                .then(|| {
+                    self.graph
+                        .neighbors_directed(node, Direction::Outgoing)
+                        .filter_map(|child| self.sweep_intersect_sphere_inner(sphere, velocity, child))
+                        .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
+                })
+                .and_then(|x| x),
+            BvhNode::Leaf { triangles, aabb } => aabb
+                .sweep_intersects_sphere(sphere, velocity)
+                .then(|| {
+                    triangles
+                        .iter()
+                        .filter_map(|tri| tri.sweep_intersect_sphere(sphere, velocity))
+                        .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
+                })
+                .and_then(|x| x),
         }
     }
 }

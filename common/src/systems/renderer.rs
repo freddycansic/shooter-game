@@ -1,22 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::hash::{Hash, Hasher};
 
-use color_eyre::Result;
-use egui_glium::egui_winit::egui::{self, Pos2};
-use fxhash::{FxBuildHasher, FxHashMap};
-use glium::framebuffer::SimpleFrameBuffer;
-use glium::glutin::surface::WindowSurface;
-use glium::index::{IndicesSource, NoIndices, PrimitiveType};
-use glium::texture::{MipmapsOption, UncompressedFloatFormat, Texture2d};
-use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
-use glium::vertex::EmptyVertexAttributes;
-use glium::{
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform
-};
-use itertools::Itertools;
-use nalgebra::{Matrix4, Point3, Translation3, Vector3};
-use petgraph::graph::NodeIndex;
+use crate::camera::{Camera, OrbitalCamera};
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
 use crate::geometry::primitives;
@@ -26,12 +11,27 @@ use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::quad::{Quad, QuadVertex};
-use crate::resources::{GeometryHandle, Resources};
 use crate::resources::{CubemapHandle, TextureHandle};
-use crate::world::{QuadBatches, WorldGraph, World};
-use crate::{context, maths};
-use crate::camera::{Camera, OrbitalCamera};
+use crate::resources::{GeometryHandle, Resources};
 use crate::texture::Texture2DResource;
+use crate::world::{QuadBatches, World, WorldGraph};
+use crate::{context, maths};
+use color_eyre::Result;
+use egui_glium::egui_winit::egui::{self, Pos2};
+use fxhash::{FxBuildHasher, FxHashMap};
+use glium::framebuffer::SimpleFrameBuffer;
+use glium::glutin::surface::WindowSurface;
+use glium::index::{IndicesSource, NoIndices, PrimitiveType};
+use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
+use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
+use glium::vertex::EmptyVertexAttributes;
+use glium::{
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
+};
+use itertools::Itertools;
+use nalgebra::{Matrix4, Point3, Translation3, Vector3};
+use petgraph::graph::NodeIndex;
 
 struct Programs {
     outline: Program,
@@ -108,7 +108,6 @@ impl RendererBuffers {
     }
 }
 
-
 #[derive(Clone)]
 pub struct GeometryBatchKey {
     pub geometry_handle: GeometryHandle,
@@ -167,10 +166,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(
-        viewport: Option<egui::Rect>,
-        display: &Display<WindowSurface>,
-    ) -> Result<Self> {
+    pub fn new(viewport: Option<egui::Rect>, display: &Display<WindowSurface>) -> Result<Self> {
         let default_program = context::new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
@@ -297,10 +293,15 @@ impl Renderer {
         })
     }
 
-    pub fn render_world(&mut self,
-                        world: &World,
-                  camera: &OrbitalCamera,
-                  resources: &Resources, selection: &[NodeIndex], display: &Display<WindowSurface>, target: &mut Frame) {
+    pub fn render_world(
+        &mut self,
+        world: &World,
+        camera: &OrbitalCamera,
+        resources: &Resources,
+        selection: &[NodeIndex],
+        display: &Display<WindowSurface>,
+        target: &mut Frame,
+    ) {
         let render_queue = self.build_render_queue(&world.renderables, &world.graph, selection);
 
         self.render_background(&world.background, camera, resources, target);
@@ -308,7 +309,13 @@ impl Renderer {
         self.render_lines(&world.lines, camera, display, target);
     }
 
-    fn render_background(&mut self, background: &Background, camera: &OrbitalCamera, resources: &Resources, target: &mut Frame) {
+    fn render_background(
+        &mut self,
+        background: &Background,
+        camera: &OrbitalCamera,
+        resources: &Resources,
+        target: &mut Frame,
+    ) {
         match background {
             Background::Color(color) => target.clear_all(color.to_rgb_components_tuple(), 1.0, 0),
             Background::HDRI(cubemap_handle) => {
@@ -322,7 +329,12 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(&mut self, renderables: &[Renderable], world_graph: &WorldGraph, selection: &[NodeIndex]) -> RenderQueue {
+    fn build_render_queue(
+        &mut self,
+        renderables: &[Renderable],
+        world_graph: &WorldGraph,
+        selection: &[NodeIndex],
+    ) -> RenderQueue {
         let geometry_batches = self.batch_geometry(renderables, world_graph, selection);
         // let quad_batches = self.quads.batch();
 
@@ -332,7 +344,12 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, renderables: &[Renderable], world_graph: &WorldGraph, selection: &[NodeIndex]) -> GeometryBatches {
+    fn batch_geometry(
+        &self,
+        renderables: &[Renderable],
+        world_graph: &WorldGraph,
+        selection: &[NodeIndex],
+    ) -> GeometryBatches {
         // TODO do this outside of this method
         // world_graph.calculate_world_matrices();
 
@@ -462,7 +479,11 @@ impl Renderer {
             })
             .collect_vec();
 
-        RendererBuffers::ensure_vertex_buffer_size(&mut self.buffers.solid_color_cube_instance_buffer, &instances, display);
+        RendererBuffers::ensure_vertex_buffer_size(
+            &mut self.buffers.solid_color_cube_instance_buffer,
+            &instances,
+            display,
+        );
 
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 

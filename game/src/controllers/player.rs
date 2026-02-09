@@ -1,12 +1,12 @@
+use common::input::Input;
 use nalgebra::Vector3;
 use petgraph::prelude::NodeIndex;
 use winit::keyboard::KeyCode;
-use common::input::Input;
 
 pub struct PlayerController {
     pub position: Vector3<f32>,
     pub velocity: Vector3<f32>,
-    pub node: NodeIndex
+    pub node: NodeIndex,
 }
 
 impl PlayerController {

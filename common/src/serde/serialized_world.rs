@@ -2,15 +2,13 @@ use color_eyre::eyre::Result;
 use glium::{Display, glutin::surface::WindowSurface};
 use serde::{Deserialize, Serialize};
 
+use crate::world::{SerializedQuadTree, World, WorldGraph};
 use crate::{
     camera::FpsCamera,
     light::Light,
     resources::Resources,
-    serde::{
-        SerializeWithContext, serialized_background::SerializedBackground,
-    },
+    serde::{SerializeWithContext, serialized_background::SerializedBackground},
 };
-use crate::world::{SerializedQuadTree, World, WorldGraph};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedWorld {

@@ -42,9 +42,8 @@ impl Transform {
             combined.translation.vector.z * parent.scale.z,
         );
 
-        combined.translation = Translation3::from(
-            parent.translation.vector + parent.rotation.transform_vector(&scaled_translation)
-        );
+        combined.translation =
+            Translation3::from(parent.translation.vector + parent.rotation.transform_vector(&scaled_translation));
 
         combined.dirty = true;
         combined.compute_transform_matrix();

@@ -1,6 +1,6 @@
+pub mod components;
 mod ui_graph;
 mod ui_transform;
-pub mod components;
 
 use egui_glium::egui_winit::egui::Ui;
 
