@@ -1,4 +1,3 @@
-use approx::RelativeEq;
 use nalgebra::{Point3, Vector3};
 
 pub struct Ray {

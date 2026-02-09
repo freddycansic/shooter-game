@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::world::{SerializedQuadTree, World, WorldGraph};
 use crate::{
-    camera::FpsCamera,
     light::Light,
     resources::Resources,
     serde::{SerializeWithContext, serialized_background::SerializedBackground},
@@ -33,7 +32,7 @@ impl SerializedWorld {
         }
     }
 
-    pub fn into_world(self, display: &Display<WindowSurface>) -> Result<World> {
+    pub fn into_world(self, _display: &Display<WindowSurface>) -> Result<World> {
         unimplemented!()
         // let mut resources = Resources::new();
         //

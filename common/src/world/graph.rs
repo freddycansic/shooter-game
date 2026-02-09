@@ -1,14 +1,11 @@
-use crate::collision::collidable::{Intersectable, RayHit, SweepHit};
 use crate::maths::Transform;
-use fxhash::{FxBuildHasher, FxHashMap};
 use itertools::Itertools;
-use nalgebra::Vector3;
 use petgraph::{
     Direction,
     graph::{EdgeIndex, NodeIndex},
 };
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hasher;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct WorldNode {

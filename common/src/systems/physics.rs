@@ -42,7 +42,7 @@ impl Physics {
                         let geometry = resources.get_geometry(*geometry_handle);
                         geometry.bvh.intersect_ray(&local_ray)
                     }
-                    ColliderType::Sphere(sphere) => {
+                    ColliderType::Sphere(_sphere) => {
                         // sphere.intersect_ray(&local_ray)
                         unimplemented!()
                     }
@@ -92,7 +92,7 @@ impl Physics {
 
                         geometry.bvh.sweep_intersect_sphere(&local_sphere, &local_velocity)
                     }
-                    ColliderType::Sphere(sphere) => {
+                    ColliderType::Sphere(_sphere) => {
                         // sphere.intersect_ray(&local_ray)
                         unimplemented!()
                     }

@@ -1,7 +1,7 @@
 use crate::collision::collidable::{Intersectable, RayHit};
 use crate::collision::colliders::cylinder;
 use crate::maths::Ray;
-use nalgebra::{Point3, Vector3};
+use nalgebra::Point3;
 
 pub struct Capsule {
     pub p1: Point3<f32>,

@@ -10,10 +10,9 @@ use crate::input::Input;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
-use crate::quad::{Quad, QuadVertex};
+use crate::quad::QuadVertex;
 use crate::resources::{CubemapHandle, TextureHandle};
 use crate::resources::{GeometryHandle, Resources};
-use crate::texture::Texture2DResource;
 use crate::world::{QuadBatches, World, WorldGraph};
 use crate::{context, maths};
 use color_eyre::Result;
@@ -30,7 +29,7 @@ use glium::{
     Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
-use nalgebra::{Matrix4, Point3, Translation3, Vector3};
+use nalgebra::{Matrix4, Point3, Translation3};
 use petgraph::graph::NodeIndex;
 
 struct Programs {

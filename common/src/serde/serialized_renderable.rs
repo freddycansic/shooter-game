@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use glium::{Display, glutin::surface::WindowSurface};
-use petgraph::{graph::NodeIndex, prelude::StableDiGraph};
+use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 
 use crate::serde::SerializeWithContext;
 use crate::systems::renderer::Renderable;
-use crate::{maths::Transform, resources::Resources, world::WorldGraph};
+use crate::resources::Resources;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedRenderable {
