@@ -11,6 +11,7 @@ pub struct RayHit {
     pub tmax: f32, // exit point
 }
 
+#[derive(Debug)]
 pub struct RayHitNode {
     pub hit: RayHit,
     pub node: NodeIndex,

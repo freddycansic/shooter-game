@@ -1,8 +1,8 @@
 use crate::maths::Transform;
 use itertools::Itertools;
 use petgraph::{
-    Direction,
     graph::{EdgeIndex, NodeIndex},
+    Direction,
 };
 use serde::{Deserialize, Serialize};
 use std::hash::Hasher;
@@ -53,8 +53,6 @@ impl Default for WorldNode {
 pub struct WorldGraph {
     pub graph: petgraph::stable_graph::StableDiGraph<WorldNode, ()>,
     pub root: NodeIndex,
-    // TODO this should probably be owned by the editor
-    pub selection: Vec<NodeIndex>,
 }
 
 impl WorldGraph {
@@ -62,11 +60,7 @@ impl WorldGraph {
         let mut graph = petgraph::stable_graph::StableDiGraph::<WorldNode, ()>::new();
         let root = graph.add_node(WorldNode::create_root());
 
-        Self {
-            graph,
-            root,
-            selection: vec![],
-        }
+        Self { graph, root }
     }
 
     pub fn add_edge(&mut self, a: NodeIndex, b: NodeIndex) -> EdgeIndex {

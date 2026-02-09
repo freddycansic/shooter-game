@@ -7,13 +7,14 @@ use common::debug::Cuboid;
 use common::maths::Ray;
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
-use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
-use glium::Display;
+use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Point3, Vector4};
+use palette::Srgb;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 use uuid::Uuid;
@@ -22,16 +23,17 @@ use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
+use crate::ui::Show;
 use common::application::Application;
 use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
-use common::light::Light;
-use common::systems::renderer::{Background, Renderable, Renderer};
-// use common::scene::Background;
-use crate::ui::Show;
 use common::engine::Engine;
+use common::light::Light;
+use common::line::Line;
 use common::resources::Resources;
+use common::systems::renderer::{Background, Renderable, Renderer};
+use common::world::physics_context::ColliderSet;
 use common::world::World;
 use common::*;
 use input::Input;
@@ -117,7 +119,7 @@ impl Application for Editor {
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
-        let mut world = World::new();
+        let mut world = World::default();
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
@@ -223,28 +225,27 @@ impl Editor {
         if self.engine.input.mouse_button_just_released(MouseButton::Left)
             && self.engine.renderer.is_mouse_in_viewport(&self.engine.input)
         {
-            log::warn!("Mouse click not implemented");
-            // let ray = self.mouse_ray();
-            //
-            // let intersection = self.scene.intersect(&ray);
-            //
-            // if self.state.gui.render_debug_mouse_rays {
-            //     self.lines.push(Line::new(
-            //         ray.origin,
-            //         ray.origin + ray.direction() * 10.0,
-            //         if intersection.is_some() {
-            //             Srgb::new(0.0, 1.0, 0.0)
-            //         } else {
-            //             Srgb::new(1.0, 0.0, 0.0)
-            //         },
-            //         2,
-            //     ));
-            // }
-            //
-            // self.scene.graph.selection = match intersection {
-            //     Some(node) => vec![node],
-            //     None => vec![],
-            // }
+            let ray = self.mouse_ray();
+
+            let intersection = self.world.raycast(&ray, &self.engine.resources);
+
+            if self.state.gui.render_debug_mouse_rays {
+                self.world.lines.push(Line::new(
+                    ray.origin,
+                    ray.origin + ray.direction() * 1000.0,
+                    if intersection.is_some() {
+                        Srgb::new(0.0, 1.0, 0.0)
+                    } else {
+                        Srgb::new(1.0, 0.0, 0.0)
+                    },
+                    2,
+                ));
+            }
+
+            self.selection = match intersection {
+                Some(hit) => vec![hit.node],
+                None => vec![],
+            };
         }
 
         if self.state.is_moving_camera {
@@ -305,7 +306,7 @@ impl Editor {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.world = World::new();
+                                self.world = World::default();
 
                                 ui.close();
                             }
@@ -432,8 +433,7 @@ impl Editor {
 
                 ui.collapsing("Debug", |ui| {
                     ui.add(
-                        egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len() - 1)
-                            .integer(),
+                        egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
                     );
 
                     ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
@@ -517,6 +517,10 @@ impl Editor {
                 texture_handle,
             };
 
+            self.world
+                .physics_context
+                .colliders
+                .insert(world_graph_node, ColliderSet::from(&renderable));
             self.world.renderables.insert(world_graph_node, renderable);
         }
 

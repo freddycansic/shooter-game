@@ -5,6 +5,9 @@ use crate::world::graph::WorldGraph;
 use crate::world::{PhysicsContext, QuadTree};
 use fxhash::FxHashMap;
 use petgraph::prelude::NodeIndex;
+use crate::collision::collidable::{RayHit, RayHitNode};
+use crate::maths::Ray;
+use crate::resources::Resources;
 
 pub type Renderables = FxHashMap<NodeIndex, Renderable>;
 
@@ -20,7 +23,13 @@ pub struct World {
 }
 
 impl World {
-    pub fn new() -> Self {
+    pub fn raycast(&self, ray: &Ray, resources: &Resources) -> Option<RayHitNode> {
+        self.physics_context.raycast(ray, &self.graph, resources)
+    }
+}
+
+impl Default for World {
+    fn default() -> Self {
         Self {
             title: "Untitled".to_string(),
             renderables: Renderables::default(),
