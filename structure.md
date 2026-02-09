@@ -1,12 +1,19 @@
+Game / Editor
+- Engine
+- World
+- Vec\<System\>
+- Application specific state e.g. ui
+
 Engine
-- Scene graph = transforms only
 - Renderer
 - Input
 - Gui
+- Physics backend (does the work)
 
 World
-- Owns entities 
-  - Reference to node in graph + controller
+- World graph = transforms only
+- List of components and which nodes they belong to
+- Physics context = which entities own which colliders + state
 
 Systems
-- Read world and modify game state + scene graph
+- Reads and modifies world
