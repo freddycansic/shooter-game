@@ -53,6 +53,7 @@ impl Default for WorldNode {
 pub struct WorldGraph {
     pub graph: petgraph::stable_graph::StableDiGraph<WorldNode, ()>,
     pub root: NodeIndex,
+    // TODO this should probably be owned by the editor
     pub selection: Vec<NodeIndex>,
 }
 

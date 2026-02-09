@@ -13,7 +13,7 @@ use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
 use crate::resources::{CubemapHandle, TextureHandle};
 use crate::resources::{GeometryHandle, Resources};
-use crate::world::{QuadBatches, World, WorldGraph};
+use crate::world::{QuadBatches, Renderables, World, WorldGraph};
 use crate::{context, maths};
 use color_eyre::Result;
 use egui_glium::egui_winit::egui::{self, Pos2};
@@ -140,7 +140,6 @@ pub struct RenderQueue {
 }
 
 pub struct Renderable {
-    pub node: NodeIndex,
     pub geometry_handle: GeometryHandle,
     pub texture_handle: TextureHandle,
 }
@@ -330,7 +329,7 @@ impl Renderer {
 
     fn build_render_queue(
         &mut self,
-        renderables: &[Renderable],
+        renderables: &Renderables,
         world_graph: &WorldGraph,
         selection: &[NodeIndex],
     ) -> RenderQueue {
@@ -345,7 +344,7 @@ impl Renderer {
 
     fn batch_geometry(
         &self,
-        renderables: &[Renderable],
+        renderables: &Renderables,
         world_graph: &WorldGraph,
         selection: &[NodeIndex],
     ) -> GeometryBatches {
@@ -354,8 +353,8 @@ impl Renderer {
 
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
-        for renderable in renderables {
-            let node = world_graph.graph.node_weight(renderable.node).unwrap();
+        for (node_index, renderable) in renderables {
+            let node = world_graph.graph.node_weight(*node_index).unwrap();
 
             if !node.visible {
                 continue;
@@ -364,7 +363,7 @@ impl Renderer {
             let node_key = GeometryBatchKey {
                 geometry_handle: renderable.geometry_handle,
                 texture_handle: renderable.texture_handle,
-                selected: selection.contains(&renderable.node),
+                selected: selection.contains(node_index),
             };
 
             let batch = batches.entry(node_key).or_insert(vec![]);

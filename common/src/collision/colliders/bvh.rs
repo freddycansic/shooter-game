@@ -2,13 +2,15 @@ use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
 use petgraph::{Direction, Graph, graph::NodeIndex};
 
-use crate::collision::collidable::SweepHit;
+use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep, SweepHit};
 use crate::collision::colliders::sphere::Sphere;
 use crate::collision::colliders::triangle::Triangle;
 use crate::geometry::Primitive;
+use crate::maths::Local;
+use crate::resources::Resources;
 use crate::{
     collision::{
-        collidable::{Intersectable, RayHit},
+        collidable::{RayHit},
         colliders::aabb::Aabb,
     },
     colors::Color,
@@ -258,45 +260,45 @@ impl Bvh {
         triangles
     }
 
-    fn intersect_ray_inner(&self, ray: &Ray, node: NodeIndex) -> Option<RayHit> {
+    fn intersect_ray_inner(&self, ray: &Local<Ray>, resources: &Resources, node: NodeIndex) -> Option<RayHit> {
         match &self.graph[node] {
-            BvhNode::Aabb(aabb) => aabb.intersect_ray(ray).and_then(|_| {
+            BvhNode::Aabb(aabb) => aabb.narrow_intersect(ray, resources).and_then(|_| {
                 self.graph
                     .neighbors_directed(node, Direction::Outgoing)
-                    .filter_map(|child| self.intersect_ray_inner(ray, child))
+                    .filter_map(|child| self.intersect_ray_inner(ray, resources, child))
                     .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
             }),
-            BvhNode::Leaf { triangles, aabb } => aabb.intersect_ray(ray).and_then(|_| {
+            BvhNode::Leaf { triangles, aabb } => aabb.narrow_intersect(ray, resources).and_then(|_| {
                 triangles
                     .iter()
-                    .filter_map(|tri| tri.intersect_ray(ray))
+                    .filter_map(|tri| tri.narrow_intersect(ray, resources))
                     .min_by(|a, b| a.tmin.partial_cmp(&b.tmin).unwrap())
             }),
         }
     }
 
-    fn sweep_intersect_sphere_inner(
+    fn intersect_sweep_sphere_inner(
         &self,
-        sphere: &Sphere,
-        velocity: &Vector3<f32>,
+        query: &Local<Sweep<Sphere>>,
         node: NodeIndex,
+        resources: &Resources,
     ) -> Option<SweepHit> {
         match &self.graph[node] {
             BvhNode::Aabb(aabb) => aabb
-                .sweep_intersects_sphere(sphere, velocity)
+                .broad_intersect(query, resources)
                 .then(|| {
                     self.graph
                         .neighbors_directed(node, Direction::Outgoing)
-                        .filter_map(|child| self.sweep_intersect_sphere_inner(sphere, velocity, child))
+                        .filter_map(|child| self.intersect_sweep_sphere_inner(query, child, resources))
                         .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
                 })
                 .and_then(|x| x),
             BvhNode::Leaf { triangles, aabb } => aabb
-                .sweep_intersects_sphere(sphere, velocity)
+                .broad_intersect(query, resources)
                 .then(|| {
                     triangles
                         .iter()
-                        .filter_map(|tri| tri.sweep_intersect_sphere(sphere, velocity))
+                        .filter_map(|tri| tri.narrow_intersect(query, resources))
                         .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
                 })
                 .and_then(|x| x),
@@ -304,12 +306,18 @@ impl Bvh {
     }
 }
 
-impl Intersectable for Bvh {
-    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
-        self.intersect_ray_inner(ray, self.root)
-    }
+impl NarrowPhaseCollisionQuery<Local<Ray>> for Bvh {
+    type Hit = Option<RayHit>;
 
-    fn sweep_intersect_sphere(&self, sphere: &Sphere, velocity: &Vector3<f32>) -> Option<SweepHit> {
-        self.sweep_intersect_sphere_inner(sphere, velocity, self.root)
+    fn narrow_intersect(&self, ray: &Local<Ray>, resources: &Resources) -> Option<RayHit> {
+        self.intersect_ray_inner(ray, resources, self.root)
+    }
+}
+
+impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Bvh {
+    type Hit = Option<SweepHit>;
+
+    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Option<SweepHit> {
+        self.intersect_sweep_sphere_inner(query, self.root, resources)
     }
 }
