@@ -4,13 +4,9 @@ use glium::{Display, glutin::surface::WindowSurface};
 use petgraph::{graph::NodeIndex, prelude::StableDiGraph};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    maths::Transform,
-    resources::Resources,
-    world::{WorldGraph},
-};
 use crate::serde::SerializeWithContext;
 use crate::systems::renderer::Renderable;
+use crate::{maths::Transform, resources::Resources, world::WorldGraph};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedRenderable {
@@ -35,8 +31,14 @@ impl SerializeWithContext for Renderable {
         }
     }
 
-    fn deserialize_with(serialized: Self::Serialized, display: &Display<WindowSurface>, resources: &mut Resources) -> Self {
-        let geometry_handle = resources.get_geometry_handles(&serialized.geometry_path, display).unwrap()[serialized.mesh_index];
+    fn deserialize_with(
+        serialized: Self::Serialized,
+        display: &Display<WindowSurface>,
+        resources: &mut Resources,
+    ) -> Self {
+        let geometry_handle = resources
+            .get_geometry_handles(&serialized.geometry_path, display)
+            .unwrap()[serialized.mesh_index];
 
         let texture_handle = resources.get_texture_handle(&serialized.texture_path, display).unwrap();
 

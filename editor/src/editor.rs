@@ -5,8 +5,8 @@ use std::time::Instant;
 
 use common::debug::Cuboid;
 use common::maths::{Ray, Transform};
-use common::world::{WorldGraph, WorldNode};
 use common::serde::SerializedWorld;
+use common::world::{WorldGraph, WorldNode};
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
 use glium::Display;
@@ -31,14 +31,14 @@ use common::light::Light;
 use common::line::Line;
 use common::systems::renderer::{Background, Renderable, Renderer};
 // use common::scene::Background;
-use common::*;
+use crate::ui::Show;
 use common::collision::colliders::sphere::Sphere;
 use common::components::component::Component;
 use common::engine::Engine;
 use common::resources::Resources;
 use common::world::World;
+use common::*;
 use input::Input;
-use crate::ui::Show;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -131,7 +131,7 @@ impl Application for Editor {
             renderer,
             input,
             gui,
-            resources
+            resources,
         };
 
         Self {
@@ -224,7 +224,9 @@ impl Editor {
         self.state.is_moving_camera =
             self.engine.input.mouse_button_down(MouseButton::Middle) || self.engine.input.key_down(KeyCode::Space);
 
-        if self.engine.input.mouse_button_just_released(MouseButton::Left) && self.engine.renderer.is_mouse_in_viewport(&self.engine.input) {
+        if self.engine.input.mouse_button_just_released(MouseButton::Left)
+            && self.engine.renderer.is_mouse_in_viewport(&self.engine.input)
+        {
             log::warn!("Mouse click not implemented");
             // let ray = self.mouse_ray();
             //
@@ -479,7 +481,9 @@ impl Editor {
             });
 
             // Update the viewport size with the amount of space after then panels have been added
-            self.engine.renderer.update_viewport(ctx.available_rect(), &mut self.camera);
+            self.engine
+                .renderer
+                .update_viewport(ctx.available_rect(), &mut self.camera);
         });
     }
 
@@ -500,11 +504,11 @@ impl Editor {
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
         let handles = self.engine.resources.get_geometry_handles(path, display)?;
 
-        let group_node = self
-            .world.graph
-            .add_root_node(WorldNode::default());
+        let group_node = self.world.graph.add_root_node(WorldNode::default());
 
-        let texture_handle = self.engine.resources
+        let texture_handle = self
+            .engine
+            .resources
             .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
 
         for geometry_handle in handles {
@@ -515,7 +519,7 @@ impl Editor {
             let renderable = Renderable {
                 geometry_handle,
                 texture_handle,
-                node: world_graph_node
+                node: world_graph_node,
             };
 
             self.world.renderables.push(renderable);

@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-use std::mem::Discriminant;
-use std::path::PathBuf;
-use std::time::Instant;
 use clap::Parser;
-use egui_glium::egui_winit::egui::ViewportId;
 use egui_glium::EguiGlium;
+use egui_glium::egui_winit::egui::ViewportId;
 use fxhash::FxHashMap;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
@@ -12,11 +8,16 @@ use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use palette::Srgb;
 use petgraph::data::{DataMap, DataMapMut};
 use petgraph::prelude::NodeIndex;
+use std::collections::HashMap;
+use std::mem::Discriminant;
+use std::path::PathBuf;
+use std::time::Instant;
 use winit::event::{DeviceEvent, MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
+use crate::controllers::player::PlayerController;
 use common::application::Application;
 use common::camera::{Camera, OrbitalCamera};
 use common::collision::collidable::Intersectable;
@@ -29,10 +30,9 @@ use common::input::Input;
 use common::line::Line;
 use common::quad::Quad;
 use common::resources::Resources;
-use common::systems::renderer::{Renderable, Renderer};
 use common::serde::SerializedWorld;
+use common::systems::renderer::{Renderable, Renderer};
 use common::world::World;
-use crate::controllers::player::PlayerController;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -65,7 +65,7 @@ impl Default for FrameState {
 #[command(about, long_about = None)]
 struct Args {
     #[arg(short, long)]
-    project: Option<String>
+    project: Option<String>,
 }
 
 pub struct Game {
@@ -92,13 +92,16 @@ impl Application for Game {
                     let mut path = std::env::temp_dir();
                     path.push(project);
                     path
-                },
-                None => PathBuf::from("assets/projects/map.json")
+                }
+                None => PathBuf::from("assets/projects/map.json"),
             };
 
             let serialized_world_string = std::fs::read_to_string(project_path).unwrap();
 
-            serde_json::from_str::<SerializedWorld>(&serialized_world_string).unwrap().into_world(display).unwrap()
+            serde_json::from_str::<SerializedWorld>(&serialized_world_string)
+                .unwrap()
+                .into_world(display)
+                .unwrap()
         };
 
         // scene.camera = scene.starting_camera.clone();
@@ -150,7 +153,12 @@ impl Application for Game {
         // world.graph.add_edge(player_node.clone(), sphere_graph_node);
 
         let inner_size = window.inner_size();
-        let camera = OrbitalCamera::new(/* TODO */ Point3::origin(), 5.0, inner_size.width as f32, inner_size.height as f32);
+        let camera = OrbitalCamera::new(
+            /* TODO */ Point3::origin(),
+            5.0,
+            inner_size.width as f32,
+            inner_size.height as f32,
+        );
 
         let gui = EguiGlium::new(ViewportId::ROOT, display, window, event_loop);
 
@@ -295,7 +303,14 @@ impl Game {
     fn render(&mut self, _window: &Window, display: &Display<WindowSurface>) {
         let mut target = display.draw();
         {
-            self.engine.renderer.render_world(&self.world, &self.camera, &self.engine.resources, &[], display, &mut target);
+            self.engine.renderer.render_world(
+                &self.world,
+                &self.camera,
+                &self.engine.resources,
+                &[],
+                display,
+                &mut target,
+            );
         }
         target.finish().unwrap();
     }

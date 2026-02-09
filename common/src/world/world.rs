@@ -2,8 +2,8 @@ use crate::light::Light;
 use crate::line::Line;
 use crate::quad::Quad;
 use crate::systems::renderer::{Background, Renderable};
-use crate::world::graph::WorldGraph;
 use crate::world::QuadTree;
+use crate::world::graph::WorldGraph;
 
 pub struct World {
     pub title: String,

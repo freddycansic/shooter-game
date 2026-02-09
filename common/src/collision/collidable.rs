@@ -1,9 +1,9 @@
-use std::cmp::Ordering;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Ray;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
+use std::cmp::Ordering;
 
 #[derive(Debug)]
 pub struct RayHit {
