@@ -4,16 +4,15 @@ use glium::{Display, glutin::surface::WindowSurface};
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 
+use crate::resources::Resources;
 use crate::serde::SerializeWithContext;
 use crate::systems::renderer::Renderable;
-use crate::resources::Resources;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedRenderable {
     texture_path: PathBuf,
     geometry_path: PathBuf,
     mesh_index: usize,
-    node: NodeIndex,
 }
 
 impl SerializeWithContext for Renderable {
@@ -27,7 +26,6 @@ impl SerializeWithContext for Renderable {
             geometry_path,
             texture_path,
             mesh_index,
-            node: self.node,
         }
     }
 
@@ -45,7 +43,6 @@ impl SerializeWithContext for Renderable {
         Renderable {
             geometry_handle,
             texture_handle,
-            node: serialized.node,
         }
     }
 }

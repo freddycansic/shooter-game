@@ -12,6 +12,7 @@ pub mod input;
 pub mod light;
 pub mod line;
 pub mod maths;
+mod physics;
 pub mod quad;
 pub mod resources;
 pub mod run;

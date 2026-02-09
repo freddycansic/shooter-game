@@ -226,7 +226,7 @@ impl Editor {
             log::warn!("Mouse click not implemented");
             // let ray = self.mouse_ray();
             //
-            // let intersection = self.scene.intersect_ray(&ray);
+            // let intersection = self.scene.intersect(&ray);
             //
             // if self.state.gui.render_debug_mouse_rays {
             //     self.lines.push(Line::new(
@@ -515,10 +515,9 @@ impl Editor {
             let renderable = Renderable {
                 geometry_handle,
                 texture_handle,
-                node: world_graph_node,
             };
 
-            self.world.renderables.push(renderable);
+            self.world.renderables.insert(world_graph_node, renderable);
         }
 
         Ok(())

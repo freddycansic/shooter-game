@@ -1,7 +1,8 @@
-use crate::collision::collidable::{Intersectable, RayHit};
+use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit};
 use crate::collision::colliders::cylinder;
-use crate::maths::Ray;
+use crate::maths::{Local, Ray};
 use nalgebra::Point3;
+use crate::resources::Resources;
 
 pub struct Capsule {
     pub p1: Point3<f32>,
@@ -15,8 +16,10 @@ impl Capsule {
     }
 }
 
-impl Intersectable for Capsule {
-    fn intersect_ray(&self, ray: &Ray) -> Option<RayHit> {
+impl NarrowPhaseCollisionQuery<Local<Ray>> for Capsule {
+    type Hit = Option<RayHit>;
+
+    fn narrow_intersect(&self, ray: &Local<Ray>, _resources: &Resources) -> Option<RayHit> {
         let length_squared = (self.p1 - self.p2).magnitude_squared();
 
         // it's just a sphere
@@ -27,7 +30,7 @@ impl Intersectable for Capsule {
         let mut tmin = f32::INFINITY;
         let mut tmax = f32::NEG_INFINITY;
 
-        if let Some(hit) = cylinder::intersect_ray(ray, &self.p1, &self.p2, self.radius) {
+        if let Some(hit) = cylinder::intersect(ray, &self.p1, &self.p2, self.radius) {
             tmin = hit.tmin;
             tmax = hit.tmax;
         }
@@ -78,148 +81,148 @@ pub fn ray_sphere(ray: &Ray, center: &Point3<f32>, radius: f32) -> Option<RayHit
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use nalgebra::Point3;
+    use nalgebra::{Point3, Vector3};
 
     #[test]
-    fn intersect_ray_zero_length_origin_capsule_hit() {
+    fn intersect_zero_length_origin_capsule_hit() {
         let capsule = Capsule {
             p1: Point3::new(0.0, 0.0, 0.0),
             p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 3.0);
     }
 
     #[test]
-    fn intersect_ray_zero_length_origin_capsule_miss() {
+    fn intersect_zero_length_origin_capsule_miss() {
         let capsule = Capsule {
             p1: Point3::new(0.0, 0.0, 0.0),
             p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray);
+        let result = capsule.narrow_intersect(&ray, &Resources::new());
         assert!(result.is_none());
     }
 
     #[test]
-    fn intersect_ray_zero_length_origin_capsule_graze() {
+    fn intersect_zero_length_origin_capsule_graze() {
         let capsule = Capsule {
             p1: Point3::new(0.0, 0.0, 0.0),
             p2: Point3::new(0.0, 0.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert_relative_eq!(result.tmin, 2.0);
         assert_relative_eq!(result.tmax, 2.0);
     }
 
     #[test]
-    fn intersect_ray_axis_aligned_capsule_hit_center() {
+    fn intersect_axis_aligned_capsule_hit_center() {
         let capsule = Capsule {
             p1: Point3::new(0.0, -1.0, 0.0),
             p2: Point3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.5);
         assert_relative_eq!(result.tmax, 2.5);
     }
 
     #[test]
-    fn intersect_ray_axis_aligned_capsule_miss_parallel() {
+    fn intersect_axis_aligned_capsule_miss_parallel() {
         let capsule = Capsule {
             p1: Point3::new(0.0, -1.0, 0.0),
             p2: Point3::new(0.0, 1.0, 0.0),
             radius: 0.5,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        assert!(capsule.intersect_ray(&ray).is_none());
+        assert!(capsule.narrow_intersect(&ray, &Resources::new()).is_none());
     }
 
     #[test]
-    fn intersect_ray_axis_aligned_capsule_graze_cylinder() {
+    fn intersect_axis_aligned_capsule_graze_cylinder() {
         let capsule = Capsule {
             p1: Point3::new(0.0, -1.0, 0.0),
             p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 1.0);
     }
 
     #[test]
-    fn intersect_ray_axis_aligned_capsule_hit_endcap() {
+    fn intersect_axis_aligned_capsule_hit_endcap() {
         let capsule = Capsule {
             p1: Point3::new(0.0, -1.0, 0.0),
             p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert_relative_eq!(result.tmin, 2.0 - 0.75_f32.sqrt());
         assert_relative_eq!(result.tmax, 2.0 + 0.75_f32.sqrt());
     }
 
     #[test]
-    fn intersect_ray_diagonal_capsule_hit() {
+    fn intersect_diagonal_capsule_hit() {
         let capsule = Capsule {
             p1: Point3::new(0.0, 0.0, 0.0),
             p2: Point3::new(1.0, 1.0, 0.0),
             radius: 0.25,
         };
 
-        let ray = Ray::new(Point3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert!(result.tmin <= result.tmax);
     }
 
     #[test]
-    fn intersect_ray_diagonal_capsule_miss() {
+    fn intersect_diagonal_capsule_miss() {
         let capsule = Capsule {
             p1: Point3::new(0.0, 0.0, 0.0),
             p2: Point3::new(1.0, 1.0, 0.0),
             radius: 0.25,
         };
 
-        let ray = Ray::new(Point3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        assert!(capsule.intersect_ray(&ray).is_none());
+        assert!(capsule.narrow_intersect(&ray, &Resources::new()).is_none());
     }
 
     #[test]
-    fn intersect_ray_inside_capsule() {
+    fn intersect_inside_capsule() {
         let capsule = Capsule {
             p1: Point3::new(0.0, -1.0, 0.0),
             p2: Point3::new(0.0, 1.0, 0.0),
             radius: 1.0,
         };
 
-        let ray = Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Local(Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.intersect_ray(&ray).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
         assert!(result.tmin <= 0.0);
         assert!(result.tmax > 0.0);
     }

@@ -1,6 +1,7 @@
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Ray;
+use crate::resources::Resources;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
 
@@ -15,6 +16,11 @@ pub struct RayHitNode {
     pub node: NodeIndex,
 }
 
+pub struct Sweep<T> {
+    pub object: T,
+    pub velocity: Vector3<f32>,
+}
+
 #[derive(Debug)]
 pub struct SweepHit {
     pub t: f32, // time of hit along velocity
@@ -27,22 +33,12 @@ pub struct SweepHitNode {
     pub node: NodeIndex,
 }
 
-pub trait Intersectable {
-    fn intersect_ray(&self, _ray: &Ray) -> Option<RayHit> {
-        unimplemented!("Ray intersection unsupported.");
-    }
+pub trait BroadPhaseCollisionQuery<T> {
+    fn broad_intersect(&self, query: &T, resources: &Resources) -> bool;
+}
 
-    fn intersects_capsule(&self, _capsule: &Capsule) -> bool {
-        unimplemented!("Capsule intersection unsupported.")
-    }
-    fn intersects_sphere(&self, _sphere: &Sphere) -> bool {
-        unimplemented!("Sphere intersection unsupported.")
-    }
+pub trait NarrowPhaseCollisionQuery<T> {
+    type Hit;
 
-    fn sweep_intersects_sphere(&self, _sphere: &Sphere, _velocity: &Vector3<f32>) -> bool {
-        unimplemented!("Sweep sphere intersection unsupported.")
-    }
-    fn sweep_intersect_sphere(&self, _sphere: &Sphere, _velocity: &Vector3<f32>) -> Option<SweepHit> {
-        unimplemented!("Sweep sphere intersection unsupported.")
-    }
+    fn narrow_intersect(&self, query: &T, resources: &Resources) -> Self::Hit;
 }
