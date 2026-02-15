@@ -45,7 +45,7 @@ impl Geometry {
                 let bvh = Bvh::from_primitives(&primitives);
 
                 Ok(Geometry {
-                    name: mesh.name().unwrap_or(ui::default_name::model().as_str()).to_owned(),
+                    name: mesh.name().unwrap_or("Unnamed Geometry").to_owned(),
                     primitives,
                     bvh,
                 })
