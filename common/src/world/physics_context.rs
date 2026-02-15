@@ -11,7 +11,9 @@ use crate::world::{World, WorldGraph};
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
 use petgraph::prelude::NodeIndex;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Collider {
     Aabb(Aabb),
     Capsule(Capsule),
@@ -83,6 +85,7 @@ impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ColliderSet {
     pub broad: Option<Collider>,
     pub narrow: Collider,
@@ -98,6 +101,17 @@ impl From<&Renderable> for ColliderSet {
 }
 
 impl ColliderSet {
+    pub fn narrow_only(narrow: Collider) -> Self {
+        Self { narrow, broad: None }
+    }
+
+    pub fn new(narrow: Collider, broad: Collider) -> Self {
+        Self {
+            narrow,
+            broad: Some(broad),
+        }
+    }
+
     // TODO do some cast<T> type shiz to reduce code duplication
     pub fn raycast(&self, local_ray: &Local<Ray>, resources: &Resources) -> Option<RayHit> {
         if let Some(broad_collider) = &self.broad {
@@ -111,7 +125,7 @@ impl ColliderSet {
 
     pub fn spherecast(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Option<SweepHit> {
         if let Some(broad_collider) = &self.broad {
-            if broad_collider.broad_intersect(query, resources) {
+            if !broad_collider.broad_intersect(query, resources) {
                 return None;
             }
         }
@@ -122,6 +136,7 @@ impl ColliderSet {
 
 /// This struct owns the physics state of the world
 /// It does not do any physics work.
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PhysicsContext {
     pub colliders: FxHashMap<NodeIndex, ColliderSet>,
     // TODO should have a bvh which is built when adding colliders for fast broad phase
@@ -173,8 +188,10 @@ impl PhysicsContext {
         &self,
         query: &Sweep<Sphere>,
         world_graph: &WorldGraph,
-        resources: &mut Resources,
+        resources: &Resources,
     ) -> Option<SweepHitNode> {
+        // dbg!(self.colliders.len());
+
         self.colliders
             .iter()
             .filter_map(|(&node_index, collider_set)| {

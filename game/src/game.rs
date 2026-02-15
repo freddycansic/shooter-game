@@ -1,9 +1,9 @@
 use clap::Parser;
-use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui::ViewportId;
-use glium::Display;
+use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
-use nalgebra::{Point2, Point3, Vector2};
+use glium::Display;
+use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use std::path::PathBuf;
 use std::time::Instant;
 use winit::event::{DeviceEvent, WindowEvent};
@@ -11,16 +11,20 @@ use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
+use crate::controllers::player::PlayerController;
 use common::application::Application;
 use common::camera::{Camera, OrbitalCamera};
+use common::collision::collidable::Sweep;
+use common::collision::colliders::sphere::Sphere;
 use common::debug;
 use common::engine::Engine;
 use common::input::Input;
 use common::quad::Quad;
 use common::resources::Resources;
 use common::serde::SerializedWorld;
-use common::systems::renderer::Renderer;
-use common::world::World;
+use common::systems::renderer::{Renderable, Renderer};
+use common::world::physics_context::ColliderSet;
+use common::world::{Collider, World};
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -61,14 +65,16 @@ pub struct Game {
     world: World,
     state: FrameState,
     camera: OrbitalCamera,
-    // TODO
-    // player: PlayerController,
+    player: PlayerController,
 }
 
 impl Application for Game {
     fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
+
+        let mut resources = Resources::new();
+        resources.initialise_default_texture(display).unwrap();
 
         let renderer = Renderer::new(None, display).unwrap();
 
@@ -88,7 +94,7 @@ impl Application for Game {
 
             serde_json::from_str::<SerializedWorld>(&serialized_world_string)
                 .unwrap()
-                .into_world(display)
+                .into_world(display, &mut resources)
                 .unwrap()
         };
 
@@ -100,8 +106,6 @@ impl Application for Game {
             -Vector3::new(3.0, 0.2, 3.0).normalize(),
             inner_size.width as f32 / inner_size.height as f32,
         );*/
-
-        let mut resources = Resources::new();
 
         let crosshair_texture = resources
             .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
@@ -116,14 +120,7 @@ impl Application for Game {
         let state = FrameState::default();
         let input = Input::new();
 
-        // TODO
-        // let player_position = world.graph.graph.node_weight(*player_node).unwrap().local_transform.translation().vector;
-        //
-        // let player = PlayerController {
-        //     position: player_position.clone(),
-        //     velocity: Vector3::zeros(),
-        //     node: player_node.clone(),
-        // };
+        let player = PlayerController::initialise(&mut world, &mut resources, display);
 
         // let sphere_renderable = Renderable {
         //     geometry_handle: resources
@@ -132,11 +129,13 @@ impl Application for Game {
         //         .into_iter()
         //         .next()
         //         .unwrap(),
-        //     texture_handle: world.resources.get_texture_handle(&PathBuf::from("assets/textures/gmod.jpg"), display).unwrap(),
+        //     texture_handle: resources
+        //         .get_texture_handle(&PathBuf::from("assets/textures/gmod.jpg"), display)
+        //         .unwrap(),
         // };
         //
         // let sphere_scene_node = SceneNode::new(NodeType::Renderable(sphere_renderable));
-        //
+
         // let sphere_graph_node = world.graph.add_node(sphere_scene_node);
         // world.graph.add_edge(player_node.clone(), sphere_graph_node);
 
@@ -162,7 +161,7 @@ impl Application for Game {
             world,
             state,
             camera,
-            // player, // TODO
+            player,
         }
     }
 
@@ -220,60 +219,60 @@ impl Game {
         window.set_cursor_visible(false);
         self.center_cursor(window);
 
-        // TODO
-        // let intended_velocity = self.player.intended_velocity(&self.input, self.state.deltatime as f32);
+        self.player.update_velocity_on_input(&self.engine.input);
+        let gravity = Vector3::new(0.0, -9.8, 0.0) * 0.0001;
+        self.player.velocity += gravity * self.state.deltatime as f32;
+
+        if self.player.velocity.magnitude_squared() > 0.0 {
+            let player_displacement = self.player.velocity * self.state.deltatime as f32;
+
+            let world_sphere = {
+                // TODO
+                // let collider_set = self.world.physics_context.colliders.get(&self.player.node).unwrap();
+                let collider_set = ColliderSet::narrow_only(Collider::Sphere(Sphere::new(Point3::origin(), 500.0)));
+
+                let graph_node = self.world.graph.graph.node_weight(self.player.node).unwrap();
+
+                if let Collider::Sphere(sphere) = &collider_set.narrow {
+                    log::debug!("Local sphere collider {:?}", sphere);
+
+                    let world_origin = graph_node.world_transform().matrix().transform_point(&sphere.origin);
+                    let world_scale = graph_node.world_transform().scale();
+                    let max_scale = world_scale.x.max(world_scale.y).max(world_scale.z);
+                    let world_radius = sphere.radius * max_scale;
+
+                    Sphere::new(world_origin, world_radius)
+                } else {
+                    panic!()
+                }
+            };
+
+            log::debug!("World sphere collider {:?}", &world_sphere);
+
+            let hit = self
+                .world
+                .spherecast(&Sweep::new(world_sphere, player_displacement), &self.engine.resources);
+
+            log::debug!("hit {:?}", &hit);
+
+            let actual_displacement = match hit {
+                Some(hit) => {
+                    let normal = hit.hit.normal;
+                    self.player.velocity -= self.player.velocity.dot(&normal) * normal;
+
+                    hit.hit.t * player_displacement
+                }
+                None => player_displacement,
+            };
+
+            self.player.position += actual_displacement;
+        }
+
         //
-        // if intended_velocity.magnitude_squared() > 0.0 {
-        //     let sphere = {
-        //         let player_node = self.scene.graph.graph.node_weight_mut(self.player.node).unwrap();
-        //
-        //         if let NodeType::Renderable(renderable) = &player_node.ty {
-        //             let geometry = self.scene.resources.get_geometry(renderable.geometry_handle);
-        //
-        //             let root_aabb = geometry.bvh.get_root_aabb();
-        //             dbg!(root_aabb.min, root_aabb.max);
-        //
-        //             let origin_world = player_node.world_transform().translation();
-        //
-        //             let extent = root_aabb.max - root_aabb.min;
-        //             let longest_side_local = extent.x.max(extent.y).max(extent.z);
-        //             let longest_side_world = longest_side_local * player_node.world_transform().scale();
-        //
-        //             Sphere::new(origin_world.vector, longest_side_world / 2.0)
-        //         } else {
-        //             panic!("Player node is not a renderable type");
-        //         }
-        //     };
-        //
-        //     self.scene.graph.graph.node_weight_mut(self.player_sphere).unwrap().local_transform.set_scale(sphere.radius);
-        //
-        //     let hit = self.scene.sweep_intersect_sphere(&sphere, &intended_velocity);
-        //
-        //     dbg!(&sphere);
-        //     dbg!(&hit);
-        //
-        //     self.scene.lines.clear();
-        //
-        //     let actual_velocity = match hit {
-        //
-        //         Some(hit) => {
-        //             self.scene.lines.push(Line::new(hit.point, sphere.origin, Srgb::from(palette::named::RED), 10));
-        //
-        //             if hit.t > 0.0 {
-        //                 hit.t * intended_velocity * 0.90
-        //             } else {
-        //                 hit.normal * 0.01
-        //             }
-        //         },
-        //         None => intended_velocity,
-        //     };
-        //
-        //     self.scene.lines.push(Line::new(sphere.origin, sphere.origin + actual_velocity * 100.0, Srgb::from(palette::named::RED), 10));
-        //
-        //     self.player.position += actual_velocity;
-        //
-        //     let player_node = self.scene.graph.graph.node_weight_mut(self.player.node).unwrap();
-        //     player_node.local_transform.set_translation(Translation3::from(self.player.position));
+        let player_node = self.world.graph.graph.node_weight_mut(self.player.node).unwrap();
+        player_node
+            .local_transform
+            .set_translation(Translation3::from(self.player.position));
         // }
 
         // self.camera.target = Point3::from(self.player.position);
@@ -291,6 +290,7 @@ impl Game {
     fn render(&mut self, _window: &Window, display: &Display<WindowSurface>) {
         let mut target = display.draw();
         {
+            self.world.graph.calculate_world_matrices();
             self.engine.renderer.render_world(
                 &self.world,
                 &self.camera,

@@ -5,10 +5,10 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GeometryHandle(pub usize);
+pub struct GeometryHandle(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TextureHandle(pub usize);
+pub struct TextureHandle(pub u64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CubemapHandle(pub usize);
+pub struct CubemapHandle(pub u64);

@@ -1,5 +1,5 @@
 use nalgebra::{Point3, Vector3};
-
+use serde::{Deserialize, Serialize};
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep};
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
@@ -7,7 +7,7 @@ use crate::maths::Local;
 use crate::resources::Resources;
 use crate::{collision::collidable::RayHit, maths::Ray};
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Aabb {
     pub min: Point3<f32>,
     pub max: Point3<f32>,

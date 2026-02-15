@@ -1,9 +1,11 @@
 use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit};
 use crate::collision::colliders::cylinder;
 use crate::maths::{Local, Ray};
-use nalgebra::Point3;
 use crate::resources::Resources;
+use nalgebra::Point3;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Capsule {
     pub p1: Point3<f32>,
     pub p2: Point3<f32>,
