@@ -99,13 +99,13 @@ impl Resources {
     pub fn get_geometry_handles(
         &mut self,
         path: &Path,
-        display: &Display<WindowSurface>,
+        display: Option<&Display<WindowSurface>>,
     ) -> Result<Vec<GeometryHandle>> {
         if let Some(handles) = self.geometry_handles.get(path) {
             return Ok(handles.clone());
         }
 
-        let geometries = Geometry::load(path.to_path_buf(), display)?;
+        let geometries = Geometry::load(path, display)?;
 
         let handles = (0..geometries.len())
             .map(|index| {

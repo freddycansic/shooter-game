@@ -36,7 +36,7 @@ impl PlayerController {
 
         let collider_renderable = Renderable {
             geometry_handle: *resources
-                .get_geometry_handles(&PathBuf::from("assets/models/sphere.glb"), display)
+                .get_geometry_handles(&PathBuf::from("assets/models/sphere.glb"), Some(display))
                 .unwrap()
                 .first()
                 .unwrap(),
