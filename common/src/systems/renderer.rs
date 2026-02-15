@@ -781,14 +781,22 @@ impl Renderer {
                 target
                     .draw(
                         (
-                            &primitive.vertex_buffer,
+                            &primitive
+                                .gpu
+                                .as_ref()
+                                .expect("Attempting to render a primitive without GPU buffers")
+                                .vertex_buffer,
                             instance_buffer
                                 .slice(0..instances.len())
                                 .unwrap()
                                 .per_instance()
                                 .unwrap(),
                         ),
-                        &primitive.index_buffer,
+                        &primitive
+                            .gpu
+                            .as_ref()
+                            .expect("Attempting to render a primitive without GPU buffers")
+                            .index_buffer,
                         &self.programs.default,
                         &uniforms,
                         &DrawParameters {
@@ -842,14 +850,22 @@ impl Renderer {
                 framebuffer
                     .draw(
                         (
-                            &primitive.vertex_buffer,
+                            &primitive
+                                .gpu
+                                .as_ref()
+                                .expect("Attempting to render a primitive without GPU buffers")
+                                .vertex_buffer,
                             instance_buffer
                                 .slice(0..instances.len())
                                 .unwrap()
                                 .per_instance()
                                 .unwrap(),
                         ),
-                        &primitive.index_buffer,
+                        &primitive
+                            .gpu
+                            .as_ref()
+                            .expect("Attempting to render a primitive without GPU buffers")
+                            .index_buffer,
                         &self.programs.white,
                         &uniform,
                         &DrawParameters {

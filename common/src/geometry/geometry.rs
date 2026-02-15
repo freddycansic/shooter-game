@@ -3,14 +3,15 @@ use std::path::PathBuf;
 
 use crate::collision::colliders::bvh::Bvh;
 use crate::geometry::GeometryVertex;
-use color_eyre::Result;
 use color_eyre::eyre::Context;
+use color_eyre::Result;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use itertools::Itertools;
 
+use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 use crate::geometry::Primitive;
 use crate::ui;
 
@@ -23,6 +24,14 @@ pub struct Geometry {
 
 impl Geometry {
     pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Vec<Geometry>> {
+        Self::load_maybe_gpu(path, Some(display))
+    }
+
+    pub fn load_no_gpu(path: PathBuf) -> Result<Vec<Geometry>> {
+        Self::load_maybe_gpu(path, None)
+    }
+
+    fn load_maybe_gpu(path: PathBuf, display: Option<&Display<WindowSurface>>) -> Result<Vec<Geometry>> {
         log::info!("Loading gltf {:?}...", path);
 
         let (document, file_buffers, _images) =
@@ -38,7 +47,7 @@ impl Geometry {
                     .map(|(primitive_index, primitive)| {
                         log::debug!("Loading mesh {} primitive {}", mesh_index, primitive_index);
 
-                        Primitive::from_gltf_primitive(primitive, &file_buffers, display, path.clone())
+                        Primitive::from_gltf_primitive(primitive, &file_buffers, display)
                     })
                     .collect::<Result<Vec<Primitive>>>()?;
 
@@ -57,11 +66,10 @@ impl Geometry {
 }
 
 impl Primitive {
-    pub fn from_gltf_primitive(
+    fn from_gltf_primitive(
         primitive: gltf::Primitive,
         file_buffers: &[Data],
-        display: &Display<WindowSurface>,
-        _path: PathBuf,
+        display: Option<&Display<WindowSurface>>,
     ) -> Result<Self> {
         let reader = primitive.reader(|buffer| Some(&file_buffers[buffer.index()].0));
 
@@ -92,15 +100,14 @@ impl Primitive {
                 }),
         );
 
-        let vertex_buffer = VertexBuffer::new(display, &vertices).unwrap();
-
-        let index_buffer = IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap();
+        let primitive_gpu = display.map(|display| PrimitiveGpu {
+            vertex_buffer: VertexBuffer::new(display, &vertices).unwrap(),
+            index_buffer: IndexBuffer::new(display, PrimitiveType::TrianglesList, &indices).unwrap(),
+        });
 
         Ok(Primitive {
-            vertex_buffer,
-            index_buffer,
-            vertices,
-            indices,
+            cpu: PrimitiveCpu { vertices, indices },
+            gpu: primitive_gpu,
         })
     }
 }
