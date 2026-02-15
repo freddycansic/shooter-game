@@ -22,7 +22,7 @@ impl Quad {
             size,
             texture,
             selected: false,
-            name: ui::default_name::quad(),
+            name: "Unnamed Quad".to_string(),
         }
     }
 }
