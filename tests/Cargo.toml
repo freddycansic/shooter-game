@@ -1,0 +1,13 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "tests"
+path = "src/lib.rs"
+
+[dependencies]
+common = { path = "../common" }
+approx = "0.5.1"
+nalgebra = "0.34.1"
