@@ -1,6 +1,3 @@
-use crate::collision::colliders::capsule::Capsule;
-use crate::collision::colliders::sphere::Sphere;
-use crate::maths::Ray;
 use crate::resources::Resources;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;

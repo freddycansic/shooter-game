@@ -1,5 +1,5 @@
 [workspace]
-members = ["common", "editor", "game"]
+members = ["common", "editor", "game", "tests"]
 resolver = "3"
 
 [profile.release-with-debug]

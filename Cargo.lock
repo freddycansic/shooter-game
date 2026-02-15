@@ -499,7 +499,6 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
- "approx",
  "chrono",
  "color-eyre",
  "egui_glium",
@@ -514,7 +513,6 @@ dependencies = [
  "nalgebra",
  "palette",
  "petgraph",
- "proc-macros",
  "rfd",
  "serde",
  "serde_json",
@@ -2281,15 +2279,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "profiling"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2680,6 +2669,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "common",
+ "nalgebra",
 ]
 
 [[package]]
