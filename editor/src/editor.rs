@@ -203,7 +203,9 @@ impl Editor {
                     // In the future it might be necessary to have multiple worlds in one project.
                     let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
 
-                    self.world = serialized_world.into_world(display).unwrap();
+                    self.world = serialized_world
+                        .into_world(display, &mut self.engine.resources)
+                        .unwrap();
                 }
                 EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
@@ -284,6 +286,7 @@ impl Editor {
 
         let mut target = display.draw();
         {
+            self.world.graph.calculate_world_matrices();
             self.engine.renderer.render_world(
                 &self.world,
                 &self.camera,
@@ -334,9 +337,7 @@ impl Editor {
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving project...");
-                                // self.scene.save_as();
-                                unimplemented!();
-                                ui.close();
+                                self.world.save_as(&self.engine.resources);
                             }
                         });
 
@@ -409,27 +410,38 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                // ui.collapsing("Properties", |ui| {
-                //     if self.scene.graph.selection.len() == 1 {
-                //         let selected_node_index = self.scene.graph.selection[0];
-                //         let selected_node = &mut self.scene.graph.graph[selected_node_index];
-                //
-                //         selected_node.local_transform.show(ui);
-                //
-                //         ui.separator();
-                //
-                //         ui.label("Components");
-                //
-                //         // TODO
-                //         for component in &selected_node.components {
-                //             ui.label(component.name());
-                //         }
-                //
-                //         if ui.button("+").clicked() {
-                //             selected_node.components.push(Component::PlayerSpawn);
-                //         }
-                //     }
-                // });
+                ui.collapsing("Properties", |ui| {
+                    if self.selection.len() == 1 {
+                        let selected_node_index = self.selection[0];
+                        let selected_node = &mut self.world.graph.graph[selected_node_index];
+
+                        selected_node.local_transform.show(ui);
+
+                        dbg!(&selected_node.local_transform);
+
+                        ui.label(format!("Node index: {:?}", selected_node_index));
+
+                        ui.separator();
+
+                        ui.label("Components");
+
+                        if self.world.player_spawn == Some(selected_node_index) {
+                            ui.label("Player spawn");
+                        }
+                        if self.world.physics_context.colliders.contains_key(&selected_node_index) {
+                            ui.horizontal(|ui| {
+                                ui.label("Collider");
+                                if ui.button("-").clicked() {
+                                    self.world.physics_context.colliders.remove(&selected_node_index);
+                                }                                
+                            });
+                        }
+
+                        if ui.button("+").clicked() {
+                            self.world.player_spawn = Some(selected_node_index);
+                        }
+                    }
+                });
 
                 ui.collapsing("Debug", |ui| {
                     ui.add(

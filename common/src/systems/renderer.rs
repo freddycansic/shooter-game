@@ -134,6 +134,7 @@ impl Eq for GeometryBatchKey {}
 
 pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
 
+#[derive(Debug)]
 pub struct RenderQueue {
     pub geometry_batches: GeometryBatches,
     pub quad_batches: QuadBatches,
@@ -348,9 +349,6 @@ impl Renderer {
         world_graph: &WorldGraph,
         selection: &[NodeIndex],
     ) -> GeometryBatches {
-        // TODO do this outside of this method
-        // world_graph.calculate_world_matrices();
-
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         for (node_index, renderable) in renderables {
@@ -385,6 +383,9 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
+        // dbg!(&queue);
+        // panic!();
+        
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 
         let dimensions = target.get_dimensions();

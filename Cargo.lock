@@ -984,6 +984,7 @@ dependencies = [
  "egui_glium",
  "fxhash",
  "glium",
+ "log",
  "nalgebra",
  "palette",
  "petgraph",

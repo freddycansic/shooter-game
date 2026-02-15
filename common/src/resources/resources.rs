@@ -1,8 +1,9 @@
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
-use fxhash::{FxBuildHasher, FxHashMap};
-use glium::{Display, glutin::surface::WindowSurface};
+use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use glium::{glutin::surface::WindowSurface, Display};
 
 use itertools::Itertools;
 
@@ -15,16 +16,19 @@ use crate::{
 pub struct Resources {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
     textures: FxHashMap<TextureHandle, Texture2DResource>,
+    default_texture: Option<TextureHandle>,
 
     geometry_handles: FxHashMap<PathBuf, Vec<GeometryHandle>>,
     geometry: FxHashMap<GeometryHandle, Geometry>,
 
     cubemap_handles: FxHashMap<PathBuf, CubemapHandle>,
     cubemaps: FxHashMap<CubemapHandle, Cubemap>,
-
-    handle_count: usize,
 }
 
+// TODO
+// 2 tiered handles
+// 1 is stable and derived from the path etc
+// 2 is unstable, and derived at runtime
 impl Resources {
     pub fn new() -> Self {
         let hasher = FxBuildHasher::default();
@@ -32,15 +36,22 @@ impl Resources {
         Self {
             textures_handles: FxHashMap::with_hasher(hasher.clone()),
             textures: FxHashMap::with_hasher(hasher.clone()),
+            default_texture: None,
 
             geometry_handles: FxHashMap::with_hasher(hasher.clone()),
             geometry: FxHashMap::with_hasher(hasher.clone()),
 
             cubemap_handles: FxHashMap::with_hasher(hasher.clone()),
             cubemaps: FxHashMap::with_hasher(hasher),
-
-            handle_count: 0,
         }
+    }
+
+    pub fn initialise_default_texture(&mut self, display: &Display<WindowSurface>) -> Result<()> {
+        let handle = self.get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)?;
+
+        self.default_texture = Some(handle);
+
+        Ok(())
     }
 
     pub fn get_texture(&self, texture_handle: TextureHandle) -> &Texture2DResource {
@@ -56,7 +67,9 @@ impl Resources {
 
         log::info!("Loading texture {:?}...", path);
 
-        let handle = TextureHandle(self.new_handle());
+        let mut hasher = FxHasher::default();
+        path.canonicalize().unwrap().hash(&mut hasher);
+        let handle = TextureHandle(hasher.finish());
 
         self.textures.insert(handle, Texture2DResource::load(path, display)?);
         self.textures_handles.insert(path.to_path_buf(), handle);
@@ -71,6 +84,10 @@ impl Resources {
             .unwrap()
             .0
             .clone()
+    }
+
+    pub fn default_texture(&self) -> Option<TextureHandle> {
+        self.default_texture.clone()
     }
 
     pub fn get_geometry(&self, geometry_handle: GeometryHandle) -> &Geometry {
@@ -91,7 +108,13 @@ impl Resources {
         let geometries = Geometry::load(path.to_path_buf(), display)?;
 
         let handles = (0..geometries.len())
-            .map(|_| GeometryHandle(self.new_handle()))
+            .map(|index| {
+                let mut hasher = FxHasher::default();
+                path.canonicalize().unwrap().hash(&mut hasher);
+                index.hash(&mut hasher);
+                
+                GeometryHandle(hasher.finish())
+            })
             .collect_vec();
 
         for (geometry, handle) in geometries.into_iter().zip(handles.clone()) {
@@ -126,7 +149,9 @@ impl Resources {
 
         log::info!("Loading cubemap {:?}...", path);
 
-        let handle = CubemapHandle(self.new_handle());
+        let mut hasher = FxHasher::default();
+        path.canonicalize().unwrap().hash(&mut hasher);
+        let handle = CubemapHandle(hasher.finish());
 
         self.cubemaps.insert(handle, Cubemap::load(path.clone(), display)?);
         self.cubemap_handles.insert(path.clone(), handle);
@@ -141,11 +166,5 @@ impl Resources {
             .unwrap()
             .0
             .clone()
-    }
-
-    fn new_handle(&mut self) -> usize {
-        self.handle_count += 1;
-
-        self.handle_count
     }
 }

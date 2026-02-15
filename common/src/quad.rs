@@ -27,7 +27,7 @@ impl Quad {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct QuadVertex {
     pub position: [f32; 2],
     pub size: [f32; 2],

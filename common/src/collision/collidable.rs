@@ -19,6 +19,12 @@ pub struct Sweep<T> {
     pub velocity: Vector3<f32>,
 }
 
+impl <T> Sweep<T> {
+    pub fn new(object: T, velocity: Vector3<f32>) -> Self {
+        Self { object, velocity }
+    }
+}
+
 #[derive(Debug)]
 pub struct SweepHit {
     pub t: f32, // time of hit along velocity
@@ -26,6 +32,7 @@ pub struct SweepHit {
     pub point: Point3<f32>,
 }
 
+#[derive(Debug)]
 pub struct SweepHitNode {
     pub hit: SweepHit,
     pub node: NodeIndex,

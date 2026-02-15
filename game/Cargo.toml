@@ -27,3 +27,4 @@ palette = { version = "0.7.5", default-features = false, features = [
     "std",
     "serializing",
 ] }
+log = "0.4.29"
