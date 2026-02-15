@@ -35,7 +35,7 @@ impl SerializeWithContext for Renderable {
         resources: &mut Resources,
     ) -> Self {
         let geometry_handle = resources
-            .get_geometry_handles(&serialized.geometry_path, display)
+            .get_geometry_handles(&serialized.geometry_path, Some(display))
             .unwrap()[serialized.mesh_index];
 
         let texture_handle = resources.get_texture_handle(&serialized.texture_path, display).unwrap();

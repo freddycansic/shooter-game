@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::util;
     use approx::assert_relative_eq;
     use common::collision::colliders::aabb::Aabb;
     use common::collision::colliders::bvh::{Bvh, BvhNode};
@@ -10,13 +11,9 @@ mod tests {
     use petgraph::{Direction, EdgeDirection};
     use std::path::PathBuf;
 
-    fn bvh_of_model(path: PathBuf) -> Bvh {
-        Geometry::load_no_gpu(path).unwrap().into_iter().next().unwrap().bvh
-    }
-
     #[test]
     fn bvh_plane_2_triangles() {
-        let bvh = bvh_of_model("files/plane-2-tris.glb".into());
+        let bvh = util::load_test_geometry("files/plane-2-tris.glb".as_ref()).bvh;
         let root_node = bvh.graph.node_weight(bvh.root).unwrap();
 
         match root_node {
@@ -40,7 +37,7 @@ mod tests {
 
     #[test]
     fn bvh_partition_check_cube_subdivided() {
-        let bvh = bvh_of_model("files/cube-1-subdivide.glb".into());
+        let bvh = util::load_test_geometry("files/cube-1-subdivide.glb".as_ref()).bvh;
         let mut bfs = Bfs::new(&bvh.graph, bvh.root);
 
         while let Some(node_idx) = bfs.next(&bvh.graph) {

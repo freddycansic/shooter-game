@@ -220,7 +220,7 @@ impl Game {
         self.center_cursor(window);
 
         self.player.update_velocity_on_input(&self.engine.input);
-        let gravity = Vector3::new(0.0, -9.8, 0.0) * 0.0001;
+        let gravity = Vector3::new(0.0, -9.8, 0.0) * 0.1;
         self.player.velocity += gravity * self.state.deltatime as f32;
 
         if self.player.velocity.magnitude_squared() > 0.0 {
@@ -229,7 +229,7 @@ impl Game {
             let world_sphere = {
                 // TODO
                 // let collider_set = self.world.physics_context.colliders.get(&self.player.node).unwrap();
-                let collider_set = ColliderSet::narrow_only(Collider::Sphere(Sphere::new(Point3::origin(), 500.0)));
+                let collider_set = ColliderSet::narrow_only(Collider::Sphere(Sphere::new(Point3::origin(), 5.0)));
 
                 let graph_node = self.world.graph.graph.node_weight(self.player.node).unwrap();
 
@@ -266,6 +266,7 @@ impl Game {
             };
 
             self.player.position += actual_displacement;
+            self.player.velocity *= 0.9;
         }
 
         //

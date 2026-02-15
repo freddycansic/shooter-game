@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::collision::colliders::bvh::Bvh;
 use crate::geometry::GeometryVertex;
@@ -23,15 +23,7 @@ pub struct Geometry {
 }
 
 impl Geometry {
-    pub fn load(path: PathBuf, display: &Display<WindowSurface>) -> Result<Vec<Geometry>> {
-        Self::load_maybe_gpu(path, Some(display))
-    }
-
-    pub fn load_no_gpu(path: PathBuf) -> Result<Vec<Geometry>> {
-        Self::load_maybe_gpu(path, None)
-    }
-
-    fn load_maybe_gpu(path: PathBuf, display: Option<&Display<WindowSurface>>) -> Result<Vec<Geometry>> {
+    pub fn load(path: &Path, display: Option<&Display<WindowSurface>>) -> Result<Vec<Geometry>> {
         log::info!("Loading gltf {:?}...", path);
 
         let (document, file_buffers, _images) =
