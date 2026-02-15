@@ -2678,6 +2678,7 @@ dependencies = [
  "approx",
  "common",
  "nalgebra",
+ "petgraph",
 ]
 
 [[package]]

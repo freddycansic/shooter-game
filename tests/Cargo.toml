@@ -11,3 +11,6 @@ path = "src/lib.rs"
 common = { path = "../common" }
 approx = "0.5.1"
 nalgebra = "0.34.1"
+petgraph = { version = "0.8.1", default-features = false, features = [
+    "stable_graph",
+] }

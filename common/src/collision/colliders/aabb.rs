@@ -5,10 +5,7 @@ use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Local;
 use crate::resources::Resources;
-use crate::{
-    collision::collidable::{RayHit},
-    maths::Ray,
-};
+use crate::{collision::collidable::RayHit, maths::Ray};
 
 #[derive(Debug, Clone)]
 pub struct Aabb {
