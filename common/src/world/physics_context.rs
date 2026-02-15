@@ -223,7 +223,8 @@ impl PhysicsContext {
                     .transform_vector(&local_hit.normal)
                     .normalize();
 
-                let world_t = (world_point - query.object.origin).norm();
+                let world_t =
+                    ((world_point - query.object.origin).norm() - query.object.radius) / query.velocity.norm();
 
                 SweepHitNode {
                     hit: SweepHit {
