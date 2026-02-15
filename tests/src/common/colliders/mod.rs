@@ -1,3 +1,3 @@
-mod aabb;
-mod capsule;
-mod triangle;
+mod aabb_tests;
+mod capsule_tests;
+mod triangle_tests;
