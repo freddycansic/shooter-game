@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
-use petgraph::{Direction, Graph, graph::NodeIndex};
+use petgraph::{graph::NodeIndex, Direction, Graph};
 
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep, SweepHit};
 use crate::collision::colliders::sphere::Sphere;
@@ -9,10 +9,7 @@ use crate::geometry::Primitive;
 use crate::maths::Local;
 use crate::resources::Resources;
 use crate::{
-    collision::{
-        collidable::{RayHit},
-        colliders::aabb::Aabb,
-    },
+    collision::{collidable::RayHit, colliders::aabb::Aabb},
     colors::Color,
     debug::Cuboid,
     maths::Ray,
@@ -26,7 +23,7 @@ enum Axis {
 }
 
 #[derive(Debug, Clone)]
-struct Split {
+pub struct BvhSplit {
     axis: Axis,
     position: f32,
 }
@@ -37,21 +34,21 @@ pub struct BvhPass {
 }
 
 impl BvhPass {
-    fn determine_split(&self) -> Split {
+    fn determine_split(&self) -> BvhSplit {
         let bounding_box_size = self.aabb.max - self.aabb.min;
 
         if bounding_box_size.x > bounding_box_size.y && bounding_box_size.x > bounding_box_size.z {
-            Split {
+            BvhSplit {
                 axis: Axis::X,
                 position: self.centroid.x,
             }
         } else if bounding_box_size.y > bounding_box_size.z {
-            Split {
+            BvhSplit {
                 axis: Axis::Y,
                 position: self.centroid.y,
             }
         } else {
-            Split {
+            BvhSplit {
                 axis: Axis::Z,
                 position: self.centroid.z,
             }
@@ -67,21 +64,21 @@ pub struct TriangleWithCentroid {
 }
 
 #[derive(Debug)]
-enum BvhNode {
+pub enum BvhNode {
     Aabb(Aabb),
     Leaf { triangles: Vec<Triangle>, aabb: Aabb },
 }
 
 #[derive(Debug)]
 pub struct Bvh {
-    pub graph: Graph<BvhNode, Split>,
+    pub graph: Graph<BvhNode, BvhSplit>,
     pub root: NodeIndex,
 }
 
 impl Bvh {
     pub fn from_primitives(primitives: &[Primitive]) -> Self {
         let tris_with_centroids = Self::get_tris_with_centroids(primitives);
-        let mut graph = Graph::<BvhNode, Split>::new();
+        let mut graph = Graph::<BvhNode, BvhSplit>::new();
 
         let root = Self::build(&mut graph, tris_with_centroids);
 
@@ -115,7 +112,7 @@ impl Bvh {
             .collect_vec()
     }
 
-    fn build(graph: &mut Graph<BvhNode, Split>, tris_with_centroids: Vec<TriangleWithCentroid>) -> NodeIndex {
+    fn build(graph: &mut Graph<BvhNode, BvhSplit>, tris_with_centroids: Vec<TriangleWithCentroid>) -> NodeIndex {
         if tris_with_centroids.len() <= 2 {
             let leaf_tris = tris_with_centroids.into_iter().map(|tri| tri.verts).collect_vec();
 
@@ -236,17 +233,17 @@ impl Bvh {
         let mut triangles = Vec::new();
 
         for primitive in primitives {
-            for chunk in primitive.indices.chunks(3) {
+            for chunk in primitive.cpu.indices.chunks(3) {
                 let triangle = Triangle([
-                    Point3::from_slice(primitive.vertices[chunk[0] as usize].position.as_slice()),
-                    Point3::from_slice(primitive.vertices[chunk[1] as usize].position.as_slice()),
-                    Point3::from_slice(primitive.vertices[chunk[2] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.cpu.vertices[chunk[0] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.cpu.vertices[chunk[1] as usize].position.as_slice()),
+                    Point3::from_slice(primitive.cpu.vertices[chunk[2] as usize].position.as_slice()),
                 ]);
 
                 let mut centroid = Centroid::zeros();
 
                 for chunk_index in chunk {
-                    let pos = primitive.vertices[*chunk_index as usize].position;
+                    let pos = primitive.cpu.vertices[*chunk_index as usize].position;
                     centroid += Vector3::new(pos[0], pos[1], pos[2]);
                 }
 
