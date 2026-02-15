@@ -1,5 +1,5 @@
 [workspace]
-members = ["common", "editor", "game", "proc-macros"]
+members = ["common", "editor", "game"]
 resolver = "3"
 
 [profile.release-with-debug]
