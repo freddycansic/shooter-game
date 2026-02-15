@@ -1,2 +1,2 @@
-mod bvh;
+mod bvh_tests;
 mod colliders;
