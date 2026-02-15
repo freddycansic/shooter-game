@@ -20,6 +20,7 @@ in {
   packages = [
     pkgs.clang
     pkgs.mold
+    pkgs.cargo-tarpaulin
   ];
 
   languages.rust = {
