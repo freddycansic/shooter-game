@@ -5,13 +5,13 @@ use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::{Local, Ray};
-use crate::resources::{GeometryHandle, Resources};
-use crate::systems::renderer::Renderable;
+use crate::engine::resources::{GeometryHandle, Resources};
 use crate::world::{World, WorldGraph};
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
+use crate::engine::renderer::Renderable;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Collider {

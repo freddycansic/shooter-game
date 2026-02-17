@@ -4,15 +4,15 @@ use std::hash::{Hash, Hasher};
 use crate::camera::{Camera, OrbitalCamera};
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
+use crate::engine::input::Input;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
-use crate::input::Input;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
-use crate::resources::{CubemapHandle, TextureHandle};
-use crate::resources::{GeometryHandle, Resources};
+use crate::engine::resources::{CubemapHandle, TextureHandle};
+use crate::engine::resources::{GeometryHandle, Resources};
 use crate::world::{QuadBatches, Renderables, World, WorldGraph};
 use crate::{context, maths};
 use color_eyre::Result;
@@ -385,7 +385,7 @@ impl Renderer {
     ) {
         // dbg!(&queue);
         // panic!();
-        
+
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
 
         let dimensions = target.get_dimensions();

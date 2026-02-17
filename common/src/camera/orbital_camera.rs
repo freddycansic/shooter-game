@@ -2,7 +2,7 @@ use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::camera::camera::Camera;
-use crate::input::Input;
+use crate::engine::input::Input;
 use crate::maths;
 
 #[derive(Serialize, Deserialize)]

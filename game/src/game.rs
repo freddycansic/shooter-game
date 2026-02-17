@@ -17,12 +17,12 @@ use common::camera::{Camera, OrbitalCamera};
 use common::collision::collidable::Sweep;
 use common::collision::colliders::sphere::Sphere;
 use common::debug;
-use common::engine::Engine;
-use common::input::Input;
+use common::engine::engine::Engine;
+use common::engine::input::Input;
+use common::engine::renderer::Renderer;
+use common::engine::resources::Resources;
 use common::quad::Quad;
-use common::resources::Resources;
 use common::serde::SerializedWorld;
-use common::systems::renderer::{Renderable, Renderer};
 use common::world::physics_context::ColliderSet;
 use common::world::{Collider, World};
 
@@ -73,10 +73,9 @@ impl Application for Game {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
-        let mut resources = Resources::new();
-        resources.initialise_default_texture(display).unwrap();
+        let mut engine = Engine::new(None /* full size */, display, window, event_loop);
 
-        let renderer = Renderer::new(None, display).unwrap();
+        engine.resources.initialise_default_texture(display).unwrap();
 
         let mut world = {
             let args = Args::parse();
@@ -94,7 +93,7 @@ impl Application for Game {
 
             serde_json::from_str::<SerializedWorld>(&serialized_world_string)
                 .unwrap()
-                .into_world(display, &mut resources)
+                .into_world(display, &mut engine.resources)
                 .unwrap()
         };
 
@@ -107,7 +106,7 @@ impl Application for Game {
             inner_size.width as f32 / inner_size.height as f32,
         );*/
 
-        let crosshair_texture = resources
+        let crosshair_texture = engine.resources
             .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
             .unwrap();
 
@@ -118,9 +117,8 @@ impl Application for Game {
         )]];
 
         let state = FrameState::default();
-        let input = Input::new();
 
-        let player = PlayerController::initialise(&mut world, &mut resources, display);
+        let player = PlayerController::initialise(&mut world, &mut engine.resources, display);
 
         // let sphere_renderable = Renderable {
         //     geometry_handle: resources
@@ -146,15 +144,6 @@ impl Application for Game {
             inner_size.width as f32,
             inner_size.height as f32,
         );
-
-        let gui = EguiGlium::new(ViewportId::ROOT, display, window, event_loop);
-
-        let engine = Engine {
-            renderer,
-            input,
-            gui,
-            resources,
-        };
 
         Self {
             engine,
@@ -226,25 +215,28 @@ impl Game {
         if self.player.velocity.magnitude_squared() > 0.0 {
             let player_displacement = self.player.velocity * self.state.deltatime as f32;
 
-            let world_sphere = {
+            let graph_node = self.world.graph.graph.node_weight(self.player.node).unwrap();
+
+            let world_sphere = Sphere {
+                origin: graph_node.world_transform().translation().vector.into(),
+                radius: 5.0,
                 // TODO
                 // let collider_set = self.world.physics_context.colliders.get(&self.player.node).unwrap();
-                let collider_set = ColliderSet::narrow_only(Collider::Sphere(Sphere::new(Point3::origin(), 5.0)));
-
-                let graph_node = self.world.graph.graph.node_weight(self.player.node).unwrap();
-
-                if let Collider::Sphere(sphere) = &collider_set.narrow {
-                    log::debug!("Local sphere collider {:?}", sphere);
-
-                    let world_origin = graph_node.world_transform().matrix().transform_point(&sphere.origin);
-                    let world_scale = graph_node.world_transform().scale();
-                    let max_scale = world_scale.x.max(world_scale.y).max(world_scale.z);
-                    let world_radius = sphere.radius * max_scale;
-
-                    Sphere::new(world_origin, world_radius)
-                } else {
-                    panic!()
-                }
+                // let collider_set = ColliderSet::narrow_only(Collider::Sphere(Sphere::new(Point3::origin(), 5.0)));
+                //
+                //
+                // if let Collider::Sphere(sphere) = &collider_set.narrow {
+                //     log::debug!("Local sphere collider {:?}", sphere);
+                //
+                //     let world_origin = graph_node.world_transform().matrix().transform_point(&sphere.origin);
+                //     let world_scale = graph_node.world_transform().scale();
+                //     let max_scale = world_scale.x.max(world_scale.y).max(world_scale.z);
+                //     let world_radius = sphere.radius * max_scale;
+                //
+                //     Sphere::new(world_origin, world_radius)
+                // } else {
+                //     panic!()
+                // }
             };
 
             log::debug!("World sphere collider {:?}", &world_sphere);

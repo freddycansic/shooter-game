@@ -7,7 +7,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::collision::colliders::triangle::Triangle;
 use crate::geometry::Primitive;
 use crate::maths::Local;
-use crate::resources::Resources;
+use crate::engine::resources::Resources;
 use crate::{
     collision::{collidable::RayHit, colliders::aabb::Aabb},
     colors::Color,

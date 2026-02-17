@@ -1,6 +1,6 @@
-use common::input::Input;
-use common::resources::Resources;
-use common::systems::renderer::Renderable;
+use common::engine::input::Input;
+use common::engine::renderer::Renderable;
+use common::engine::resources::Resources;
 use common::world::{World, WorldNode};
 use glium::glutin::surface::WindowSurface;
 use glium::Display;

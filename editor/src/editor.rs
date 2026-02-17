@@ -28,15 +28,15 @@ use common::application::Application;
 use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
-use common::engine::Engine;
+use common::engine::engine::Engine;
+use common::engine::input::Input;
+use common::engine::renderer::{Background, Renderable, Renderer};
+use common::engine::resources::Resources;
 use common::light::Light;
 use common::line::Line;
-use common::resources::Resources;
-use common::systems::renderer::{Background, Renderable, Renderer};
 use common::world::physics_context::ColliderSet;
 use common::world::World;
 use common::*;
-use input::Input;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -91,17 +91,7 @@ impl Application for Editor {
 
         let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
 
-        let renderer = Renderer::new(
-            None, // full size
-            display,
-        )
-        .unwrap();
-
-        let resources = Resources::new();
-
-        let input = Input::new();
-
-        let gui = EguiGlium::new(ViewportId::ROOT, display, window, event_loop);
+        let engine = Engine::new(None /* full size*/, display, window, event_loop);
 
         let state = FrameState {
             last_frame_end: Instant::now(),
@@ -124,13 +114,6 @@ impl Application for Editor {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
         }];
-
-        let engine = Engine {
-            renderer,
-            input,
-            gui,
-            resources,
-        };
 
         Self {
             engine,
@@ -368,25 +351,24 @@ impl Editor {
                                 let mut temp_path = std::env::temp_dir();
                                 temp_path.push(uuid.clone());
 
-                                unimplemented!();
-                                // let serialized_scene = SerializedScene::from_scene(&self.scene);
-                                // let serialized_string = serde_json::to_string(&serialized_scene).unwrap();
-                                //
-                                // std::fs::write(&temp_path, serialized_string).unwrap();
-                                //
-                                // std::process::Command::new("cargo")
-                                //     .arg("run")
-                                //     .arg("--package")
-                                //     .arg("game")
-                                //     .arg("--")
-                                //     .arg("--scene")
-                                //     .arg(uuid)
-                                //     .spawn()
-                                //     .unwrap()
-                                //     .wait()
-                                //     .unwrap();
-                                //
-                                // ui.close();
+                                let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.resources);
+                                let serialized_string = serde_json::to_string(&serialized_world).unwrap();
+
+                                std::fs::write(&temp_path, serialized_string).unwrap();
+
+                                std::process::Command::new("cargo")
+                                    .arg("run")
+                                    .arg("--package")
+                                    .arg("game")
+                                    .arg("--")
+                                    .arg("--project")
+                                    .arg(uuid)
+                                    .spawn()
+                                    .unwrap()
+                                    .wait()
+                                    .unwrap();
+
+                                ui.close();
                             }
                         });
                     });
@@ -433,7 +415,7 @@ impl Editor {
                                 ui.label("Collider");
                                 if ui.button("-").clicked() {
                                     self.world.physics_context.colliders.remove(&selected_node_index);
-                                }                                
+                                }
                             });
                         }
 
@@ -495,22 +477,9 @@ impl Editor {
         });
     }
 
-    fn save_as(&self) {
-        unimplemented!()
-        // let serialized_scene = SerializedScene::from_scene(self);
-        //
-        // let serialized = serde_json::to_string(&serialized_scene).unwrap();
-        //
-        // std::thread::spawn(move || {
-        //     if let Some(save_path) = FileDialog::new().save_file() {
-        //         std::fs::write(save_path, serialized).unwrap();
-        //     }
-        // });
-    }
-
     /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
-        let handles = self.engine.resources.get_geometry_handles(path, display)?;
+        let handles = self.engine.resources.get_geometry_handles(path, Some(display))?;
 
         let group_node = self.world.graph.add_root_node(WorldNode::default());
 

@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 
 use fxhash::{FxBuildHasher, FxHashMap};
-use glium::{Display, glutin::surface::WindowSurface};
+use glium::{glutin::surface::WindowSurface, Display};
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     quad::{Quad, QuadVertex},
-    resources::{Resources, TextureHandle},
     serde::SerializeWithContext,
 };
+use crate::engine::resources::{Resources, TextureHandle};
 
 // list of layers
 // layer is list of quads

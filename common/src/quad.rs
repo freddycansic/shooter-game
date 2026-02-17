@@ -1,7 +1,4 @@
-use crate::resources::TextureHandle;
-use crate::ui;
-use crate::ui::UiItem;
-use egui_glium::egui_winit::egui::WidgetText;
+use crate::engine::resources::TextureHandle;
 use glium::implement_vertex;
 use nalgebra::{Point2, Vector2};
 
@@ -34,22 +31,3 @@ pub struct QuadVertex {
     pub layer: i32,
 }
 implement_vertex!(QuadVertex, position, size, layer);
-
-impl UiItem for Quad {
-    fn name(&self) -> WidgetText {
-        (&self.name).into()
-    }
-
-    // TODO make it proc macro if this becomes a problem
-    fn selected(&self) -> bool {
-        self.selected
-    }
-
-    fn select(&mut self) {
-        self.selected = true;
-    }
-
-    fn deselect(&mut self) {
-        self.selected = false;
-    }
-}
