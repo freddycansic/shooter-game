@@ -282,7 +282,7 @@ impl Renderer {
         })
     }
 
-    fn get_glium_viewport(&self) -> Option<glium::Rect> {
+    fn glium_viewport(&self) -> Option<glium::Rect> {
         // Convert to bottom left rect from top right
         self.viewport.map(|viewport| glium::Rect {
             left: viewport.min.x as u32,
@@ -522,7 +522,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     blend: premultiplied_alpha,
-                    viewport: self.get_glium_viewport(),
+                    viewport: self.glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -554,7 +554,7 @@ impl Renderer {
                     blend: premultiplied_alpha,
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
-                    viewport: self.get_glium_viewport(),
+                    viewport: self.glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -575,7 +575,7 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        let viewport = self.get_glium_viewport();
+        let viewport = self.glium_viewport();
 
         for (texture_handle, quad_vertices) in quad_batches.iter() {
             let quad_buffer = RendererBuffers::get_vertex_buffer(
@@ -640,7 +640,7 @@ impl Renderer {
                 &self.programs.skybox,
                 &uniforms,
                 &DrawParameters {
-                    viewport: self.get_glium_viewport(),
+                    viewport: self.glium_viewport(),
                     ..DrawParameters::default()
                 },
             )
@@ -674,7 +674,7 @@ impl Renderer {
         }
 
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
-        let viewport = self.get_glium_viewport();
+        let viewport = self.glium_viewport();
 
         for (width, points) in batched {
             let buffer =
@@ -758,7 +758,7 @@ impl Renderer {
             ..SamplerBehavior::default()
         };
 
-        let viewport = self.get_glium_viewport();
+        let viewport = self.glium_viewport();
 
         // Draw regular color buffer
         for (key, instances) in geometry_batches.iter() {
@@ -838,7 +838,7 @@ impl Renderer {
             vp: *vp,
         };
 
-        let viewport = self.get_glium_viewport();
+        let viewport = self.glium_viewport();
 
         // Only draw selected models into mask
         for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {
