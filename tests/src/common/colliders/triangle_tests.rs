@@ -4,8 +4,8 @@ mod tests {
     use common::collision::collidable::{NarrowPhaseCollisionQuery, Sweep};
     use common::collision::colliders::sphere::Sphere;
     use common::collision::colliders::triangle::Triangle;
-    use common::maths::{Local, Ray};
     use common::engine::resources::Resources;
+    use common::maths::{Local, Ray};
     use nalgebra::{Point3, Vector3};
 
     const EPSILON: f32 = 1e-6;

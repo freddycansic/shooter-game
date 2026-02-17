@@ -106,7 +106,8 @@ impl Application for Game {
             inner_size.width as f32 / inner_size.height as f32,
         );*/
 
-        let crosshair_texture = engine.resources
+        let crosshair_texture = engine
+            .resources
             .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
             .unwrap();
 
@@ -119,23 +120,6 @@ impl Application for Game {
         let state = FrameState::default();
 
         let player = PlayerController::initialise(&mut world, &mut engine.resources, display);
-
-        // let sphere_renderable = Renderable {
-        //     geometry_handle: resources
-        //         .get_geometry_handles(&PathBuf::from("assets/models/sphere.glb"), display)
-        //         .unwrap()
-        //         .into_iter()
-        //         .next()
-        //         .unwrap(),
-        //     texture_handle: resources
-        //         .get_texture_handle(&PathBuf::from("assets/textures/gmod.jpg"), display)
-        //         .unwrap(),
-        // };
-        //
-        // let sphere_scene_node = SceneNode::new(NodeType::Renderable(sphere_renderable));
-
-        // let sphere_graph_node = world.graph.add_node(sphere_scene_node);
-        // world.graph.add_edge(player_node.clone(), sphere_graph_node);
 
         let inner_size = window.inner_size();
         let camera = OrbitalCamera::new(

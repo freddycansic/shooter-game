@@ -17,7 +17,12 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(viewport: Option<egui::Rect>, display: &Display<WindowSurface>, window: &Window, event_loop: &ActiveEventLoop) -> Self {
+    pub fn new(
+        viewport: Option<egui::Rect>,
+        display: &Display<WindowSurface>,
+        window: &Window,
+        event_loop: &ActiveEventLoop,
+    ) -> Self {
         Self {
             renderer: Renderer::new(viewport, display).unwrap(),
             input: Input::new(),

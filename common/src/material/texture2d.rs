@@ -4,8 +4,7 @@ use color_eyre::Result;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-
-use crate::texture::texture;
+use crate::material::texture;
 
 pub struct Texture2DResource {
     pub path: PathBuf,

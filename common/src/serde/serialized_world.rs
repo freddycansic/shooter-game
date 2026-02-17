@@ -5,13 +5,13 @@ use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
 
 use crate::engine::renderer::Renderable;
+use crate::engine::resources::Resources;
 use crate::serde::SerializedRenderable;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
     serde::{serialized_background::SerializedBackground, SerializeWithContext},
 };
-use crate::engine::resources::Resources;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedWorld {

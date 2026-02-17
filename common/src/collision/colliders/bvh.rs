@@ -5,9 +5,9 @@ use petgraph::{graph::NodeIndex, Direction, Graph};
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep, SweepHit};
 use crate::collision::colliders::sphere::Sphere;
 use crate::collision::colliders::triangle::Triangle;
+use crate::engine::resources::Resources;
 use crate::geometry::Primitive;
 use crate::maths::Local;
-use crate::engine::resources::Resources;
 use crate::{
     collision::{collidable::RayHit, colliders::aabb::Aabb},
     colors::Color,

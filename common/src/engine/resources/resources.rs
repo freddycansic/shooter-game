@@ -7,11 +7,9 @@ use glium::{glutin::surface::WindowSurface, Display};
 
 use itertools::Itertools;
 
-use crate::{
-    geometry::Geometry,
-    texture::{Cubemap, Texture2DResource},
-};
 use crate::engine::resources::handle::{CubemapHandle, GeometryHandle, TextureHandle};
+use crate::geometry::Geometry;
+use crate::material::{Cubemap, Texture2DResource};
 
 pub struct Resources {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
@@ -112,7 +110,7 @@ impl Resources {
                 let mut hasher = FxHasher::default();
                 path.canonicalize().unwrap().hash(&mut hasher);
                 index.hash(&mut hasher);
-                
+
                 GeometryHandle(hasher.finish())
             })
             .collect_vec();

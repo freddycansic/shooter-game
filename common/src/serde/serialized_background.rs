@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use glium::{glutin::surface::WindowSurface, Display};
 use serde::{Deserialize, Serialize};
 
-use crate::engine::renderer::Background;
 use crate::colors::Color;
+use crate::engine::renderer::Background;
 use crate::engine::resources::Resources;
 
 #[derive(Serialize, Deserialize)]
