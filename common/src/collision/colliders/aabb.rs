@@ -1,11 +1,11 @@
-use nalgebra::{Point3, Vector3};
-use serde::{Deserialize, Serialize};
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep};
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
-use crate::maths::Local;
 use crate::engine::resources::Resources;
+use crate::maths::Local;
 use crate::{collision::collidable::RayHit, maths::Ray};
+use nalgebra::{Point3, Vector3};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Aabb {

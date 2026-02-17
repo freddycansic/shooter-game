@@ -1,7 +1,7 @@
 use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit};
 use crate::collision::colliders::cylinder;
-use crate::maths::{Local, Ray};
 use crate::engine::resources::Resources;
+use crate::maths::{Local, Ray};
 use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
 

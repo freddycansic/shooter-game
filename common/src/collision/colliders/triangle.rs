@@ -1,8 +1,8 @@
 use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit, Sweep, SweepHit};
 use crate::collision::colliders::cylinder;
 use crate::collision::colliders::sphere::Sphere;
-use crate::maths::{Local, Ray};
 use crate::engine::resources::Resources;
+use crate::maths::{Local, Ray};
 use nalgebra::{Point3, Vector3};
 
 #[derive(Debug)]

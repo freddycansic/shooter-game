@@ -2,13 +2,12 @@ use color_eyre::eyre::Result;
 use fxhash::FxHashSet;
 use std::path::PathBuf;
 
+use crate::material::texture;
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CubeLayer;
 use glium::uniforms::MagnifySamplerFilter;
 use glium::{BlitTarget, Display, Surface, Texture2d};
-
-use crate::texture::texture;
 
 pub struct Cubemap {
     pub directory: PathBuf,

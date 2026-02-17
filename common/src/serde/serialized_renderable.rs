@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use glium::{glutin::surface::WindowSurface, Display};
-use serde::{Deserialize, Serialize};
 use crate::engine::renderer::Renderable;
 use crate::engine::resources::Resources;
 use crate::serde::SerializeWithContext;
+use glium::{glutin::surface::WindowSurface, Display};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedRenderable {

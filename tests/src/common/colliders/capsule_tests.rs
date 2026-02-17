@@ -3,8 +3,8 @@ mod tests {
     use approx::assert_relative_eq;
     use common::collision::collidable::NarrowPhaseCollisionQuery;
     use common::collision::colliders::capsule::Capsule;
-    use common::maths::{Local, Ray};
     use common::engine::resources::Resources;
+    use common::maths::{Local, Ray};
     use nalgebra::{Point3, Vector3};
 
     #[test]

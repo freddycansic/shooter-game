@@ -6,11 +6,11 @@ use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
 
+use crate::engine::resources::{Resources, TextureHandle};
 use crate::{
     quad::{Quad, QuadVertex},
     serde::SerializeWithContext,
 };
-use crate::engine::resources::{Resources, TextureHandle};
 
 // list of layers
 // layer is list of quads
