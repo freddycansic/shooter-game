@@ -1,15 +1,16 @@
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
+use crate::engine::renderer::{Background, Renderable};
 use crate::light::Light;
 use crate::line::Line;
 use crate::maths::Ray;
-use crate::resources::Resources;
+use crate::engine::resources::Resources;
 use crate::serde::SerializedWorld;
-use crate::systems::renderer::{Background, Renderable};
 use crate::world::graph::WorldGraph;
 use crate::world::{PhysicsContext, QuadTree};
 use fxhash::FxHashMap;
 use petgraph::prelude::NodeIndex;
+use rfd::FileDialog;
 
 pub type Renderables = FxHashMap<NodeIndex, Renderable>;
 
@@ -42,7 +43,7 @@ impl World {
         let serialized = serde_json::to_string(&serialized_world).unwrap();
 
         std::thread::spawn(move || {
-            if let Some(save_path) = rfd::FileDialog::new().save_file() {
+            if let Some(save_path) = FileDialog::new().save_file() {
                 std::fs::write(save_path, serialized).unwrap();
             }
         });

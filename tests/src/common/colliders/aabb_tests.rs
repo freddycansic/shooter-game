@@ -5,7 +5,7 @@ mod tests {
     use common::collision::colliders::aabb::Aabb;
     use common::collision::colliders::capsule::Capsule;
     use common::maths::{Local, Ray};
-    use common::resources::Resources;
+    use common::engine::resources::Resources;
     use nalgebra::{Point3, Vector3};
 
     #[test]

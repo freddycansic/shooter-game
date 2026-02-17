@@ -4,7 +4,7 @@ use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisio
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
 use crate::maths::Local;
-use crate::resources::Resources;
+use crate::engine::resources::Resources;
 use crate::{collision::collidable::RayHit, maths::Ray};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

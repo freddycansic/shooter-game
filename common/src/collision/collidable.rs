@@ -1,4 +1,4 @@
-use crate::resources::Resources;
+use crate::engine::resources::Resources;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
 

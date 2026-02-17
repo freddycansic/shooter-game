@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
 use crate::camera::camera::Camera;
-use crate::input::Input;
+use crate::engine::input::Input;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct FpsCamera {

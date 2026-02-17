@@ -1,6 +1,6 @@
 use glium::{glutin::surface::WindowSurface, Display};
 
-use crate::resources::Resources;
+use crate::engine::resources::Resources;
 
 pub trait SerializeWithContext {
     type Serialized;

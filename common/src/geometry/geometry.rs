@@ -13,7 +13,6 @@ use itertools::Itertools;
 
 use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 use crate::geometry::Primitive;
-use crate::ui;
 
 #[derive(Debug)]
 pub struct Geometry {

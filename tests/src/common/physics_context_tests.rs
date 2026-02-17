@@ -4,7 +4,7 @@ mod tests {
     use approx::assert_relative_eq;
     use common::collision::collidable::Sweep;
     use common::collision::colliders::sphere::Sphere;
-    use common::resources::Resources;
+    use common::engine::resources::Resources;
     use common::world::physics_context::ColliderSet;
     use common::world::{Collider, World, WorldNode};
     use nalgebra::{Point3, Vector3};

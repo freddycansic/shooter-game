@@ -9,9 +9,9 @@ use itertools::Itertools;
 
 use crate::{
     geometry::Geometry,
-    resources::handle::{CubemapHandle, GeometryHandle, TextureHandle},
     texture::{Cubemap, Texture2DResource},
 };
+use crate::engine::resources::handle::{CubemapHandle, GeometryHandle, TextureHandle};
 
 pub struct Resources {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
@@ -47,7 +47,7 @@ impl Resources {
     }
 
     pub fn initialise_default_texture(&mut self, display: &Display<WindowSurface>) -> Result<()> {
-        let handle = self.get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)?;
+        let handle = self.get_texture_handle(&PathBuf::from("../../../../assets/textures/uv-test.jpg"), display)?;
 
         self.default_texture = Some(handle);
 
