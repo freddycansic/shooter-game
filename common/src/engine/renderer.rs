@@ -13,11 +13,11 @@ use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
-use crate::world::{QuadBatches, Renderables, World, WorldGraph};
+use crate::world::{QuadBatches, World, WorldGraph};
 use crate::{context, maths};
 use color_eyre::Result;
 use egui_glium::egui_winit::egui::{self, Pos2};
-use fxhash::{FxBuildHasher, FxHashMap};
+use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
 use glium::index::{IndicesSource, NoIndices, PrimitiveType};
@@ -110,7 +110,7 @@ impl RendererBuffers {
 #[derive(Debug, Clone)]
 pub struct GeometryBatchKey {
     pub geometry_handle: GeometryHandle,
-    pub texture_handle: TextureHandle,
+    pub texture_handle: Option<TextureHandle>,
     pub selected: bool,
 }
 
@@ -138,11 +138,6 @@ pub type GeometryBatches = FxHashMap<GeometryBatchKey, Vec<Instance>>;
 pub struct RenderQueue {
     pub geometry_batches: GeometryBatches,
     pub quad_batches: QuadBatches,
-}
-
-pub struct Renderable {
-    pub geometry_handle: GeometryHandle,
-    pub texture_handle: TextureHandle,
 }
 
 #[derive(PartialEq, Clone)]
@@ -301,7 +296,7 @@ impl Renderer {
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
-        let render_queue = self.build_render_queue(&world.renderables, &world.graph, selection);
+        let render_queue = self.build_render_queue(world, selection);
 
         self.render_background(&world.background, camera, resources, target);
         self.render_queue(render_queue, camera, resources, &world.lights, display, target);
@@ -328,13 +323,8 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(
-        &mut self,
-        renderables: &Renderables,
-        world_graph: &WorldGraph,
-        selection: &[NodeIndex],
-    ) -> RenderQueue {
-        let geometry_batches = self.batch_geometry(renderables, world_graph, selection);
+    fn build_render_queue(&mut self, world: &World, selection: &[NodeIndex]) -> RenderQueue {
+        let geometry_batches = self.batch_geometry(world, selection);
         // let quad_batches = self.quads.batch();
 
         RenderQueue {
@@ -343,25 +333,24 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(
-        &self,
-        renderables: &Renderables,
-        world_graph: &WorldGraph,
-        selection: &[NodeIndex],
-    ) -> GeometryBatches {
+    fn batch_geometry(&self, world: &World, selection: &[NodeIndex]) -> GeometryBatches {
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
-        for (node_index, renderable) in renderables {
-            let node = world_graph.graph.node_weight(*node_index).unwrap();
+        let selection_set = FxHashSet::from_iter(selection.iter().cloned());
+        
+        for (node_index, geometry_handle) in &world.geometries {
+            let node = world.graph.graph.node_weight(*node_index).unwrap();
 
             if !node.visible {
                 continue;
             }
 
+            let texture_handle = world.textures.get(node_index).cloned();
+
             let node_key = GeometryBatchKey {
-                geometry_handle: renderable.geometry_handle,
-                texture_handle: renderable.texture_handle,
-                selected: selection.contains(node_index),
+                geometry_handle: *geometry_handle,
+                texture_handle,
+                selected: selection_set.contains(node_index),
             };
 
             let batch = batches.entry(node_key).or_insert(vec![]);
@@ -765,7 +754,7 @@ impl Renderer {
             let instance_buffer =
                 RendererBuffers::get_vertex_buffer(&mut self.buffers.instance_buffers, key, instances, display);
 
-            let texture = resources.get_texture(key.texture_handle);
+            let texture = resources.get_texture(key.texture_handle.unwrap_or(resources.default_texture().unwrap()));
             let geometry = resources.get_geometry(key.geometry_handle);
 
             let uniforms = uniform! {

@@ -23,7 +23,7 @@ pub struct Resources {
     cubemaps: FxHashMap<CubemapHandle, Cubemap>,
 }
 
-// TODO
+// TODO for possible performance
 // 2 tiered handles
 // 1 is stable and derived from the path etc
 // 2 is unstable, and derived at runtime
@@ -45,7 +45,7 @@ impl Resources {
     }
 
     pub fn initialise_default_texture(&mut self, display: &Display<WindowSurface>) -> Result<()> {
-        let handle = self.get_texture_handle(&PathBuf::from("../../../../assets/textures/uv-test.jpg"), display)?;
+        let handle = self.get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)?;
 
         self.default_texture = Some(handle);
 

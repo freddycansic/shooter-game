@@ -1,5 +1,4 @@
 use common::engine::input::Input;
-use common::engine::renderer::Renderable;
 use common::engine::resources::Resources;
 use common::world::{World, WorldNode};
 use glium::glutin::surface::WindowSurface;
@@ -34,15 +33,14 @@ impl PlayerController {
         let collider_graph_node = world.graph.add_node(collider_world_node);
         world.graph.add_edge(player_node, collider_graph_node);
 
-        let collider_renderable = Renderable {
-            geometry_handle: *resources
+        world.geometries.insert(
+            collider_graph_node,
+            *resources
                 .get_geometry_handles(&PathBuf::from("assets/models/sphere.glb"), Some(display))
                 .unwrap()
                 .first()
                 .unwrap(),
-            texture_handle: resources.default_texture().unwrap(),
-        };
-        world.renderables.insert(collider_graph_node, collider_renderable);
+        );
 
         let player = PlayerController {
             position: player_position.vector.into(),

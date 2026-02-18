@@ -4,7 +4,6 @@ use crate::collision::collidable::{
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::renderer::Renderable;
 use crate::engine::resources::{GeometryHandle, Resources};
 use crate::maths::{Local, Ray};
 use crate::world::{World, WorldGraph};
@@ -91,11 +90,11 @@ pub struct ColliderSet {
     pub narrow: Collider,
 }
 
-impl From<&Renderable> for ColliderSet {
-    fn from(renderable: &Renderable) -> Self {
+impl From<GeometryHandle> for ColliderSet {
+    fn from(geometry_handle: GeometryHandle) -> Self {
         Self {
             broad: None,
-            narrow: Collider::Geometry(renderable.geometry_handle),
+            narrow: Collider::Geometry(geometry_handle),
         }
     }
 }

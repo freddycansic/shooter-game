@@ -3,10 +3,10 @@ use fxhash::FxHashMap;
 use glium::{glutin::surface::WindowSurface, Display};
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-use crate::engine::renderer::Renderable;
-use crate::engine::resources::Resources;
-use crate::serde::SerializedRenderable;
+use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
+use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
@@ -22,16 +22,23 @@ pub struct SerializedWorld {
     // pub terrain: Option<Terrain>,
     pub quads: SerializedQuadTree,
     pub physics_context: PhysicsContext,
-    pub renderables: FxHashMap<NodeIndex, SerializedRenderable>,
+    pub geometries: FxHashMap<NodeIndex, SerializedGeometryHandle>,
+    pub textures: FxHashMap<NodeIndex, PathBuf>,
     pub player_spawn: Option<NodeIndex>,
 }
 
 impl SerializedWorld {
     pub fn from_world(value: &World, resources: &Resources) -> Self {
-        let serialized_renderables = value
-            .renderables
+        let serialized_geometries = value
+            .geometries
             .iter()
-            .map(|(node, renderable)| (*node, renderable.serialize_with(resources)))
+            .map(|(node, geometry_handle)| (*node, geometry_handle.serialize_with(resources)))
+            .collect();
+
+        let serialized_textures = value
+            .textures
+            .iter()
+            .map(|(node, texture_handle)| (*node, texture_handle.serialize_with(resources)))
             .collect();
 
         Self {
@@ -41,21 +48,33 @@ impl SerializedWorld {
             background: SerializedBackground::from_background(&value.background, &resources),
             lights: value.lights.clone(),
             // terrain: value.terrain.clone(),
-            // serialized_models,
             physics_context: value.physics_context.clone(),
-            renderables: serialized_renderables,
+
+            textures: serialized_textures,
+            geometries: serialized_geometries,
             player_spawn: value.player_spawn,
         }
     }
 
     pub fn into_world(self, display: &Display<WindowSurface>, resources: &mut Resources) -> Result<World> {
-        let renderables = self
-            .renderables
+        let geometries = self
+            .geometries
             .into_iter()
-            .map(|(node, serialized_renderable)| {
+            .map(|(node, serialized_geometry_handle)| {
                 (
                     node,
-                    Renderable::deserialize_with(serialized_renderable, display, resources),
+                    GeometryHandle::deserialize_with(serialized_geometry_handle, display, resources),
+                )
+            })
+            .collect();
+
+        let textures = self
+            .textures
+            .into_iter()
+            .map(|(node, serialized_texture_handle)| {
+                (
+                    node,
+                    TextureHandle::deserialize_with(serialized_texture_handle, display, resources),
                 )
             })
             .collect();
@@ -71,7 +90,9 @@ impl SerializedWorld {
             // resources,
             lines: vec![],
             physics_context: self.physics_context,
-            renderables,
+
+            geometries,
+            textures,
             player_spawn: self.player_spawn,
         })
     }
