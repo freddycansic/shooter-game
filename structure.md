@@ -15,5 +15,29 @@ World
 - List of components and which nodes they belong to
 - Physics context = which entities own which colliders + state
 
-Systems
-- Reads and modifies world
+# ECS
+
+## Entities
+Bound together components
+
+```rust
+type Entity = NodeIndex; // to index into the world graph
+
+world.spawn((Transform::default(), Geometry::from_path(path)));
+```
+
+## Components
+Actual data
+
+
+## Systems
+Reads and modifies world
+
+```rust
+fn system(camera: QueryOne<(&Camera, &Transform)>, geometry: Query<(&Geometry, Option<&Material>)>)
+```
+
+Archetypes
+- Unique sets of components
+- All entities in structure of arrays so that components are contiguous
+
