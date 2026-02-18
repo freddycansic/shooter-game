@@ -1,3 +1,4 @@
+use std::alloc::dealloc;
 use crate::engine::input::Input;
 use crate::engine::renderer::Renderer;
 use crate::engine::resources::Resources;
@@ -23,10 +24,13 @@ impl Engine {
         window: &Window,
         event_loop: &ActiveEventLoop,
     ) -> Self {
+        let mut resources = Resources::new();
+        resources.initialise_default_texture(display).unwrap();
+
         Self {
             renderer: Renderer::new(viewport, display).unwrap(),
             input: Input::new(),
-            resources: Resources::new(),
+            resources,
             gui: EguiGlium::new(ViewportId::ROOT, display, window, event_loop),
         }
     }

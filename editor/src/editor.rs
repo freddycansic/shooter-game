@@ -30,7 +30,7 @@ use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::engine::engine::Engine;
 use common::engine::input::Input;
-use common::engine::renderer::{Background, Renderable, Renderer};
+use common::engine::renderer::{Background, Renderer};
 use common::engine::resources::Resources;
 use common::light::Light;
 use common::line::Line;
@@ -483,26 +483,16 @@ impl Editor {
 
         let group_node = self.world.graph.add_root_node(WorldNode::default());
 
-        let texture_handle = self
-            .engine
-            .resources
-            .get_texture_handle(Path::new("assets/textures/uv-test.jpg"), display)?;
-
         for geometry_handle in handles {
             let world_node = WorldNode::default();
             let world_graph_node = self.world.graph.add_node(world_node);
             self.world.graph.add_edge(group_node, world_graph_node);
 
-            let renderable = Renderable {
-                geometry_handle,
-                texture_handle,
-            };
-
             self.world
                 .physics_context
                 .colliders
-                .insert(world_graph_node, ColliderSet::from(&renderable));
-            self.world.renderables.insert(world_graph_node, renderable);
+                .insert(world_graph_node, ColliderSet::from(geometry_handle));
+            self.world.geometries.insert(world_graph_node, geometry_handle);
         }
 
         Ok(())

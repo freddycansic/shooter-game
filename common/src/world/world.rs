@@ -1,7 +1,7 @@
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::renderer::{Background, Renderable};
-use crate::engine::resources::Resources;
+use crate::engine::renderer::Background;
+use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
 use crate::light::Light;
 use crate::line::Line;
 use crate::maths::Ray;
@@ -12,8 +12,6 @@ use fxhash::FxHashMap;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 
-pub type Renderables = FxHashMap<NodeIndex, Renderable>;
-
 pub struct World {
     pub title: String,
     pub lines: Vec<Line>,
@@ -23,7 +21,8 @@ pub struct World {
     pub lights: Vec<Light>,
 
     // Components
-    pub renderables: Renderables,
+    pub geometries: FxHashMap<NodeIndex, GeometryHandle>,
+    pub textures: FxHashMap<NodeIndex, TextureHandle>,
     pub player_spawn: Option<NodeIndex>,
     pub physics_context: PhysicsContext,
 }
@@ -61,7 +60,8 @@ impl Default for World {
             lights: vec![],
             physics_context: PhysicsContext::new(),
 
-            renderables: Renderables::default(),
+            geometries: FxHashMap::default(),
+            textures: FxHashMap::default(),
             player_spawn: None,
         }
     }
