@@ -337,7 +337,7 @@ impl Renderer {
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         let selection_set = FxHashSet::from_iter(selection.iter().cloned());
-        
+
         for (node_index, geometry_handle) in &world.geometries {
             let node = world.graph.graph.node_weight(*node_index).unwrap();
 
