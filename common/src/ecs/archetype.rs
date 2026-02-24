@@ -1,22 +1,74 @@
-use crate::ecs::component::Component;
+use crate::ecs::component::{Component, Components};
 use crate::ecs::entity::Entity;
 use std::any::Any;
 
+pub trait ComponentColumn {
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn as_any_ref(&self) -> &dyn Any;
+}
+
+impl<T: Component + 'static> ComponentColumn for Vec<T> {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn as_any_ref(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub struct Column {
+    pub id: u32,
+    pub components: Box<dyn ComponentColumn>,
+}
+
+impl Column {
+    pub fn as_type_ref<T: Component + 'static>(&self) -> Option<&Vec<T>> {
+        self.components.as_any_ref().downcast_ref::<Vec<T>>()
+    }
+
+    pub fn as_type_mut<T: Component + 'static>(&mut self) -> Option<&mut Vec<T>> {
+        self.components.as_any_mut().downcast_mut::<Vec<T>>()
+    }
+}
+
 pub struct Archetype {
-    id: u32,
-    entities: Vec<Entity>,
-    // Any here must be Vec<T: Component>
-    components: Vec<(u32, Box<dyn Any>)>,
+    pub id: u32,
+    pub entities: Vec<Entity>,
+    pub columns: Vec<Column>,
 }
 
 impl Archetype {
-    // TODO pub fn push_entity
-    
-    pub fn components<T: Component + 'static>(&self) -> Option<&[T]> {
-        let id = T::id();
+    pub fn new(id: u32) -> Self {
+        debug_assert_ne!(id, 0, "An archetype id of 0 means no components!");
 
-        let (_, column) = self.components.iter().find(|(component_id, _)| *component_id == id)?;
+        Archetype {
+            id,
+            entities: vec![],
+            columns: vec![],
+        }
+    }
 
-        column.downcast_ref::<Vec<T>>().map(|data| data.as_slice())
+    pub fn spawn<T: Components>(&mut self, components: T) -> Entity {
+        let entity = Entity {
+            archetype_id: self.id,
+            row: self.entities.len() as u32,
+        };
+
+        components.spawn(self);
+
+        self.entities.push(entity.clone());
+
+        entity
+    }
+
+    pub fn components_of_type<T: Component + 'static>(&self) -> Option<&Vec<T>> {
+        let column = self.columns.iter().find(|column| column.id == T::ID.0)?;
+        column.as_type_ref::<T>()
+    }
+
+    pub fn components_of_type_mut<T: Component + 'static>(&mut self) -> Option<&mut Vec<T>> {
+        let column = self.columns.iter_mut().find(|column| column.id == T::ID.0)?;
+        column.as_type_mut()
     }
 }

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
 use crate::serde::serialized_handles::SerializedGeometryHandle;
+use crate::serde::SerializedArchetype;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
@@ -25,6 +26,7 @@ pub struct SerializedWorld {
     pub geometries: FxHashMap<NodeIndex, SerializedGeometryHandle>,
     pub textures: FxHashMap<NodeIndex, PathBuf>,
     pub player_spawn: Option<NodeIndex>,
+    pub archetypes: Vec<SerializedArchetype>,
 }
 
 impl SerializedWorld {
@@ -40,6 +42,8 @@ impl SerializedWorld {
             .iter()
             .map(|(node, texture_handle)| (*node, texture_handle.serialize_with(resources)))
             .collect();
+
+        let serialized_archetypes = value.archetypes.iter().map(|archetype| archetype.ser)
 
         Self {
             title: value.title.clone(),
