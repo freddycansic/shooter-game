@@ -1,7 +1,8 @@
+use std::hash::Hasher;
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
-use crate::ecs::archetype::Archetype;
-use crate::ecs::component::Components;
+use crate::ecs::archetype::{Archetype, Column};
+use crate::ecs::component::{Components, StableComponentId};
 use crate::ecs::entity::Entity;
 use crate::engine::renderer::Background;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
@@ -12,6 +13,7 @@ use crate::serde::SerializedWorld;
 use crate::world::graph::WorldGraph;
 use crate::world::{PhysicsContext, QuadTree};
 use fxhash::{FxHashMap, FxHasher};
+use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 
@@ -40,21 +42,14 @@ impl World {
     pub fn find_archetype<T: Components>(&mut self) -> &mut Archetype {
         let mut hasher = FxHasher::default();
         for id in T::ids() {
-            hasher.
+            hasher.write_u32(id.0);
         }
         
-        self.archetypes.entry()
-        
-        if let Some(index) = self
-            .archetypes
-            .iter()
-            .position(|archetype| archetype.id == archetype_id)
-        {
-            return &mut self.archetypes[index];
-        }
-
-        self.archetypes.push(Archetype::new(archetype_id));
-        self.archetypes.last_mut().unwrap()
+        self.archetypes.entry(hasher.finish()).or_insert_with_key(|id| Archetype {
+            id: *id,
+            entities: vec![],
+            columns: T::ids().into_iter().map(Column::new_empty).collect_vec()
+        })
     }
 
     pub fn raycast(&self, ray: &Ray, resources: &Resources) -> Option<RayHitNode> {
@@ -92,7 +87,7 @@ impl Default for World {
             geometries: FxHashMap::default(),
             textures: FxHashMap::default(),
             player_spawn: None,
-            archetypes: vec![],
+            archetypes: FxHashMap::default(),
         }
     }
 }

@@ -3,7 +3,7 @@ use fxhash::FxHashMap;
 use std::any::TypeId;
 
 #[derive(PartialEq, PartialOrd, Ord, Eq)]
-pub struct StableComponentId(pub u32);
+pub struct StableComponentId(pub u64);
 
 pub trait Component {
     const ID: StableComponentId;
@@ -12,6 +12,9 @@ pub trait Component {
 pub trait Components {
     fn ids() -> Vec<StableComponentId>;
     fn spawn(self, archetype: &mut Archetype);
+    fn archetype_id() -> u32 {
+        Self::ids().iter().fold(0, |acc, id| acc | id.0)
+    }
 }
 
 impl<A: Component + 'static> Components for A {
