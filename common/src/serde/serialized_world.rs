@@ -43,8 +43,9 @@ impl SerializedWorld {
             .map(|(node, texture_handle)| (*node, texture_handle.serialize_with(resources)))
             .collect();
 
-        let serialized_archetypes = value.archetypes.iter().map(|archetype| archetype.ser)
-
+        // let serialized_archetypes = value.archetypes.iter().map(|archetype| archetype.ser)
+        unimplemented!();
+        
         Self {
             title: value.title.clone(),
             quads: value.quads.serialize_with(resources),
@@ -57,6 +58,8 @@ impl SerializedWorld {
             textures: serialized_textures,
             geometries: serialized_geometries,
             player_spawn: value.player_spawn,
+            
+            archetypes: vec![] // TODO
         }
     }
 
@@ -83,6 +86,8 @@ impl SerializedWorld {
             })
             .collect();
 
+        unimplemented!();
+        
         Ok(World {
             title: self.title,
             quads: QuadTree::deserialize_with(self.quads, display, resources),

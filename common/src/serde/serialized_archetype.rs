@@ -3,6 +3,7 @@ use crate::ecs::entity::Entity;
 use crate::engine::resources::Resources;
 use crate::serde::SerializeWithContext;
 use serde::{Deserialize, Serialize};
+use crate::ecs::component::StableComponentId;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedArchetype {
