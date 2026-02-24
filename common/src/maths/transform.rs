@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::maths;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Component, Clone, Serialize, Deserialize, Debug)]
 pub struct Transform {
     translation: Translation3<f32>,
     rotation: UnitQuaternion<f32>,
