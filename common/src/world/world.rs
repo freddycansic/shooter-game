@@ -40,12 +40,9 @@ impl World {
     }
 
     pub fn find_archetype<T: Components>(&mut self) -> &mut Archetype {
-        let mut hasher = FxHasher::default();
-        for id in T::ids() {
-            hasher.write_u32(id.0);
-        }
+        let archetype_id = T::archetype_id();
         
-        self.archetypes.entry(hasher.finish()).or_insert_with_key(|id| Archetype {
+        self.archetypes.entry(archetype_id).or_insert_with_key(|id| Archetype {
             id: *id,
             entities: vec![],
             columns: T::ids().into_iter().map(Column::new_empty).collect_vec()

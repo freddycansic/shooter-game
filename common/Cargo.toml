@@ -44,3 +44,4 @@ fxhash = "0.2.1"
 nalgebra = { version = "0.34.1", features = ["serde", "serde-serialize"] }
 fastrand = "2.3.0"
 macros = { path = "../macros" }
+const-sha1 = "0.3.0"
