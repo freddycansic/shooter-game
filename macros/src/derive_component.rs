@@ -9,7 +9,7 @@ pub(crate) fn derive_component(input: TokenStream) -> TokenStream {
 
     let gene = quote! {
         impl Component for #name {
-            const ID: StableComponentId = StableComponentId(const_sha1::sha1(stringify!(#name)));
+            const ID: StableComponentId = StableComponentId(const_sha1::sha1(stringify!(#name).as_bytes()).as_bytes());
         }
     };
 

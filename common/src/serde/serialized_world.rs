@@ -88,21 +88,21 @@ impl SerializedWorld {
 
         unimplemented!();
         
-        Ok(World {
-            title: self.title,
-            quads: QuadTree::deserialize_with(self.quads, display, resources),
-            graph: self.graph,
-            background: self.background.into_background(display, resources),
-            lights: self.lights,
-            // terrain_bvh: None,
-            // terrain: self.terrain,
-            // resources,
-            lines: vec![],
-            physics_context: self.physics_context,
+        //Ok(World {
+        //    title: self.title,
+        //    quads: QuadTree::deserialize_with(self.quads, display, resources),
+        //    graph: self.graph,
+        //    background: self.background.into_background(display, resources),
+        //    lights: self.lights,
+        //    // terrain_bvh: None,
+        //    // terrain: self.terrain,
+        //    // resources,
+        //    lines: vec![],
+        //    physics_context: self.physics_context,
 
-            geometries,
-            textures,
-            player_spawn: self.player_spawn,
-        })
+        //    geometries,
+        //    textures,
+        //    player_spawn: self.player_spawn,
+        //})
     }
 }

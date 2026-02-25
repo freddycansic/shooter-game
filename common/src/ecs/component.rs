@@ -1,9 +1,11 @@
 use crate::ecs::archetype::Archetype;
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHasher};
 use std::any::TypeId;
+use std::hash::Hasher;
+use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, PartialOrd, Ord, Eq)]
-pub struct StableComponentId(pub u64);
+#[derive(PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+pub struct StableComponentId(pub [u8; 20]);
 
 pub trait Component {
     const ID: StableComponentId;
@@ -12,8 +14,14 @@ pub trait Component {
 pub trait Components {
     fn ids() -> Vec<StableComponentId>;
     fn spawn(self, archetype: &mut Archetype);
-    fn archetype_id() -> u32 {
-        Self::ids().iter().fold(0, |acc, id| acc | id.0)
+    fn archetype_id() -> u64 {
+        let mut hasher = FxHasher::default();
+        for component_id in Self::ids() {
+            for block in component_id.0.iter() {
+                hasher.write_u8(*block);
+            }
+        }
+        hasher.finish()
     }
 }
 

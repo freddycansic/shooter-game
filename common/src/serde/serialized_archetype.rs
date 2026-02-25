@@ -1,3 +1,5 @@
+use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use crate::ecs::archetype::Archetype;
 use crate::ecs::entity::Entity;
 use crate::engine::resources::Resources;
@@ -16,9 +18,15 @@ impl SerializeWithContext for Archetype {
     type Serialized = SerializedArchetype;
 
     fn serialize_with(&self, resources: &Resources) -> Self::Serialized {
-        Self::Serialized {
-            id: self.id,
-            entities: self.entities.clone(),
-        }
+        unimplemented!();
+
+        //Self::Serialized {
+        //    id: self.id,
+        //    entities: self.entities.clone(),
+        //}
+    }
+
+    fn deserialize_with(serialized: Self::Serialized, display: &Display<WindowSurface>, resources: &mut Resources) -> Self {
+        unimplemented!()
     }
 }
