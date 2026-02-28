@@ -1,4 +1,4 @@
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 
 use crate::engine::resources::Resources;
 

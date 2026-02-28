@@ -1,8 +1,8 @@
 use crate::maths::Transform;
 use itertools::Itertools;
 use petgraph::{
-    graph::{EdgeIndex, NodeIndex},
     Direction,
+    graph::{EdgeIndex, NodeIndex},
 };
 use serde::{Deserialize, Serialize};
 use std::hash::Hasher;

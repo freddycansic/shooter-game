@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 use crate::material::texture;
 use color_eyre::Result;
+use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-use glium::Display;
 
 pub struct Texture2DResource {
     pub path: PathBuf,

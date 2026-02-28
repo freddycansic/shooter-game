@@ -1,11 +1,11 @@
-use glium::Display;
-use glium::glutin::surface::WindowSurface;
 use crate::ecs::archetype::Archetype;
+use crate::ecs::component::StableComponentId;
 use crate::ecs::entity::Entity;
 use crate::engine::resources::Resources;
 use crate::serde::SerializeWithContext;
+use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use serde::{Deserialize, Serialize};
-use crate::ecs::component::StableComponentId;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedArchetype {
@@ -26,7 +26,11 @@ impl SerializeWithContext for Archetype {
         //}
     }
 
-    fn deserialize_with(serialized: Self::Serialized, display: &Display<WindowSurface>, resources: &mut Resources) -> Self {
+    fn deserialize_with(
+        serialized: Self::Serialized,
+        display: &Display<WindowSurface>,
+        resources: &mut Resources,
+    ) -> Self {
         unimplemented!()
     }
 }

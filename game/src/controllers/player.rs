@@ -1,8 +1,8 @@
 use common::engine::input::Input;
 use common::engine::resources::Resources;
 use common::world::{World, WorldNode};
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
 use std::path::PathBuf;

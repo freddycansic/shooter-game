@@ -3,7 +3,7 @@ name = "tests"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
+[lib]
 name = "tests"
 path = "src/lib.rs"
 

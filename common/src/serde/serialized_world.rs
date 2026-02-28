@@ -1,18 +1,18 @@
-use color_eyre::eyre::Result;
-use fxhash::FxHashMap;
-use glium::{glutin::surface::WindowSurface, Display};
-use petgraph::prelude::NodeIndex;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use itertools::Itertools;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
-use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::serde::SerializedArchetype;
+use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
-    serde::{serialized_background::SerializedBackground, SerializeWithContext},
+    serde::{SerializeWithContext, serialized_background::SerializedBackground},
 };
+use color_eyre::eyre::Result;
+use fxhash::FxHashMap;
+use glium::{Display, glutin::surface::WindowSurface};
+use itertools::Itertools;
+use petgraph::prelude::NodeIndex;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedWorld {
@@ -45,7 +45,7 @@ impl SerializedWorld {
 
         // let serialized_archetypes = value.archetypes.iter().map(|archetype| archetype.ser)
         unimplemented!();
-        
+
         Self {
             title: value.title.clone(),
             quads: value.quads.serialize_with(resources),
@@ -58,8 +58,8 @@ impl SerializedWorld {
             textures: serialized_textures,
             geometries: serialized_geometries,
             player_spawn: value.player_spawn,
-            
-            archetypes: vec![] // TODO
+
+            archetypes: vec![], // TODO
         }
     }
 
@@ -87,7 +87,7 @@ impl SerializedWorld {
             .collect_vec();
 
         unimplemented!();
-        
+
         //Ok(World {
         //    title: self.title,
         //    quads: QuadTree::deserialize_with(self.quads, display, resources),

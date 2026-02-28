@@ -7,10 +7,9 @@ use common::debug::Cuboid;
 use common::maths::Ray;
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
-use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
-use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
+use egui_glium::egui_winit::egui::{self, Align, Button};
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Point3, Vector4};
@@ -29,13 +28,11 @@ use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::engine::engine::Engine;
-use common::engine::input::Input;
-use common::engine::renderer::{Background, Renderer};
-use common::engine::resources::Resources;
+use common::engine::renderer::Background;
 use common::light::Light;
 use common::line::Line;
-use common::world::physics_context::ColliderSet;
 use common::world::World;
+use common::world::physics_context::ColliderSet;
 use common::*;
 
 struct FrameState {

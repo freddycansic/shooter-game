@@ -1,4 +1,3 @@
-use std::hash::Hasher;
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
@@ -16,6 +15,7 @@ use fxhash::{FxHashMap, FxHasher};
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
+use std::hash::Hasher;
 
 pub struct World {
     pub title: String,
@@ -41,11 +41,11 @@ impl World {
 
     pub fn find_archetype<T: Components>(&mut self) -> &mut Archetype {
         let archetype_id = T::archetype_id();
-        
+
         self.archetypes.entry(archetype_id).or_insert_with_key(|id| Archetype {
             id: *id,
             entities: vec![],
-            columns: T::ids().into_iter().map(Column::new_empty).collect_vec()
+            columns: T::ids().into_iter().map(Column::new_empty).collect_vec(),
         })
     }
 
