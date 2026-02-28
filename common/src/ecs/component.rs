@@ -1,11 +1,17 @@
 use crate::ecs::archetype::Archetype;
 use fxhash::{FxHashMap, FxHasher};
+use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::hash::Hasher;
-use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
 pub struct StableComponentId(pub [u8; 20]);
+
+impl StableComponentId {
+    pub const fn from_str(string: &str) -> Self {
+        Self(const_sha1::sha1(string.as_bytes()).as_bytes())
+    }
+}
 
 pub trait Component {
     const ID: StableComponentId;
@@ -31,7 +37,7 @@ impl<A: Component + 'static> Components for A {
     }
 
     fn spawn(self, archetype: &mut Archetype) {
-        archetype.columns[0].as_type_mut::<A>().unwrap().push(self);
+        archetype.columns[0].as_type_mut_unchecked::<A>().push(self);
     }
 }
 
@@ -45,8 +51,8 @@ impl<A: Component + 'static, B: Component + 'static> Components for (A, B) {
     fn spawn(self, archetype: &mut Archetype) {
         let (a, b) = self;
 
-        archetype.columns[0].as_type_mut::<A>().unwrap().push(a);
-        archetype.columns[1].as_type_mut::<B>().unwrap().push(b);
+        archetype.columns[0].as_type_mut_unchecked::<A>().push(a);
+        archetype.columns[1].as_type_mut_unchecked::<B>().push(b);
     }
 }
 

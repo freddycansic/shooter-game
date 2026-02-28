@@ -1,8 +1,14 @@
+// OnceCell::get_mut_or_init is unstable, used for archetype columns
+#![feature(once_cell_get_mut)]
+
+// This allows this crate to be used under the name "common::" as well as "crate::"
+// This means that proc-macro code which uses "common::" is valid in this crate as well as consumers
+extern crate self as common;
+
 pub mod application;
 pub mod camera;
 pub mod collision;
 pub mod colors;
-pub mod components;
 pub mod context;
 pub mod debug;
 pub mod ecs;

@@ -1,6 +1,7 @@
 use crate::ecs::component::{Component, Components, StableComponentId};
 use crate::ecs::entity::Entity;
 use std::any::Any;
+use std::cell::OnceCell;
 
 pub trait ComponentColumn {
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -19,22 +20,35 @@ impl<T: 'static> ComponentColumn for Vec<T> {
 
 pub struct Column {
     pub id: StableComponentId,
-    pub components: Option<Box<dyn ComponentColumn>>,
+    pub components: OnceCell<Box<dyn ComponentColumn>>,
 }
 
 impl Column {
     pub fn new_empty(id: StableComponentId) -> Self {
         Self {
-            id, components: None
+            id,
+            components: OnceCell::new(),
         }
     }
-    
-    pub fn as_type_ref<T: 'static>(&self) -> Option<&Vec<T>> {
-        self.components.as_ref()?.as_any_ref().downcast_ref::<Vec<T>>()
+
+    pub fn as_type_ref_unchecked<T: 'static + Component>(&self) -> &Vec<T> {
+        debug_assert_eq!(T::ID, self.id);
+
+        self.components
+            .get_or_init(|| Box::new(Vec::<T>::new()))
+            .as_any_ref()
+            .downcast_ref::<Vec<T>>()
+            .unwrap()
     }
 
-    pub fn as_type_mut<T: 'static>(&mut self) -> Option<&mut Vec<T>> {
-        self.components.as_mut()?.as_any_mut().downcast_mut::<Vec<T>>()
+    pub fn as_type_mut_unchecked<T: 'static + Component>(&mut self) -> &mut Vec<T> {
+        debug_assert_eq!(T::ID, self.id);
+
+        self.components
+            .get_mut_or_init(|| Box::new(Vec::<T>::new()))
+            .as_any_mut()
+            .downcast_mut::<Vec<T>>()
+            .unwrap()
     }
 }
 
@@ -59,12 +73,16 @@ impl Archetype {
     }
 
     pub fn components_of_type<T: Component + 'static>(&self) -> Option<&Vec<T>> {
-        let column = self.columns.iter().find(|column| column.id == T::ID)?;
-        column.as_type_ref::<T>()
+        self.columns
+            .iter()
+            .find(|column| column.id == T::ID)
+            .map(|column| column.as_type_ref_unchecked::<T>())
     }
 
     pub fn components_of_type_mut<T: Component + 'static>(&mut self) -> Option<&mut Vec<T>> {
-        let column = self.columns.iter_mut().find(|column| column.id == T::ID)?;
-        column.as_type_mut()
+        self.columns
+            .iter_mut()
+            .find(|column| column.id == T::ID)
+            .map(|column| column.as_type_mut_unchecked::<T>())
     }
 }
