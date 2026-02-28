@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
+use crate::material::texture;
 use color_eyre::Result;
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use glium::texture::CompressedTexture2d;
-use crate::material::texture;
+use glium::Display;
 
 pub struct Texture2DResource {
     pub path: PathBuf,
@@ -23,7 +23,7 @@ impl Texture2DResource {
     }
 
     pub fn default_diffuse(display: &Display<WindowSurface>) -> Result<Self> {
-        Self::load(Path::new("assets/textures/uv-test.jpg"), display)
+        Self::load(Path::new("../../../../assets/textures/uv-test.jpg"), display)
     }
 
     pub fn solid(width: u32, height: u32, display: &Display<WindowSurface>) -> Result<Self> {

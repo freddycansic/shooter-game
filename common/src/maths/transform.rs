@@ -1,8 +1,7 @@
-use macros::Component;
 use crate::maths;
+use common_macros::Component;
 use nalgebra::{Matrix4, Scale3, Translation3, UnitQuaternion, Vector3};
 use serde::{Deserialize, Serialize};
-use crate::ecs::component::{Component, StableComponentId};
 
 #[derive(Component, Clone, Serialize, Deserialize, Debug)]
 pub struct Transform {

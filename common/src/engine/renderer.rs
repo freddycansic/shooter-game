@@ -13,7 +13,7 @@ use crate::light::Light;
 use crate::line::{Line, LinePoint};
 use crate::maths::Matrix4Ext;
 use crate::quad::QuadVertex;
-use crate::world::{QuadBatches, World, WorldGraph};
+use crate::world::{QuadBatches, World};
 use crate::{context, maths};
 use color_eyre::Result;
 use egui_glium::egui_winit::egui::{self, Pos2};

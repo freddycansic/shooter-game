@@ -4,7 +4,7 @@ use glium::{glutin::surface::WindowSurface, Display};
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-
+use itertools::Itertools;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
 use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::serde::SerializedArchetype;
@@ -73,7 +73,7 @@ impl SerializedWorld {
                     GeometryHandle::deserialize_with(serialized_geometry_handle, display, resources),
                 )
             })
-            .collect();
+            .collect_vec();
 
         let textures = self
             .textures
@@ -84,7 +84,7 @@ impl SerializedWorld {
                     TextureHandle::deserialize_with(serialized_texture_handle, display, resources),
                 )
             })
-            .collect();
+            .collect_vec();
 
         unimplemented!();
         
