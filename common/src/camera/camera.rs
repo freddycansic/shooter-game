@@ -1,5 +1,5 @@
-use nalgebra::{Matrix4, Point3, Vector3};
 use crate::engine::input::Input;
+use nalgebra::{Matrix4, Point3, Vector3};
 
 pub trait Camera {
     fn update(&mut self, input: &Input, deltatime: f32);

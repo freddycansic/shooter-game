@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use fxhash::{FxBuildHasher, FxHashMap};
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};

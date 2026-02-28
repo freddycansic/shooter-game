@@ -25,8 +25,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
-    Program, Surface, Vertex, VertexBuffer,
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};

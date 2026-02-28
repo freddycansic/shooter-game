@@ -3,16 +3,16 @@ use std::path::{Path, PathBuf};
 
 use crate::collision::colliders::bvh::Bvh;
 use crate::geometry::GeometryVertex;
-use color_eyre::eyre::Context;
 use color_eyre::Result;
+use color_eyre::eyre::Context;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use itertools::Itertools;
 
-use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 use crate::geometry::Primitive;
+use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 
 #[derive(Debug)]
 pub struct Geometry {

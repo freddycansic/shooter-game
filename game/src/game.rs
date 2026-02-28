@@ -1,8 +1,6 @@
 use clap::Parser;
-use egui_glium::egui_winit::egui::ViewportId;
-use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -18,13 +16,9 @@ use common::collision::collidable::Sweep;
 use common::collision::colliders::sphere::Sphere;
 use common::debug;
 use common::engine::engine::Engine;
-use common::engine::input::Input;
-use common::engine::renderer::Renderer;
-use common::engine::resources::Resources;
 use common::quad::Quad;
 use common::serde::SerializedWorld;
-use common::world::physics_context::ColliderSet;
-use common::world::{Collider, World};
+use common::world::World;
 
 struct FrameState {
     pub last_frame_end: Instant,

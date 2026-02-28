@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
 use crate::serde::SerializeWithContext;
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
