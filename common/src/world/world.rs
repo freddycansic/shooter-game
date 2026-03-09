@@ -16,6 +16,7 @@ use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 use std::hash::Hasher;
+use crate::ecs::system::Systems;
 
 pub struct World {
     pub title: String,
@@ -32,6 +33,7 @@ pub struct World {
     pub physics_context: PhysicsContext,
 
     pub archetypes: FxHashMap<u64, Archetype>,
+    pub systems: Systems
 }
 
 impl World {
@@ -85,6 +87,7 @@ impl Default for World {
             textures: FxHashMap::default(),
             player_spawn: None,
             archetypes: FxHashMap::default(),
+            systems: Systems::default(),
         }
     }
 }
