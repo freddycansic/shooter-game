@@ -11,12 +11,12 @@ use crate::maths::Ray;
 use crate::serde::SerializedWorld;
 use crate::world::graph::WorldGraph;
 use crate::world::{PhysicsContext, QuadTree};
+use crate::ecs::system::{System, IntoSystem};
 use fxhash::{FxHashMap, FxHasher};
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 use std::hash::Hasher;
-use crate::ecs::system::Systems;
 
 pub struct World {
     pub title: String,
@@ -32,8 +32,7 @@ pub struct World {
     pub player_spawn: Option<NodeIndex>,
     pub physics_context: PhysicsContext,
 
-    pub archetypes: FxHashMap<u64, Archetype>,
-    pub systems: Systems
+    pub archetypes: FxHashMap<u64, Archetype>
 }
 
 impl World {
@@ -86,8 +85,7 @@ impl Default for World {
             geometries: FxHashMap::default(),
             textures: FxHashMap::default(),
             player_spawn: None,
-            archetypes: FxHashMap::default(),
-            systems: Systems::default(),
+            archetypes: FxHashMap::default()
         }
     }
 }

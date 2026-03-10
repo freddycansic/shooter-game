@@ -14,13 +14,14 @@ impl System {
         }
     }
 
-    fn run(&mut self, world: &mut World) {
+    pub fn run(&mut self, world: &mut World) {
         (self.function)(world);
     }
 }
 
-pub trait SystemParameter<'w>: Sized {
-    fn get(world: &'w mut World) -> Self;
+pub trait SystemParameter: Sized {
+    type Item<'w>: SystemParameter;
+    fn get(world: &mut World) -> Self::Item<'_>;
 }
 
 pub struct Query<'a, T: Components> {
@@ -39,19 +40,21 @@ impl<'a, T: Components> Query<'a, T> {
     }
 }
 
-impl<'w, T: Components + 'static> SystemParameter<'w> for Query<'w, T> {
-    fn get(world: &'w mut World) -> Self {
+impl<T: Components + 'static> SystemParameter for Query<'_, T> {
+    type Item<'w> = Query<'w, T>;
+
+    fn get(world: &mut World) -> Self::Item<'_> {
         Query::new(vec![world.find_archetype::<T>()])
     }
 }
 
-impl<'a, F, P1> IntoSystem<(P1,)> for F
+impl<F, P1> IntoSystem<(P1,)> for F
 where
     // for syntax is basically saying: this function works with any lifetime
-    // Without it, a fixed lifetime would be given to the closure, meaning that it would not be
-    // possible to call the function many times with different World lifetimes.
-    F: for<'w> Fn(P1) + 'static,
-    P1: for<'w> SystemParameter<'w>,
+    // Without it, a fixed lifetime would be given to the closure at compile time, meaning that it
+    // would not be possible to call the function many times with different World lifetimes.
+    F: for<'w> Fn(<P1 as SystemParameter>::Item<'w>) + 'static,
+    P1: SystemParameter,
 {
     fn into_system(self) -> System {
         System::new(move |world: &mut World| {
@@ -61,16 +64,18 @@ where
     }
 }
 
-impl<'a, F, P1, P2> IntoSystem<(P1, P2)> for F
+impl<F, P1, P2> IntoSystem<(P1, P2)> for F
 where
-    F: for<'w> Fn(P1, P2) + 'static,
-    P1: for<'w> SystemParameter<'w>,
-    P2: for<'w> SystemParameter<'w>,
+    F: for<'w> Fn(<P1 as SystemParameter>::Item<'w>, <P2 as SystemParameter>::Item<'w>) + 'static,
+    P1: SystemParameter,
+    P2: SystemParameter,
 {
     fn into_system(self) -> System {
         System::new(move |world: &mut World| {
-            let p1 = P1::get(world);
-            let p2 = P2::get(world);
+            // TODO validate that P1 != P2, so that they are not accessing the same memory
+            let world_ptr = world as *mut World;
+            let p1 = P1::get(unsafe { &mut *world_ptr });
+            let p2 = P2::get(unsafe { &mut *world_ptr });
             self(p1, p2);
         })
     }
@@ -78,32 +83,4 @@ where
 
 pub trait IntoSystem<P> {
     fn into_system(self) -> System;
-}
-
-/// A container which holds registered systems
-pub struct Systems {
-    systems: Vec<System>,
-}
-
-impl Systems {
-    pub fn register<S, P>(&mut self, system: S)
-    where
-        S: IntoSystem<P>,
-    {
-        self.systems.push(system.into_system());
-    }
-
-    pub fn run(&mut self, world: &mut World) {
-        for system in &mut self.systems {
-            system.run(world);
-        }
-    }
-}
-
-impl Default for Systems {
-    fn default() -> Self {
-        Self {
-            systems: Vec::new(),
-        }
-    }
 }
