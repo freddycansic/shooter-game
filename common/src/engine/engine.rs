@@ -15,6 +15,7 @@ pub struct Engine {
     pub input: Input,
     pub resources: Resources,
     pub gui: EguiGlium,
+    pub systems: Vec<System>,
 }
 
 impl Engine {
@@ -32,6 +33,7 @@ impl Engine {
             input: Input::new(),
             resources,
             gui: EguiGlium::new(ViewportId::ROOT, display, window, event_loop),
+            systems: vec![],
         }
     }
 }

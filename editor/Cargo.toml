@@ -29,3 +29,4 @@ petgraph = { version = "0.8.1", default-features = false, features = [
 ] }
 itertools = "0.14.0"
 uuid = { version = "1.20.0", features = ["v4"] }
+cfg-if = "1.0.4"
