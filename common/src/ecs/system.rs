@@ -53,13 +53,18 @@ where
     // for syntax is basically saying: this function works with any lifetime
     // Without it, a fixed lifetime would be given to the closure at compile time, meaning that it
     // would not be possible to call the function many times with different World lifetimes.
-    F: for<'w> Fn(<P1 as SystemParameter>::Item<'w>) + 'static,
+    F: Fn(P1) + for<'w> Fn(<P1 as SystemParameter>::Item<'w>) + 'static,
     P1: SystemParameter,
 {
     fn into_system(self) -> System {
         System::new(move |world: &mut World| {
             let p1 = P1::get(world);
-            self(p1);
+
+            fn call_inner<A, FInner: Fn(A)>(f: &FInner, a: A) {
+                f(a);
+            }
+
+            call_inner(&self, p1);
         })
     }
 }
@@ -72,11 +77,16 @@ where
 {
     fn into_system(self) -> System {
         System::new(move |world: &mut World| {
-            // TODO validate that P1 != P2, so that they are not accessing the same memory
             let world_ptr = world as *mut World;
+            // TODO validate that P1 != P2, so that they are not accessing the same memory
             let p1 = P1::get(unsafe { &mut *world_ptr });
             let p2 = P2::get(unsafe { &mut *world_ptr });
-            self(p1, p2);
+
+            fn call_inner<A, B, FInner: Fn(A, B)>(f: &FInner, a: A, b: B) {
+                f(a, b);
+            }
+
+            call_inner(&self, p1, p2);
         })
     }
 }

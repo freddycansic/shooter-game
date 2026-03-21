@@ -1,22 +1,20 @@
 #[cfg(test)]
 mod tests {
     use common::ecs::system::Query;
+    use common::engine::scheduler::Scheduler;
     use common::world::World;
     use common_macros::Component;
-    use common::engine::engine::Engine;
 
     #[derive(Component)]
     struct Position;
 
-    fn system(q1: Query<Position>) {
-        println!("Hello");
-    }
+    fn system_one_parameter(q1: Query<Position>) {}
 
     #[test]
-    fn test_register_system() {
+    fn test_register_system_one_parameter() {
         let mut world = World::default();
-        let mut engine = Engine::new();
-        engine.register(system);
+        let mut engine = Scheduler::default();
+        engine.register(system_one_parameter);
 
         engine.run_systems(&mut world);
     }
