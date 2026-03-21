@@ -1,7 +1,5 @@
-use crate::ecs::archetype::Archetype;
-use crate::ecs::component::Components;
+use crate::ecs::system_parameters::system_parameter::SystemParameter;
 use crate::world::World;
-use std::marker::PhantomData;
 
 pub struct System {
     function: Box<dyn FnMut(&mut World)>,
@@ -16,35 +14,6 @@ impl System {
 
     pub fn run(&mut self, world: &mut World) {
         (self.function)(world);
-    }
-}
-
-pub trait SystemParameter: Sized {
-    type Item<'w>: SystemParameter;
-    fn get(world: &mut World) -> Self::Item<'_>;
-}
-
-pub struct Query<'a, T: Components> {
-    pub archetypes: Vec<&'a mut Archetype>,
-    // Query depends on T, but doesn't actually contain a reference to it.
-    // So this is here to keep the compiler happy.
-    _marker: PhantomData<T>,
-}
-
-impl<'a, T: Components> Query<'a, T> {
-    fn new(archetypes: Vec<&'a mut Archetype>) -> Self {
-        Self {
-            archetypes,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T: Components + 'static> SystemParameter for Query<'_, T> {
-    type Item<'w> = Query<'w, T>;
-
-    fn get(world: &mut World) -> Self::Item<'_> {
-        Query::new(vec![world.find_archetype::<T>()])
     }
 }
 
@@ -71,7 +40,7 @@ where
 
 impl<F, P1, P2> IntoSystem<(P1, P2)> for F
 where
-    F: for<'w> Fn(<P1 as SystemParameter>::Item<'w>, <P2 as SystemParameter>::Item<'w>) + 'static,
+    F: Fn(P1, P2) + for<'w> Fn(<P1 as SystemParameter>::Item<'w>, <P2 as SystemParameter>::Item<'w>) + 'static,
     P1: SystemParameter,
     P2: SystemParameter,
 {
