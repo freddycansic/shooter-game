@@ -1,12 +1,12 @@
 use crate::engine::input::Input;
 use crate::engine::renderer::Renderer;
 use crate::engine::resources::Resources;
-use egui_glium::EguiGlium;
+use common::engine::scheduler::Scheduler;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::ViewportId;
-use glium::Display;
+use egui_glium::EguiGlium;
 use glium::glutin::surface::WindowSurface;
-use std::alloc::dealloc;
+use glium::Display;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
 
@@ -15,7 +15,7 @@ pub struct Engine {
     pub input: Input,
     pub resources: Resources,
     pub gui: EguiGlium,
-    pub systems: Vec<System>,
+    pub scheduler: Scheduler,
 }
 
 impl Engine {
@@ -33,7 +33,7 @@ impl Engine {
             input: Input::new(),
             resources,
             gui: EguiGlium::new(ViewportId::ROOT, display, window, event_loop),
-            systems: vec![],
+            scheduler: Scheduler::default(),
         }
     }
 }

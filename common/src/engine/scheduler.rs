@@ -19,3 +19,11 @@ impl Scheduler {
         }
     }
 }
+
+impl Default for Scheduler {
+    fn default() -> Self {
+        Self {
+            systems: vec![]
+        }
+    }
+}
