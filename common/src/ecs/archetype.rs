@@ -1,5 +1,6 @@
-use crate::ecs::component::{Component, Components, StableComponentId};
+use crate::ecs::component::{Component, StableComponentId};
 use crate::ecs::entity::Entity;
+use common::ecs::owned_components::OwnedComponents;
 use std::any::Any;
 use std::cell::OnceCell;
 
@@ -59,7 +60,7 @@ pub struct Archetype {
 }
 
 impl Archetype {
-    pub fn spawn<T: Components>(&mut self, components: T) -> Entity {
+    pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
         let entity = Entity {
             archetype_id: self.id,
             row: self.entities.len() as u32,
@@ -72,17 +73,33 @@ impl Archetype {
         entity
     }
 
-    pub fn components_of_type<T: Component + 'static>(&self) -> Option<&Vec<T>> {
-        self.columns
-            .iter()
-            .find(|column| column.id == T::ID)
-            .map(|column| column.as_type_ref_unchecked::<T>())
+    pub fn columns_from_ids(&self, ids: &[StableComponentId]) -> Vec<*const Column> {
+        let mut columns = Vec::new();
+        for component_id in ids {
+            match self.columns.iter().find(|column| column.id == *component_id) {
+                Some(column) => columns.push(column as *const Column),
+                None => {
+                    log::warn!("Component id {:?} does not exist on archetype", component_id);
+                    return vec![];
+                }
+            }
+        }
+
+        columns
     }
 
-    pub fn components_of_type_mut<T: Component + 'static>(&mut self) -> Option<&mut Vec<T>> {
-        self.columns
-            .iter_mut()
-            .find(|column| column.id == T::ID)
-            .map(|column| column.as_type_mut_unchecked::<T>())
+    pub fn columns_from_ids_mut(&mut self, ids: &[StableComponentId]) -> Vec<*mut Column> {
+        let mut columns = Vec::new();
+        for component_id in ids {
+            match self.columns.iter_mut().find(|column| column.id == *component_id) {
+                Some(column) => columns.push(column as *mut Column),
+                None => {
+                    log::warn!("Component id {:?} does not exist on archetype", component_id);
+                    return vec![];
+                }
+            }
+        }
+
+        columns
     }
 }

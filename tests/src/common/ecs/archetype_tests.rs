@@ -34,7 +34,7 @@ mod tests {
     fn can_find_archetype() {
         let mut world = World::default();
 
-        let archetype = world.find_archetype::<TestComponent>();
+        let archetype = world.find_exact_archetype(&[TestComponent::ID]);
         assert_eq!(archetype.columns.len(), 1);
         assert_eq!(archetype.columns[0].id, TestComponent::ID);
         assert!(archetype.entities.is_empty());
@@ -45,7 +45,7 @@ mod tests {
         let mut world = World::default();
         let entity = world.spawn(TestComponent(1));
 
-        let archetype = world.find_archetype::<TestComponent>();
+        let archetype = world.find_exact_archetype(&[TestComponent::ID]);
         assert_eq!(archetype.columns.len(), 1);
         assert_eq!(archetype.columns[0].id, TestComponent::ID);
         assert_eq!(archetype.entities.len(), 1);
@@ -57,14 +57,16 @@ mod tests {
         let mut world = World::default();
         let entity = world.spawn((TestComponent(1234), TestComponent2("first".to_string())));
 
-        let archetype = world.find_archetype::<(TestComponent, TestComponent2)>();
+        let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
         assert_eq!(archetype.columns.len(), 2);
 
-        let column_1 = archetype.components_of_type::<TestComponent>().unwrap();
+        let column_1 = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
+            .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column_1.len(), 1);
         assert_eq!(column_1[0].0, 1234);
 
-        let column_2 = archetype.components_of_type::<TestComponent2>().unwrap();
+        let column_2 = unsafe { archetype.columns_from_ids(&[TestComponent2::ID])[0].as_ref().unwrap() }
+            .as_type_ref_unchecked::<TestComponent2>();
         assert_eq!(column_2.len(), 1);
         assert_eq!(column_2[0].0, "first");
     }
@@ -76,8 +78,9 @@ mod tests {
         world.spawn(TestComponent(2));
         world.spawn(TestComponent(3));
 
-        let archetype = world.find_archetype::<TestComponent>();
-        let column = archetype.components_of_type::<TestComponent>().unwrap();
+        let archetype = world.find_exact_archetype(&[TestComponent::ID]);
+        let column = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
+            .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);
@@ -91,8 +94,9 @@ mod tests {
         world.spawn(TestComponent(2));
         world.spawn(TestComponent(3));
 
-        let archetype = world.find_archetype::<TestComponent>();
-        let column = archetype.components_of_type_mut::<TestComponent>().unwrap();
+        let archetype = world.find_exact_archetype(&[TestComponent::ID]);
+        let column = unsafe { archetype.columns_from_ids_mut(&[TestComponent::ID])[0].as_mut().unwrap() }
+            .as_type_mut_unchecked::<TestComponent>();
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);

@@ -1,7 +1,7 @@
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
-use crate::ecs::component::{Components, StableComponentId};
+use crate::ecs::component::StableComponentId;
 use crate::ecs::entity::Entity;
 use crate::engine::renderer::Background;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
@@ -11,12 +11,12 @@ use crate::maths::Ray;
 use crate::serde::SerializedWorld;
 use crate::world::graph::WorldGraph;
 use crate::world::{PhysicsContext, QuadTree};
-use crate::ecs::system::{System, IntoSystem};
-use fxhash::{FxHashMap, FxHasher};
+use common::ecs::component;
+use common::ecs::owned_components::OwnedComponents;
+use fxhash::FxHashMap;
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
-use std::hash::Hasher;
 
 pub struct World {
     pub title: String,
@@ -32,22 +32,40 @@ pub struct World {
     pub player_spawn: Option<NodeIndex>,
     pub physics_context: PhysicsContext,
 
-    pub archetypes: FxHashMap<u64, Archetype>
+    pub archetypes: FxHashMap<u64, Archetype>,
 }
 
 impl World {
-    pub fn spawn<T: Components>(&mut self, components: T) -> Entity {
-        self.find_archetype::<T>().spawn(components)
+    pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
+        self.find_exact_archetype(&T::ids()).spawn(components)
     }
 
-    pub fn find_archetype<T: Components>(&mut self) -> &mut Archetype {
-        let archetype_id = T::archetype_id();
+    /// Finds the single archetype matching T exactly, creates it if it does not exist.
+    pub fn find_exact_archetype(&mut self, ids: &[StableComponentId]) -> &mut Archetype {
+        let archetype_id = component::archetype_id(ids);
 
         self.archetypes.entry(archetype_id).or_insert_with_key(|id| Archetype {
             id: *id,
             entities: vec![],
-            columns: T::ids().into_iter().map(Column::new_empty).collect_vec(),
+            columns: ids.iter().cloned().map(Column::new_empty).collect_vec(),
         })
+    }
+
+    /// Finds all archetypes which are a superset of T
+    pub fn find_superset_archetypes(&mut self, ids: &[StableComponentId]) -> Vec<&mut Archetype> {
+        let mut superset_archetypes = Vec::new();
+
+        for archetype in self.archetypes.values_mut() {
+            if archetype
+                .columns
+                .iter()
+                .all(|column| ids.binary_search(&column.id).is_ok())
+            {
+                superset_archetypes.push(archetype);
+            }
+        }
+
+        superset_archetypes
     }
 
     pub fn raycast(&self, ray: &Ray, resources: &Resources) -> Option<RayHitNode> {
@@ -85,7 +103,7 @@ impl Default for World {
             geometries: FxHashMap::default(),
             textures: FxHashMap::default(),
             player_spawn: None,
-            archetypes: FxHashMap::default()
+            archetypes: FxHashMap::default(),
         }
     }
 }
