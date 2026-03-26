@@ -1,5 +1,3 @@
-use std::hash::Hasher;
-use fxhash::FxHasher;
 use crate::ecs::component::Component;
 use common::ecs::archetype::Archetype;
 use common::ecs::component::StableComponentId;
@@ -11,8 +9,10 @@ pub trait OwnedComponents {
 }
 
 impl<A: Component + 'static> OwnedComponents for A {
-    fn ids() -> Vec<StableComponentId> { vec![A::ID] }
-    
+    fn ids() -> Vec<StableComponentId> {
+        vec![A::ID]
+    }
+
     fn spawn(self, archetype: &mut Archetype) {
         archetype.columns[0].as_type_mut_unchecked::<A>().push(self);
     }
@@ -24,11 +24,19 @@ impl<A: Component + 'static, B: Component + 'static> OwnedComponents for (A, B) 
         ids.sort_unstable();
         ids
     }
-    
+
     fn spawn(self, archetype: &mut Archetype) {
         let (a, b) = self;
 
-        archetype.columns[0].as_type_mut_unchecked::<A>().push(a);
-        archetype.columns[1].as_type_mut_unchecked::<B>().push(b);
+        archetype
+            .column_for_id_mut::<A>()
+            .unwrap()
+            .as_type_mut_unchecked::<A>()
+            .push(a);
+        archetype
+            .column_for_id_mut::<B>()
+            .unwrap()
+            .as_type_mut_unchecked::<B>()
+            .push(b);
     }
 }

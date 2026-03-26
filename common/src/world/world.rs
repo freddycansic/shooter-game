@@ -56,10 +56,9 @@ impl World {
         let mut superset_archetypes = Vec::new();
 
         for archetype in self.archetypes.values_mut() {
-            if archetype
-                .columns
+            if ids
                 .iter()
-                .all(|column| ids.binary_search(&column.id).is_ok())
+                .all(|id| archetype.columns.binary_search_by(|column| column.id.cmp(id)).is_ok())
             {
                 superset_archetypes.push(archetype);
             }

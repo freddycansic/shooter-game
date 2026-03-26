@@ -21,10 +21,37 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
     }
 
     unsafe fn fetch(columns: &[*const Column], index: usize) -> Option<&'w A> {
+        debug_assert_eq!(columns.len(), 1);
+
         unsafe { columns[0].as_ref() }
             .unwrap()
             .as_type_ref_unchecked::<A>()
             .get(index)
+    }
+}
+
+impl<'w, A: Component + 'static, B: Component + 'static> ComponentQuery<'w> for (&A, &B) {
+    type Item = (&'w A, &'w B);
+
+    fn ids() -> Vec<StableComponentId> {
+        let mut ids = vec![A::ID, B::ID];
+        ids.sort();
+        ids
+    }
+
+    unsafe fn fetch(columns: &[*const Column], index: usize) -> Option<Self::Item> {
+        debug_assert_eq!(columns.len(), 2);
+
+        let a = unsafe { columns[0].as_ref() }
+            .unwrap()
+            .as_type_ref_unchecked::<A>()
+            .get(index);
+        let b = unsafe { columns[1].as_ref() }
+            .unwrap()
+            .as_type_ref_unchecked::<B>()
+            .get(index);
+
+        a.and_then(|a| b.map(|b| (a, b)))
     }
 }
 
@@ -52,38 +79,34 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
     }
 }
 
-impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
-    pub fn iter(&'w self) -> QueryIterator<'w, T> {
+impl<'w, 'q, T: ComponentQuery<'w>> Query<'w, T> {
+    pub fn iter(&'q self) -> impl Iterator<Item = T::Item> {
         QueryIterator {
             query: self,
             archetype_index: 0,
             component_index: 0,
-            component_ids: vec![],
+            component_ids: T::ids(),
             archetype_columns: vec![],
         }
     }
 }
 
-pub struct QueryIterator<'w, T: ComponentQuery<'w> + 'static> {
-    query: &'w Query<'w, T>,
+pub struct QueryIterator<'w, 'q, T: ComponentQuery<'w>> {
+    query: &'q Query<'w, T>,
     archetype_index: usize,
     component_index: usize,
     component_ids: Vec<StableComponentId>,
     archetype_columns: Vec<*const Column>,
 }
 
-impl<'q, 'w, T> Iterator for QueryIterator<'w, T>
+impl<'q, 'w, T> Iterator for QueryIterator<'w, 'q, T>
 where
-    T: ComponentQuery<'w> + 'static,
+    T: ComponentQuery<'w>,
 {
     type Item = T::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.component_ids.is_empty() {
-                self.component_ids = T::ids();
-            }
-
             if self.archetype_index >= self.query.archetypes.len() {
                 return None;
             }
