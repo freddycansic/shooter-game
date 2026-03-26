@@ -72,6 +72,27 @@ mod tests {
     }
 
     #[test]
+    fn can_spawn_both_ways() {
+        let mut world = World::default();
+        world.spawn((TestComponent(1234), TestComponent2("first".to_string())));
+        world.spawn((TestComponent2("second".to_string()), TestComponent(5678)));
+
+        let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
+
+        let column_1 = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
+            .as_type_ref_unchecked::<TestComponent>();
+        assert_eq!(column_1.len(), 2);
+        assert_eq!(column_1[0].0, 1234);
+        assert_eq!(column_1[1].0, 5678);
+
+        let column_2 = unsafe { archetype.columns_from_ids(&[TestComponent2::ID])[0].as_ref().unwrap() }
+            .as_type_ref_unchecked::<TestComponent2>();
+        assert_eq!(column_2.len(), 2);
+        assert_eq!(column_2[0].0, "first");
+        assert_eq!(column_2[1].0, "second");
+    }
+
+    #[test]
     fn can_read_components_from_archetype() {
         let mut world = World::default();
         world.spawn(TestComponent(1));
@@ -95,8 +116,12 @@ mod tests {
         world.spawn(TestComponent(3));
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
-        let column = unsafe { archetype.columns_from_ids_mut(&[TestComponent::ID])[0].as_mut().unwrap() }
-            .as_type_mut_unchecked::<TestComponent>();
+        let column = unsafe {
+            archetype.columns_from_ids_mut(&[TestComponent::ID])[0]
+                .as_mut()
+                .unwrap()
+        }
+        .as_type_mut_unchecked::<TestComponent>();
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);
