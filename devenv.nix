@@ -27,6 +27,6 @@ in {
     enable = true;
     channel = "nightly";
     components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-src" "llvm-tools-preview" "rustc-codegen-cranelift-preview" ];
-    rustflags = "-Clink-arg=-Wl,-rpath,${libPath} -Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold";
+    rustflags = "-Clink-arg=-Wl,-rpath,${libPath} -Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold -Clink-arg=-flto";
   };
 }

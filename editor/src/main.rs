@@ -11,7 +11,7 @@ fn main() {
 
     cfg_if::cfg_if! {
         if #[cfg(unix)] {
-            platform::wayland::WindowAttributesExtWayland::with_name(attributes, "shooter-game-editor", "");
+            attributes = winit::platform::wayland::WindowAttributesExtWayland::with_name(attributes, "shooter-game-editor", "");
         }
     }
 

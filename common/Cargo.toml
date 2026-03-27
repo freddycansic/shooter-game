@@ -45,3 +45,10 @@ nalgebra = { version = "0.34.1", features = ["serde", "serde-serialize"] }
 fastrand = "2.3.0"
 const-sha1 = "0.3.0"
 common-macros = { path = "../common-macros" }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark"
+harness = false
