@@ -14,23 +14,23 @@ mod tests {
     #[test]
     fn test_register_system_one_parameter() {
         let mut world = World::default();
-        let mut engine = Scheduler::default();
+        let mut scheduler = Scheduler::default();
 
         fn system_one_parameter(q1: Query<&Position>) {}
-        engine.register(system_one_parameter);
+        scheduler.register(system_one_parameter);
 
-        engine.run_systems(&mut world);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
     fn test_register_system_two_parameters() {
         let mut world = World::default();
-        let mut engine = Scheduler::default();
+        let mut scheduler = Scheduler::default();
 
         fn system_two_parameters(q1: Query<&Position>, q2: Query<&Velocity>) {}
-        engine.register(system_two_parameters);
+        scheduler.register(system_two_parameters);
 
-        engine.run_systems(&mut world);
+        scheduler.run_systems(&mut world);
     }
 
     #[derive(Component)]
@@ -47,16 +47,16 @@ mod tests {
         world.spawn(A(2));
         world.spawn(A(3));
 
-        let mut engine = Scheduler::default();
+        let mut scheduler = Scheduler::default();
 
         fn system_query_iterator(q: Query<&A>) {
             let mut comp_data = q.iter().map(|comp| comp.0).collect::<Vec<u32>>();
             comp_data.sort();
             assert_eq!(comp_data, vec![1, 2, 3]);
         }
-        engine.register(system_query_iterator);
+        scheduler.register(system_query_iterator);
 
-        engine.run_systems(&mut world);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
@@ -75,9 +75,9 @@ mod tests {
             assert_eq!(comp_data, vec![1, 2, 3, 4, 5]);
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system_query_iterator_overlapping);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system_query_iterator_overlapping);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
@@ -89,9 +89,9 @@ mod tests {
             assert_eq!(result.len(), 0);
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system);
+        scheduler.run_systems(&mut world);
     }
 
     #[derive(Component)]
@@ -111,9 +111,9 @@ mod tests {
             assert_eq!(values, vec![1, 2, 3]);
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
@@ -132,9 +132,9 @@ mod tests {
             assert!(result.contains(&(2, 20)));
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
@@ -150,9 +150,9 @@ mod tests {
             assert_eq!(values, vec![1, 2]);
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system);
+        scheduler.run_systems(&mut world);
     }
 
     #[test]
@@ -161,16 +161,18 @@ mod tests {
 
         world.spawn((A(1), B(5)));
         world.spawn((B(6), A(2)));
+        world.spawn((A(3), B(7)));
+        world.spawn((B(8), A(4)));
 
         fn system_fetch_mismatch(q: Query<(&A, &B)>) {
             let mut values = q.iter().map(|(a, b)| (a.0, b.0)).collect::<Vec<(u32, u32)>>();
             values.sort_by(|first, second| first.0.cmp(&second.0)); // sort on "a"
-            
-            assert_eq!(values, vec![(1, 5), (2, 6)]);
+
+            assert_eq!(values, vec![(1, 5), (2, 6), (3, 7), (4, 8)]);
         }
 
-        let mut engine = Scheduler::default();
-        engine.register(system_fetch_mismatch);
-        engine.run_systems(&mut world);
+        let mut scheduler = Scheduler::default();
+        scheduler.register(system_fetch_mismatch);
+        scheduler.run_systems(&mut world);
     }
 }

@@ -3,6 +3,7 @@ use common::ecs::archetype::{Archetype, Column};
 use common::ecs::component::StableComponentId;
 use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
+use itertools::Itertools;
 use std::marker::PhantomData;
 
 /// The parameter of `Query`, a mixture of immutable and mutable references to `Component`s
@@ -79,27 +80,32 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
     }
 }
 
-impl<'w, 'q, T: ComponentQuery<'w>> Query<'w, T> {
-    pub fn iter(&'q self) -> impl Iterator<Item = T::Item> {
+impl<'w, T: ComponentQuery<'w> + 'w> Query<'w, T> {
+    pub fn iter(&self) -> impl Iterator<Item = T::Item> {
+        let component_ids = T::ids();
+        let matching_columns = self
+            .archetypes
+            .iter()
+            .map(|a| a.columns_from_ids(&component_ids))
+            .collect_vec();
+
         QueryIterator {
-            query: self,
-            archetype_index: 0,
             component_index: 0,
-            component_ids: T::ids(),
-            archetype_columns: vec![],
+            matching_columns,
+            column_index: 0,
+            _marker: PhantomData::<&'w T>::default(),
         }
     }
 }
 
-pub struct QueryIterator<'w, 'q, T: ComponentQuery<'w>> {
-    query: &'q Query<'w, T>,
-    archetype_index: usize,
+pub struct QueryIterator<'w, T: ComponentQuery<'w>> {
     component_index: usize,
-    component_ids: Vec<StableComponentId>,
-    archetype_columns: Vec<*const Column>,
+    matching_columns: Vec<Vec<*const Column>>,
+    column_index: usize,
+    _marker: PhantomData<&'w T>,
 }
 
-impl<'q, 'w, T> Iterator for QueryIterator<'w, 'q, T>
+impl<'q, 'w, T> Iterator for QueryIterator<'w, T>
 where
     T: ComponentQuery<'w>,
 {
@@ -107,25 +113,19 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.archetype_index >= self.query.archetypes.len() {
+            if self.column_index >= self.matching_columns.len() {
                 return None;
             }
 
-            if self.archetype_columns.is_empty() {
-                self.archetype_columns =
-                    self.query.archetypes[self.archetype_index].columns_from_ids(&self.component_ids);
-            }
+            let result = unsafe { T::fetch(&self.matching_columns[self.column_index], self.component_index) };
 
-            let result = unsafe { T::fetch(&self.archetype_columns, self.component_index) };
-
-            if let Some(components) = result {
+            if result.is_some() {
                 self.component_index += 1;
 
-                return Some(components);
+                return result;
             } else {
-                self.archetype_index += 1;
                 self.component_index = 0;
-                self.archetype_columns.clear();
+                self.column_index += 1;
             }
         }
     }
