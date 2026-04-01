@@ -9,48 +9,61 @@ use std::marker::PhantomData;
 /// The parameter of `Query`, a mixture of immutable and mutable references to `Component`s
 pub trait ComponentQuery<'w> {
     type Item;
+    type ColumnPtr;
 
     fn ids() -> Vec<StableComponentId>;
-    unsafe fn fetch(columns: &[*const Column], index: usize) -> Option<Self::Item>;
+    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item>;
 }
 
 impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
     type Item = &'w A;
+    type ColumnPtr = *const Column;
 
     fn ids() -> Vec<StableComponentId> {
         vec![A::ID]
     }
 
-    unsafe fn fetch(columns: &[*const Column], index: usize) -> Option<&'w A> {
-        debug_assert_eq!(columns.len(), 1);
-
-        unsafe { columns[0].as_ref() }
+    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
+        unsafe { columns.as_ref() }
             .unwrap()
             .as_type_ref_unchecked::<A>()
             .get(index)
     }
 }
 
-impl<'w, A: Component + 'static, B: Component + 'static> ComponentQuery<'w> for (&A, &B) {
-    type Item = (&'w A, &'w B);
+impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
+    type Item = &'w mut A;
+    type ColumnPtr = *mut Column;
 
     fn ids() -> Vec<StableComponentId> {
-        let mut ids = vec![A::ID, B::ID];
+        vec![A::ID]
+    }
+
+    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
+        unsafe { columns.as_mut() }
+            .unwrap()
+            .as_type_mut_unchecked::<A>()
+            .get_mut(index)
+    }
+}
+
+impl<'w, A, B> ComponentQuery<'w> for (A, B)
+where
+    A: ComponentQuery<'w>,
+    B: ComponentQuery<'w>,
+{
+    type Item = (A::Item, B::Item);
+    type ColumnPtr = (A::ColumnPtr, B::ColumnPtr);
+
+    fn ids() -> Vec<StableComponentId> {
+        let mut ids = vec![A::Item::ID, B::Item::ID];
         ids.sort();
         ids
     }
 
-    unsafe fn fetch(columns: &[*const Column], index: usize) -> Option<Self::Item> {
-        debug_assert_eq!(columns.len(), 2);
-
-        let a = unsafe { columns[0].as_ref() }
-            .unwrap()
-            .as_type_ref_unchecked::<A>()
-            .get(index);
-        let b = unsafe { columns[1].as_ref() }
-            .unwrap()
-            .as_type_ref_unchecked::<B>()
-            .get(index);
+    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
+        let a = unsafe { A::fetch(&columns.0, index) };
+        let b = unsafe { B::fetch(&columns.1, index) };
 
         a.and_then(|a| b.map(|b| (a, b)))
     }
@@ -93,16 +106,29 @@ impl<'w, T: ComponentQuery<'w> + 'w> Query<'w, T> {
             component_index: 0,
             matching_columns,
             column_index: 0,
-            _marker: PhantomData::<&'w T>::default(),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = T::Item> {
+        let component_ids = T::ids();
+        let matching_columns = self
+            .archetypes
+            .iter_mut()
+            .map(|a| a.columns_from_ids_mut(&component_ids))
+            .collect_vec();
+
+        QueryIterator {
+            component_index: 0,
+            matching_columns,
+            column_index: 0,
         }
     }
 }
 
 pub struct QueryIterator<'w, T: ComponentQuery<'w>> {
     component_index: usize,
-    matching_columns: Vec<Vec<*const Column>>,
+    matching_columns: Vec<Vec<T::ColumnPtr>>,
     column_index: usize,
-    _marker: PhantomData<&'w T>,
 }
 
 impl<'q, 'w, T> Iterator for QueryIterator<'w, T>

@@ -165,7 +165,7 @@ mod tests {
         world.spawn((B(8), A(4)));
 
         fn system_fetch_mismatch(q: Query<(&A, &B)>) {
-            let mut values = q.iter().map(|(a, b)| (a.0, b.0)).collect::<Vec<(u32, u32)>>();
+            let mut values = q.iter_mut().map(|(a, b)| (a.0, b.0)).collect::<Vec<(u32, u32)>>();
             values.sort_by(|first, second| first.0.cmp(&second.0)); // sort on "a"
 
             assert_eq!(values, vec![(1, 5), (2, 6), (3, 7), (4, 8)]);
