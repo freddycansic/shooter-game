@@ -73,6 +73,14 @@ impl Archetype {
         entity
     }
 
+    pub fn column_for_id<T: Component>(&self) -> Option<&Column> {
+        self.columns.iter().find(|column| column.id == T::ID)
+    }
+
+    pub fn column_for_id_mut<T: Component>(&mut self) -> Option<&mut Column> {
+        self.columns.iter_mut().find(|column| column.id == T::ID)
+    }
+
     pub fn columns_from_ids(&self, ids: &[StableComponentId]) -> Vec<*const Column> {
         let mut columns = Vec::new();
         for component_id in ids {
@@ -86,14 +94,6 @@ impl Archetype {
         }
 
         columns
-    }
-
-    pub fn column_for_id<T: Component>(&self) -> Option<&Column> {
-        self.columns.iter().find(|column| column.id == T::ID)
-    }
-
-    pub fn column_for_id_mut<T: Component>(&mut self) -> Option<&mut Column> {
-        self.columns.iter_mut().find(|column| column.id == T::ID)
     }
 
     pub fn columns_from_ids_mut(&mut self, ids: &[StableComponentId]) -> Vec<*mut Column> {
