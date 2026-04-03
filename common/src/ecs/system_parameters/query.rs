@@ -1,5 +1,5 @@
 use crate::ecs::component::Component;
-use common::ecs::archetype::{Archetype, Column};
+use common::ecs::archetype::Column;
 use common::ecs::component::StableComponentId;
 use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
@@ -8,23 +8,35 @@ use std::marker::PhantomData;
 
 /// The parameter of `Query`, a mixture of immutable and mutable references to `Component`s
 pub trait ComponentQuery<'w> {
+    /// Type of item from iterating the query.
     type Item;
-    type ColumnPtr;
 
-    fn ids() -> Vec<StableComponentId>;
-    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item>;
+    /// This is a tuple of pointers to columns which match the type of the query.
+    type QueryPtr;
+
+    fn unsorted_ids() -> Vec<StableComponentId>;
+
+    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr;
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item>;
 }
 
 impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
     type Item = &'w A;
-    type ColumnPtr = *const Column;
+    type QueryPtr = *const Column;
 
-    fn ids() -> Vec<StableComponentId> {
+    fn unsorted_ids() -> Vec<StableComponentId> {
         vec![A::ID]
     }
 
-    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
-        unsafe { columns.as_ref() }
+    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+        let ptr = columns[*cursor];
+        *cursor += 1;
+        ptr
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        unsafe { query_ptr.as_ref() }
             .unwrap()
             .as_type_ref_unchecked::<A>()
             .get(index)
@@ -33,14 +45,20 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
 
 impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
     type Item = &'w mut A;
-    type ColumnPtr = *mut Column;
+    type QueryPtr = *mut Column;
 
-    fn ids() -> Vec<StableComponentId> {
+    fn unsorted_ids() -> Vec<StableComponentId> {
         vec![A::ID]
     }
 
-    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
-        unsafe { columns.as_mut() }
+    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+        let ptr = columns[*cursor];
+        *cursor += 1;
+        ptr
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        unsafe { query_ptr.as_mut() }
             .unwrap()
             .as_type_mut_unchecked::<A>()
             .get_mut(index)
@@ -53,33 +71,39 @@ where
     B: ComponentQuery<'w>,
 {
     type Item = (A::Item, B::Item);
-    type ColumnPtr = (A::ColumnPtr, B::ColumnPtr);
+    type QueryPtr = (A::QueryPtr, B::QueryPtr);
 
-    fn ids() -> Vec<StableComponentId> {
-        let mut ids = vec![A::Item::ID, B::Item::ID];
-        ids.sort();
+    fn unsorted_ids() -> Vec<StableComponentId> {
+        let mut ids = A::unsorted_ids();
+        ids.extend(B::unsorted_ids());
         ids
     }
 
-    unsafe fn fetch(columns: &Self::ColumnPtr, index: usize) -> Option<Self::Item> {
-        let a = unsafe { A::fetch(&columns.0, index) };
-        let b = unsafe { B::fetch(&columns.1, index) };
+    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+        let a = A::build_query_ptr(columns, cursor);
+        let b = B::build_query_ptr(columns, cursor);
+        (a, b)
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        let a = unsafe { A::fetch(&query_ptr.0, index) };
+        let b = unsafe { B::fetch(&query_ptr.1, index) };
 
         a.and_then(|a| b.map(|b| (a, b)))
     }
 }
 
-pub struct Query<'a, T: ComponentQuery<'a>> {
-    pub archetypes: Vec<&'a mut Archetype>,
+pub struct Query<'w, T: ComponentQuery<'w>> {
+    pub world: &'w mut World,
     // Query depends on T, but doesn't actually contain a reference to it.
     // So this is here to keep the compiler happy.
     _marker: PhantomData<T>,
 }
 
 impl<'a, T: ComponentQuery<'a>> Query<'a, T> {
-    fn new(archetypes: Vec<&'a mut Archetype>) -> Self {
+    fn new(world: &'a mut World) -> Self {
         Self {
-            archetypes,
+            world,
             _marker: PhantomData,
         }
     }
@@ -89,46 +113,36 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
     type Item<'w> = Query<'w, T>;
 
     fn get(world: &mut World) -> Self::Item<'_> {
-        Query::new(world.find_superset_archetypes(&T::ids()))
+        Query::new(world)
     }
 }
 
 impl<'w, T: ComponentQuery<'w> + 'w> Query<'w, T> {
-    pub fn iter(&self) -> impl Iterator<Item = T::Item> {
-        let component_ids = T::ids();
-        let matching_columns = self
-            .archetypes
+    pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
+        let query_ids = T::unsorted_ids();
+
+        let archetype_columns = self.world.find_matching_archetype_columns(&query_ids);
+        
+        let matching_archetypes = archetype_columns
             .iter()
-            .map(|a| a.columns_from_ids(&component_ids))
+            .map(|columns| {
+                let mut cursor = 0;
+                T::build_query_ptr(&columns, &mut cursor)
+            })
             .collect_vec();
 
-        QueryIterator {
+        QueryIterator::<T> {
             component_index: 0,
-            matching_columns,
-            column_index: 0,
-        }
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = T::Item> {
-        let component_ids = T::ids();
-        let matching_columns = self
-            .archetypes
-            .iter_mut()
-            .map(|a| a.columns_from_ids_mut(&component_ids))
-            .collect_vec();
-
-        QueryIterator {
-            component_index: 0,
-            matching_columns,
-            column_index: 0,
+            matching_archetypes,
+            archetype_index: 0,
         }
     }
 }
 
 pub struct QueryIterator<'w, T: ComponentQuery<'w>> {
     component_index: usize,
-    matching_columns: Vec<Vec<T::ColumnPtr>>,
-    column_index: usize,
+    matching_archetypes: Vec<T::QueryPtr>,
+    archetype_index: usize,
 }
 
 impl<'q, 'w, T> Iterator for QueryIterator<'w, T>
@@ -139,11 +153,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if self.column_index >= self.matching_columns.len() {
+            if self.archetype_index >= self.matching_archetypes.len() {
                 return None;
             }
 
-            let result = unsafe { T::fetch(&self.matching_columns[self.column_index], self.component_index) };
+            let result = unsafe { T::fetch(&self.matching_archetypes[self.archetype_index], self.component_index) };
 
             if result.is_some() {
                 self.component_index += 1;
@@ -151,7 +165,7 @@ where
                 return result;
             } else {
                 self.component_index = 0;
-                self.column_index += 1;
+                self.archetype_index += 1;
             }
         }
     }

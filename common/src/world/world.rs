@@ -37,7 +37,7 @@ pub struct World {
 
 impl World {
     pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
-        self.find_exact_archetype(&T::ids()).spawn(components)
+        self.find_exact_archetype(&T::sorted_ids()).spawn(components)
     }
 
     /// Finds the single archetype matching T exactly, creates it if it does not exist.
@@ -51,20 +51,18 @@ impl World {
         })
     }
 
-    /// Finds all archetypes which are a superset of T
-    pub fn find_superset_archetypes(&mut self, ids: &[StableComponentId]) -> Vec<&mut Archetype> {
-        let mut superset_archetypes = Vec::new();
+    /// Find all archetypes which contain the query ids, returned in the order the query specifies.
+    /// `query_ids` is an unsorted slice of Component ids, usually in the order specified by a `Query`
+    pub fn find_matching_archetype_columns(&mut self, query_ids: &[StableComponentId]) -> Vec<Vec<*mut Column>> {
+        let mut matching_archetypes = Vec::new();
 
         for archetype in self.archetypes.values_mut() {
-            if ids
-                .iter()
-                .all(|id| archetype.columns.binary_search_by(|column| column.id.cmp(id)).is_ok())
-            {
-                superset_archetypes.push(archetype);
+            if let Some(columns) = archetype.matching_columns(query_ids) {
+                matching_archetypes.push(columns);
             }
         }
 
-        superset_archetypes
+        matching_archetypes
     }
 
     pub fn raycast(&self, ray: &Ray, resources: &Resources) -> Option<RayHitNode> {

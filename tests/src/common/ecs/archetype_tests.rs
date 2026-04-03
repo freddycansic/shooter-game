@@ -60,13 +60,21 @@ mod tests {
         let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
         assert_eq!(archetype.columns.len(), 2);
 
-        let column_1 = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
-            .as_type_ref_unchecked::<TestComponent>();
+        let column_1 = unsafe {
+            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+        }
+        .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column_1.len(), 1);
         assert_eq!(column_1[0].0, 1234);
 
-        let column_2 = unsafe { archetype.columns_from_ids(&[TestComponent2::ID])[0].as_ref().unwrap() }
-            .as_type_ref_unchecked::<TestComponent2>();
+        let column_2 = unsafe {
+            archetype.matching_columns(&[TestComponent2::ID]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+        }
+        .as_type_ref_unchecked::<TestComponent2>();
         assert_eq!(column_2.len(), 1);
         assert_eq!(column_2[0].0, "first");
     }
@@ -79,14 +87,22 @@ mod tests {
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
 
-        let column_1 = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
-            .as_type_ref_unchecked::<TestComponent>();
+        let column_1 = unsafe {
+            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+        }
+        .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column_1.len(), 2);
         assert_eq!(column_1[0].0, 1234);
         assert_eq!(column_1[1].0, 5678);
 
-        let column_2 = unsafe { archetype.columns_from_ids(&[TestComponent2::ID])[0].as_ref().unwrap() }
-            .as_type_ref_unchecked::<TestComponent2>();
+        let column_2 = unsafe {
+            archetype.matching_columns(&[TestComponent2::ID]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+        }
+        .as_type_ref_unchecked::<TestComponent2>();
         assert_eq!(column_2.len(), 2);
         assert_eq!(column_2[0].0, "first");
         assert_eq!(column_2[1].0, "second");
@@ -100,7 +116,7 @@ mod tests {
         world.spawn(TestComponent(3));
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
-        let column = unsafe { archetype.columns_from_ids(&[TestComponent::ID])[0].as_ref().unwrap() }
+        let column = unsafe { archetype.matching_columns(&[TestComponent::ID]).unwrap()[0].as_ref().unwrap() }
             .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
@@ -117,7 +133,7 @@ mod tests {
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
         let column = unsafe {
-            archetype.columns_from_ids_mut(&[TestComponent::ID])[0]
+            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
                 .as_mut()
                 .unwrap()
         }

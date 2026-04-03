@@ -4,12 +4,12 @@ use common::ecs::component::StableComponentId;
 
 // These are components which are owned and can be consumed by an archetype
 pub trait OwnedComponents {
-    fn ids() -> Vec<StableComponentId>;
+    fn sorted_ids() -> Vec<StableComponentId>;
     fn spawn(self, archetype: &mut Archetype);
 }
 
 impl<A: Component + 'static> OwnedComponents for A {
-    fn ids() -> Vec<StableComponentId> {
+    fn sorted_ids() -> Vec<StableComponentId> {
         vec![A::ID]
     }
 
@@ -19,7 +19,7 @@ impl<A: Component + 'static> OwnedComponents for A {
 }
 
 impl<A: Component + 'static, B: Component + 'static> OwnedComponents for (A, B) {
-    fn ids() -> Vec<StableComponentId> {
+    fn sorted_ids() -> Vec<StableComponentId> {
         let mut ids = vec![A::ID, B::ID];
         ids.sort_unstable();
         ids
