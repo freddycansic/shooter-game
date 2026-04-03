@@ -117,7 +117,7 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
     }
 }
 
-impl<'w, T: ComponentQuery<'w> + 'w> Query<'w, T> {
+impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
     pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
         let query_ids = T::unsorted_ids();
 
