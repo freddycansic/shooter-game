@@ -15,6 +15,7 @@ pub trait Component {
     const ID: StableId;
 }
 
+// TODO ununsed?
 pub struct ComponentRegistry {
     components: FxHashMap<TypeId, StableId>,
 }

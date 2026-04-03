@@ -8,7 +8,7 @@ pub(crate) fn derive_resource(input: TokenStream) -> TokenStream {
     let name = &input.ident;
 
     let gene = quote! {
-        impl common::ecs::system_parameters::Resource for #name {
+        impl common::ecs::resource::Resource for #name {
             const ID: common::ecs::stable_id::StableId = common::ecs::stable_id::StableId::from_str(stringify!(#name));
         }
     };
