@@ -49,7 +49,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
 
-        fn system_query_iterator(q: Query<&A>) {
+        fn system_query_iterator<'a>(mut q: Query<'a, &'a A>) {
             let mut comp_data = q.iter().map(|comp| comp.0).collect::<Vec<u32>>();
             comp_data.sort();
             assert_eq!(comp_data, vec![1, 2, 3]);
@@ -69,7 +69,7 @@ mod tests {
         world.spawn(A(4));
         world.spawn(A(5));
 
-        fn system_query_iterator_overlapping(q: Query<&A>) {
+        fn system_query_iterator_overlapping(mut q: Query<&A>) {
             let mut comp_data = q.iter().map(|comp| comp.0).collect::<Vec<u32>>();
             comp_data.sort();
             assert_eq!(comp_data, vec![1, 2, 3, 4, 5]);
@@ -84,7 +84,7 @@ mod tests {
     fn test_query_empty_world() {
         let mut world = World::default();
 
-        fn system(q: Query<&A>) {
+        fn system(mut q: Query<&A>) {
             let result = q.iter().collect::<Vec<&A>>();
             assert_eq!(result.len(), 0);
         }
@@ -105,7 +105,7 @@ mod tests {
         world.spawn((A(2), B(10)));
         world.spawn((A(3), Health(99)));
 
-        fn system(q: Query<&A>) {
+        fn system(mut q: Query<&A>) {
             let mut values: Vec<u32> = q.iter().map(|c| c.0).collect();
             values.sort();
             assert_eq!(values, vec![1, 2, 3]);
@@ -124,7 +124,7 @@ mod tests {
         world.spawn((A(2), B(20)));
         world.spawn(A(3)); // should be excluded
 
-        fn system(q: Query<(&A, &B)>) {
+        fn system(mut q: Query<(&A, &B)>) {
             let result: Vec<(u32, u32)> = q.iter().map(|(a, b)| (a.0, b.0)).collect();
 
             assert_eq!(result.len(), 2);
@@ -144,7 +144,7 @@ mod tests {
         world.spawn((A(1), B(5)));
         world.spawn((B(6), A(2)));
 
-        fn system(q: Query<&A>) {
+        fn system(mut q: Query<&A>) {
             let mut values: Vec<u32> = q.iter().map(|c| c.0).collect();
             values.sort();
             assert_eq!(values, vec![1, 2]);
@@ -164,8 +164,8 @@ mod tests {
         world.spawn((A(3), B(7)));
         world.spawn((B(8), A(4)));
 
-        fn system_fetch_mismatch(q: Query<(&A, &B)>) {
-            let mut values = q.iter_mut().map(|(a, b)| (a.0, b.0)).collect::<Vec<(u32, u32)>>();
+        fn system_fetch_mismatch(mut q: Query<(&A, &B)>) {
+            let mut values = q.iter().map(|(a, b)| (a.0, b.0)).collect::<Vec<(u32, u32)>>();
             values.sort_by(|first, second| first.0.cmp(&second.0)); // sort on "a"
 
             assert_eq!(values, vec![(1, 5), (2, 6), (3, 7), (4, 8)]);

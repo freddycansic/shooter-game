@@ -73,6 +73,20 @@ impl Archetype {
         entity
     }
 
+    pub fn matching_columns(&mut self, query_ids: &[StableComponentId]) -> Option<Vec<*mut Column>> {
+        let mut matching_columns = Vec::<*mut Column>::with_capacity(query_ids.len());
+
+        for query_id in query_ids {
+            if let Ok(index) = self.columns.binary_search_by(|col| col.id.cmp(query_id)) {
+                matching_columns.push(&mut self.columns[index] as *mut Column);
+            } else {
+                return None;
+            }
+        }
+
+        Some(matching_columns)
+    }
+
     pub fn column_for_id<T: Component>(&self) -> Option<&Column> {
         self.columns.iter().find(|column| column.id == T::ID)
     }
@@ -81,33 +95,39 @@ impl Archetype {
         self.columns.iter_mut().find(|column| column.id == T::ID)
     }
 
-    pub fn columns_from_ids(&self, ids: &[StableComponentId]) -> Vec<*const Column> {
-        let mut columns = Vec::new();
-        for component_id in ids {
-            match self.columns.iter().find(|column| column.id == *component_id) {
-                Some(column) => columns.push(column as *const Column),
-                None => {
-                    log::warn!("Component id {:?} does not exist on archetype", component_id);
-                    return vec![];
-                }
-            }
-        }
-
-        columns
-    }
-
-    pub fn columns_from_ids_mut(&mut self, ids: &[StableComponentId]) -> Vec<*mut Column> {
-        let mut columns = Vec::new();
-        for component_id in ids {
-            match self.columns.iter_mut().find(|column| column.id == *component_id) {
-                Some(column) => columns.push(column as *mut Column),
-                None => {
-                    log::warn!("Component id {:?} does not exist on archetype", component_id);
-                    return vec![];
-                }
-            }
-        }
-
-        columns
-    }
+    // pub fn build_query_ptr<'w, T>(&mut self, query_ids: &[StableComponentId]) -> Vec<T::QueryPtr>
+    // where
+    //     T: ComponentQuery<'w>,
+    // {
+    //     let mut columns = Vec::new();
+    //     for component_id in query_ids {
+    //         match self.columns.iter_mut().find(|column| column.id == *component_id) {
+    //             Some(column) => columns.push(T::query_ptr(column)),
+    //             None => {
+    //                 log::warn!("Component id {:?} does not exist on archetype", component_id);
+    //                 return vec![];
+    //             }
+    //         }
+    //     }
+    //
+    //     columns
+    // }
+    //
+    // pub fn columns_from_ids_mut<'w, T>(&mut self, query_ids: &[StableComponentId]) -> Vec<T::ColumnPtr>
+    // where
+    //     T: ComponentQuery<'w, ColumnPtr = *mut Column>,
+    // {
+    //     let mut columns = Vec::new();
+    //     for component_id in query_ids {
+    //         match self.columns.iter_mut().find(|column| column.id == *component_id) {
+    //             Some(column) => columns.push(column as *mut Column),
+    //             None => {
+    //                 log::warn!("Component id {:?} does not exist on archetype", component_id);
+    //                 return vec![];
+    //             }
+    //         }
+    //     }
+    //
+    //     columns
+    // }
 }
