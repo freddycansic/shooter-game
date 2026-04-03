@@ -3,8 +3,8 @@ use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::engine::resources::Resources;
 use crate::serde::SerializeWithContext;
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

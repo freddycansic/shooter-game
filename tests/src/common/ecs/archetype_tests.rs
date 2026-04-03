@@ -13,12 +13,8 @@ mod tests {
 
     #[test]
     fn can_derive_component() {
-        assert_ne!(TestComponent::ID.0.len(), 0);
-        assert!(TestComponent::ID.0.iter().any(|block| *block > 0));
-
-        assert_ne!(TestComponent2::ID.0.len(), 0);
-        assert!(TestComponent2::ID.0.iter().any(|block| *block > 0));
-
+        assert_ne!(TestComponent::ID.0, 0);
+        assert_ne!(TestComponent2::ID.0, 0);
         assert_ne!(TestComponent::ID, TestComponent2::ID);
     }
 
@@ -116,8 +112,12 @@ mod tests {
         world.spawn(TestComponent(3));
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
-        let column = unsafe { archetype.matching_columns(&[TestComponent::ID]).unwrap()[0].as_ref().unwrap() }
-            .as_type_ref_unchecked::<TestComponent>();
+        let column = unsafe {
+            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
+                .as_ref()
+                .unwrap()
+        }
+        .as_type_ref_unchecked::<TestComponent>();
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);
