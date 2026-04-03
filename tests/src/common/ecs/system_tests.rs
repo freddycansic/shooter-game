@@ -175,4 +175,67 @@ mod tests {
         scheduler.register(system_fetch_mismatch);
         scheduler.run_systems(&mut world);
     }
+
+    #[test]
+    fn test_query_mutable() {
+        let mut world = World::default();
+
+        world.spawn(A(1));
+        world.spawn(A(2));
+        world.spawn(A(3));
+
+        fn set_to_five(mut q: Query<&mut A>) {
+            for a in q.iter() {
+                a.0 = 5;
+            }
+        }
+
+        fn check_are_five(mut q: Query<&A>) {
+            for a in q.iter() {
+                assert_eq!(a.0, 5);
+            }
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register(set_to_five);
+        scheduler.register(check_are_five);
+        scheduler.run_systems(&mut world);
+    }
+
+    #[test]
+    fn test_query_mixed_access() {
+        let mut world = World::default();
+
+        world.spawn((A(1), B(4)));
+        world.spawn((A(2), B(5)));
+        world.spawn((A(3), B(6)));
+
+        fn read_and_modify(mut q: Query<(&mut A, &B)>) {
+            let mut iter = q.iter();
+            let (a, b) = iter.next().unwrap();
+            assert_eq!(a.0, 1);
+            assert_eq!(b.0, 4);
+            a.0 = 7;
+            let (a, b) = iter.next().unwrap();
+            assert_eq!(a.0, 2);
+            assert_eq!(b.0, 5);
+            a.0 = 8;
+            let (a, b) = iter.next().unwrap();
+            assert_eq!(a.0, 3);
+            assert_eq!(b.0, 6);
+            a.0 = 9;
+        }
+
+        fn check_are_modified(mut q: Query<&A>) {
+            let mut iter = q.iter();
+            assert_eq!(iter.next().unwrap().0, 7);
+            assert_eq!(iter.next().unwrap().0, 8);
+            assert_eq!(iter.next().unwrap().0, 9);
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register(read_and_modify);
+        scheduler.register(check_are_modified);
+        scheduler.run_systems(&mut world);
+    }
 }
