@@ -1,3 +1,3 @@
 pub mod query;
-pub mod resource;
+pub mod res;
 pub mod system_parameter;

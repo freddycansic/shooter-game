@@ -3,6 +3,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
+use crate::ecs::resource::{Resource, ResourceStore};
 use crate::engine::renderer::Background;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
 use crate::light::Light;
@@ -17,6 +18,7 @@ use fxhash::FxHashMap;
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
+use std::collections::hash_map::Entry;
 
 pub struct World {
     pub title: String,
@@ -33,7 +35,7 @@ pub struct World {
     pub physics_context: PhysicsContext,
 
     pub archetypes: FxHashMap<u64, Archetype>,
-    // pub resources: FxHashMap<>
+    pub resources: FxHashMap<StableId, ResourceStore>,
 }
 
 impl World {
@@ -85,6 +87,21 @@ impl World {
             }
         });
     }
+
+    pub fn register_resource<T: Resource + 'static>(&mut self, resource: T) {
+        match self.resources.entry(T::ID) {
+            Entry::Occupied(_) => panic!("resource already registered"),
+            Entry::Vacant(entry) => entry.insert(ResourceStore::from(resource)),
+        };
+    }
+
+    pub fn get_resource<T: Resource + 'static>(&self) -> Option<&T> {
+        self.resources.get(&T::ID).and_then(|store| store.get())
+    }
+    
+    pub fn get_resource_mut<T: Resource + 'static>(&mut self) -> Option<&mut T> {
+        self.resources.get_mut(&T::ID).and_then(|store| store.get_mut())
+    }
 }
 
 impl Default for World {
@@ -102,6 +119,7 @@ impl Default for World {
             textures: FxHashMap::default(),
             player_spawn: None,
             archetypes: FxHashMap::default(),
+            resources: FxHashMap::default(),
         }
     }
 }
