@@ -43,7 +43,7 @@ petgraph = { version = "0.8.1", default-features = false, features = [
 fxhash = "0.2.1"
 nalgebra = { version = "0.34.1", features = ["serde", "serde-serialize"] }
 fastrand = "2.3.0"
-const-sha1 = "0.3.0"
+const-fnv1a-hash = "1.1.0"
 common-macros = { path = "../common-macros" }
 
 [dev-dependencies]

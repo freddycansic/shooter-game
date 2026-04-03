@@ -559,7 +559,7 @@ dependencies = [
  "chrono",
  "color-eyre",
  "common-macros",
- "const-sha1",
+ "const-fnv1a-hash",
  "criterion",
  "egui_glium",
  "fastrand",
@@ -598,10 +598,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "const-sha1"
-version = "0.3.0"
+name = "const-fnv1a-hash"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d8a42181e0652c2997ae4d217f25b63c5337a52fd2279736e97b832fa0a3cff"
+checksum = "32b13ea120a812beba79e34316b3942a857c86ec1593cb34f27bb28272ce2cca"
 
 [[package]]
 name = "core-foundation"

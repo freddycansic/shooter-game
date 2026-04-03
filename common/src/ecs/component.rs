@@ -1,16 +1,12 @@
-use crate::ecs::archetype::{Archetype, Column};
+pub(crate) use crate::ecs::stable_id::StableId;
 use fxhash::{FxHashMap, FxHasher};
-use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::hash::Hasher;
-pub(crate) use crate::ecs::stable_id::StableId;
 
 pub fn archetype_id(ids: &[StableId]) -> u64 {
     let mut hasher = FxHasher::default();
     for component_id in ids.iter() {
-        for block in component_id.0.iter() {
-            hasher.write_u8(*block);
-        }
+        hasher.write_u64(component_id.0);
     }
     hasher.finish()
 }

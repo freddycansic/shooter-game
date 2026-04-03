@@ -122,7 +122,7 @@ impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
         let query_ids = T::unsorted_ids();
 
         let archetype_columns = self.world.find_matching_archetype_columns(&query_ids);
-        
+
         let matching_archetypes = archetype_columns
             .iter()
             .map(|columns| {

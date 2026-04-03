@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone, Serialize, Deserialize)]
-pub struct StableId(pub [u8; 20]);
+pub struct StableId(pub u64);
 
 impl StableId {
     pub const fn from_str(string: &str) -> Self {
-        Self(const_sha1::sha1(string.as_bytes()).as_bytes())
+        Self(const_fnv1a_hash::fnv1a_hash_64(string.as_bytes(), None))
     }
 }
