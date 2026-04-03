@@ -1,5 +1,5 @@
 use crate::ecs::archetype::Archetype;
-use crate::ecs::component::StableComponentId;
+use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::engine::resources::Resources;
 use crate::serde::SerializeWithContext;
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct SerializedArchetype {
     id: u32,
     entities: Vec<Entity>,
-    components: Vec<StableComponentId>,
+    components: Vec<StableId>,
 }
 
 impl SerializeWithContext for Archetype {

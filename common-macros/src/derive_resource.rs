@@ -1,14 +1,14 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input};
+use syn::{parse_macro_input, DeriveInput};
 
-pub(crate) fn derive_component(input: TokenStream) -> TokenStream {
+pub(crate) fn derive_resource(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let name = &input.ident;
 
     let gene = quote! {
-        impl common::ecs::component::Component for #name {
+        impl common::ecs::system_parameters::Resource for #name {
             const ID: common::ecs::stable_id::StableId = common::ecs::stable_id::StableId::from_str(stringify!(#name));
         }
     };

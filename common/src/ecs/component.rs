@@ -3,8 +3,9 @@ use fxhash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::hash::Hasher;
+pub(crate) use crate::ecs::stable_id::StableId;
 
-pub fn archetype_id(ids: &[StableComponentId]) -> u64 {
+pub fn archetype_id(ids: &[StableId]) -> u64 {
     let mut hasher = FxHasher::default();
     for component_id in ids.iter() {
         for block in component_id.0.iter() {
@@ -14,21 +15,12 @@ pub fn archetype_id(ids: &[StableComponentId]) -> u64 {
     hasher.finish()
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Ord, Eq, Clone, Serialize, Deserialize)]
-pub struct StableComponentId(pub [u8; 20]);
-
-impl StableComponentId {
-    pub const fn from_str(string: &str) -> Self {
-        Self(const_sha1::sha1(string.as_bytes()).as_bytes())
-    }
-}
-
 pub trait Component {
-    const ID: StableComponentId;
+    const ID: StableId;
 }
 
 pub struct ComponentRegistry {
-    components: FxHashMap<TypeId, StableComponentId>,
+    components: FxHashMap<TypeId, StableId>,
 }
 
 impl ComponentRegistry {
