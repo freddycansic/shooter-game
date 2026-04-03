@@ -1,6 +1,6 @@
 use crate::ecs::component::Component;
 use common::ecs::archetype::Column;
-use common::ecs::component::StableComponentId;
+use common::ecs::component::StableId;
 use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
 use itertools::Itertools;
@@ -14,7 +14,7 @@ pub trait ComponentQuery<'w> {
     /// This is a tuple of pointers to columns which match the type of the query.
     type QueryPtr;
 
-    fn unsorted_ids() -> Vec<StableComponentId>;
+    fn unsorted_ids() -> Vec<StableId>;
 
     fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr;
 
@@ -25,7 +25,7 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
     type Item = &'w A;
     type QueryPtr = *const Column;
 
-    fn unsorted_ids() -> Vec<StableComponentId> {
+    fn unsorted_ids() -> Vec<StableId> {
         vec![A::ID]
     }
 
@@ -47,7 +47,7 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
     type Item = &'w mut A;
     type QueryPtr = *mut Column;
 
-    fn unsorted_ids() -> Vec<StableComponentId> {
+    fn unsorted_ids() -> Vec<StableId> {
         vec![A::ID]
     }
 
@@ -73,7 +73,7 @@ where
     type Item = (A::Item, B::Item);
     type QueryPtr = (A::QueryPtr, B::QueryPtr);
 
-    fn unsorted_ids() -> Vec<StableComponentId> {
+    fn unsorted_ids() -> Vec<StableId> {
         let mut ids = A::unsorted_ids();
         ids.extend(B::unsorted_ids());
         ids

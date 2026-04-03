@@ -1,4 +1,5 @@
 mod derive_component;
+mod derive_resource;
 
 use proc_macro::TokenStream;
 

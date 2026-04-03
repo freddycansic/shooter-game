@@ -1,5 +1,6 @@
-use crate::ecs::component::{Component, StableComponentId};
+use crate::ecs::component::Component;
 use crate::ecs::entity::Entity;
+use crate::ecs::stable_id::StableId;
 use common::ecs::owned_components::OwnedComponents;
 use std::any::Any;
 use std::cell::OnceCell;
@@ -20,12 +21,12 @@ impl<T: 'static> ComponentColumn for Vec<T> {
 }
 
 pub struct Column {
-    pub id: StableComponentId,
+    pub id: StableId,
     pub components: OnceCell<Box<dyn ComponentColumn>>,
 }
 
 impl Column {
-    pub fn new_empty(id: StableComponentId) -> Self {
+    pub fn new_empty(id: StableId) -> Self {
         Self {
             id,
             components: OnceCell::new(),
@@ -73,7 +74,7 @@ impl Archetype {
         entity
     }
 
-    pub fn matching_columns(&mut self, query_ids: &[StableComponentId]) -> Option<Vec<*mut Column>> {
+    pub fn matching_columns(&mut self, query_ids: &[StableId]) -> Option<Vec<*mut Column>> {
         let mut matching_columns = Vec::<*mut Column>::with_capacity(query_ids.len());
 
         for query_id in query_ids {

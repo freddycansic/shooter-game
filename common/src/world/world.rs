@@ -1,7 +1,7 @@
 use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
 use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
-use crate::ecs::component::StableComponentId;
+use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::engine::renderer::Background;
 use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
@@ -33,6 +33,7 @@ pub struct World {
     pub physics_context: PhysicsContext,
 
     pub archetypes: FxHashMap<u64, Archetype>,
+    // pub resources: FxHashMap<>
 }
 
 impl World {
@@ -41,7 +42,7 @@ impl World {
     }
 
     /// Finds the single archetype matching T exactly, creates it if it does not exist.
-    pub fn find_exact_archetype(&mut self, ids: &[StableComponentId]) -> &mut Archetype {
+    pub fn find_exact_archetype(&mut self, ids: &[StableId]) -> &mut Archetype {
         let archetype_id = component::archetype_id(ids);
 
         self.archetypes.entry(archetype_id).or_insert_with_key(|id| Archetype {
@@ -53,7 +54,7 @@ impl World {
 
     /// Find all archetypes which contain the query ids, returned in the order the query specifies.
     /// `query_ids` is an unsorted slice of Component ids, usually in the order specified by a `Query`
-    pub fn find_matching_archetype_columns(&mut self, query_ids: &[StableComponentId]) -> Vec<Vec<*mut Column>> {
+    pub fn find_matching_archetype_columns(&mut self, query_ids: &[StableId]) -> Vec<Vec<*mut Column>> {
         let mut matching_archetypes = Vec::new();
 
         for archetype in self.archetypes.values_mut() {
