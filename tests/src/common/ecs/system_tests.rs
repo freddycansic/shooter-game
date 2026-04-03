@@ -49,7 +49,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
 
-        fn system_query_iterator<'a>(mut q: Query<'a, &'a A>) {
+        fn system_query_iterator(mut q: Query<&A>) {
             let mut comp_data = q.iter().map(|comp| comp.0).collect::<Vec<u32>>();
             comp_data.sort();
             assert_eq!(comp_data, vec![1, 2, 3]);

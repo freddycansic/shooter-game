@@ -10,7 +10,7 @@ struct A(u32);
 pub fn query_iter_benchmark(c: &mut Criterion) {
     let mut world = World::default();
 
-    fn query_iter(q: Query<&A>) {
+    fn query_iter(mut q: Query<&A>) {
         let sum = q.iter().map(|a| a.0).sum::<u32>();
     }
 
