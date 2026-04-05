@@ -5,7 +5,7 @@ use petgraph::{Direction, Graph, graph::NodeIndex};
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep, SweepHit};
 use crate::collision::colliders::sphere::Sphere;
 use crate::collision::colliders::triangle::Triangle;
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use crate::geometry::Primitive;
 use crate::maths::Local;
 use crate::{
@@ -257,7 +257,7 @@ impl Bvh {
         triangles
     }
 
-    fn intersect_ray_inner(&self, ray: &Local<Ray>, resources: &Resources, node: NodeIndex) -> Option<RayHit> {
+    fn intersect_ray_inner(&self, ray: &Local<Ray>, resources: &Assets, node: NodeIndex) -> Option<RayHit> {
         match &self.graph[node] {
             BvhNode::Aabb(aabb) => aabb.narrow_intersect(ray, resources).and_then(|_| {
                 self.graph
@@ -278,7 +278,7 @@ impl Bvh {
         &self,
         query: &Local<Sweep<Sphere>>,
         node: NodeIndex,
-        resources: &Resources,
+        resources: &Assets,
     ) -> Option<SweepHit> {
         match &self.graph[node] {
             BvhNode::Aabb(aabb) => aabb
@@ -306,7 +306,7 @@ impl Bvh {
 impl NarrowPhaseCollisionQuery<Local<Ray>> for Bvh {
     type Hit = Option<RayHit>;
 
-    fn narrow_intersect(&self, ray: &Local<Ray>, resources: &Resources) -> Option<RayHit> {
+    fn narrow_intersect(&self, ray: &Local<Ray>, resources: &Assets) -> Option<RayHit> {
         self.intersect_ray_inner(ray, resources, self.root)
     }
 }
@@ -314,7 +314,7 @@ impl NarrowPhaseCollisionQuery<Local<Ray>> for Bvh {
 impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Bvh {
     type Hit = Option<SweepHit>;
 
-    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Option<SweepHit> {
+    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Assets) -> Option<SweepHit> {
         self.intersect_sweep_sphere_inner(query, self.root, resources)
     }
 }

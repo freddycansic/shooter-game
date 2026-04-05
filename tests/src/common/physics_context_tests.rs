@@ -4,14 +4,14 @@ mod tests {
     use approx::assert_relative_eq;
     use common::collision::collidable::Sweep;
     use common::collision::colliders::sphere::Sphere;
-    use common::engine::resources::Resources;
+    use common::engine::assets::Assets;
     use common::world::physics_context::ColliderSet;
     use common::world::{Collider, World, WorldNode};
     use nalgebra::{Point3, Vector3};
     use petgraph::prelude::NodeIndex;
 
-    fn setup_plane_test() -> (World, Resources, NodeIndex) {
-        let mut resources = Resources::new();
+    fn setup_plane_test() -> (World, Assets, NodeIndex) {
+        let mut resources = Assets::new();
 
         let plane_handle = util::load_test_geometry_handle("files/big-subdivided-plane.glb".as_ref(), &mut resources);
 

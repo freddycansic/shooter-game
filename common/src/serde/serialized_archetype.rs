@@ -1,7 +1,7 @@
 use crate::ecs::archetype::Archetype;
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use crate::serde::SerializeWithContext;
 use glium::glutin::surface::WindowSurface;
 use glium::Display;
@@ -17,7 +17,7 @@ pub struct SerializedArchetype {
 impl SerializeWithContext for Archetype {
     type Serialized = SerializedArchetype;
 
-    fn serialize_with(&self, resources: &Resources) -> Self::Serialized {
+    fn serialize_with(&self, resources: &Assets) -> Self::Serialized {
         unimplemented!();
 
         //Self::Serialized {
@@ -29,7 +29,7 @@ impl SerializeWithContext for Archetype {
     fn deserialize_with(
         serialized: Self::Serialized,
         display: &Display<WindowSurface>,
-        resources: &mut Resources,
+        resources: &mut Assets,
     ) -> Self {
         unimplemented!()
     }

@@ -1,4 +1,4 @@
-use crate::engine::resources::TextureHandle;
+use crate::engine::assets::TextureHandle;
 use glium::implement_vertex;
 use nalgebra::{Point2, Vector2};
 

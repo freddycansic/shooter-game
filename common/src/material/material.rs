@@ -1,4 +1,4 @@
-use crate::engine::resources::TextureHandle;
+use crate::engine::assets::TextureHandle;
 use nalgebra::Vector3;
 
 pub enum BlendMode {

@@ -1,4 +1,4 @@
-use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
+use crate::engine::assets::{GeometryHandle, Assets, TextureHandle};
 use crate::serde::SerializedArchetype;
 use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
@@ -30,7 +30,7 @@ pub struct SerializedWorld {
 }
 
 impl SerializedWorld {
-    pub fn from_world(value: &World, resources: &Resources) -> Self {
+    pub fn from_world(value: &World, resources: &Assets) -> Self {
         let serialized_geometries = value
             .geometries
             .iter()
@@ -63,7 +63,7 @@ impl SerializedWorld {
         }
     }
 
-    pub fn into_world(self, display: &Display<WindowSurface>, resources: &mut Resources) -> Result<World> {
+    pub fn into_world(self, display: &Display<WindowSurface>, resources: &mut Assets) -> Result<World> {
         let geometries = self
             .geometries
             .into_iter()

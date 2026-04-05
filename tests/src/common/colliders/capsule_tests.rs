@@ -3,7 +3,7 @@ mod tests {
     use approx::assert_relative_eq;
     use common::collision::collidable::NarrowPhaseCollisionQuery;
     use common::collision::colliders::capsule::Capsule;
-    use common::engine::resources::Resources;
+    use common::engine::assets::Assets;
     use common::maths::{Local, Ray};
     use nalgebra::{Point3, Vector3};
 
@@ -17,7 +17,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 3.0);
     }
@@ -32,7 +32,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new());
+        let result = capsule.narrow_intersect(&ray, &Assets::new());
         assert!(result.is_none());
     }
 
@@ -46,7 +46,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 1.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 2.0);
         assert_relative_eq!(result.tmax, 2.0);
     }
@@ -61,7 +61,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.5);
         assert_relative_eq!(result.tmax, 2.5);
     }
@@ -76,7 +76,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 2.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        assert!(capsule.narrow_intersect(&ray, &Resources::new()).is_none());
+        assert!(capsule.narrow_intersect(&ray, &Assets::new()).is_none());
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-1.0, 0.0, 1.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
         assert_relative_eq!(result.tmax, 1.0);
     }
@@ -104,7 +104,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(-2.0, 1.5, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 2.0 - 0.75_f32.sqrt());
         assert_relative_eq!(result.tmax, 2.0 + 0.75_f32.sqrt());
     }
@@ -119,7 +119,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(0.5, -1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert!(result.tmin <= result.tmax);
     }
 
@@ -133,7 +133,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(2.0, 0.0, 0.0), Vector3::new(0.0, 1.0, 0.0)));
 
-        assert!(capsule.narrow_intersect(&ray, &Resources::new()).is_none());
+        assert!(capsule.narrow_intersect(&ray, &Assets::new()).is_none());
     }
 
     #[test]
@@ -146,7 +146,7 @@ mod tests {
 
         let ray = Local(Ray::new(Point3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)));
 
-        let result = capsule.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = capsule.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert!(result.tmin <= 0.0);
         assert!(result.tmax > 0.0);
     }

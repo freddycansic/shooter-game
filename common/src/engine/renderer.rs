@@ -5,8 +5,8 @@ use crate::camera::{Camera, OrbitalCamera};
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
 use crate::engine::input::Input;
-use crate::engine::resources::{CubemapHandle, TextureHandle};
-use crate::engine::resources::{GeometryHandle, Resources};
+use crate::engine::assets::{CubemapHandle, TextureHandle};
+use crate::engine::assets::{GeometryHandle, Assets};
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
@@ -291,7 +291,7 @@ impl Renderer {
         &mut self,
         world: &World,
         camera: &OrbitalCamera,
-        resources: &Resources,
+        resources: &Assets,
         selection: &[NodeIndex],
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -307,7 +307,7 @@ impl Renderer {
         &mut self,
         background: &Background,
         camera: &OrbitalCamera,
-        resources: &Resources,
+        resources: &Assets,
         target: &mut Frame,
     ) {
         match background {
@@ -367,7 +367,7 @@ impl Renderer {
         &mut self,
         queue: RenderQueue,
         camera: &OrbitalCamera,
-        resources: &Resources,
+        resources: &Assets,
         lights: &[Light],
         display: &Display<WindowSurface>,
         target: &mut Frame,
@@ -554,7 +554,7 @@ impl Renderer {
         &mut self,
         camera: &OrbitalCamera,
         quad_batches: &QuadBatches,
-        resources: &Resources,
+        resources: &Assets,
         display: &Display<WindowSurface>,
         target: &mut Frame,
     ) {
@@ -602,7 +602,7 @@ impl Renderer {
         &mut self,
         camera: &OrbitalCamera,
         cubemap_handle: CubemapHandle,
-        resources: &Resources,
+        resources: &Assets,
         target: &mut Frame,
     ) {
         // Strip translation from view matrix = skybox is always in the same place
@@ -732,7 +732,7 @@ impl Renderer {
     fn render_model_instances_color(
         &mut self,
         geometry_batches: &GeometryBatches,
-        resources: &Resources,
+        resources: &Assets,
         vp: &[[f32; 4]; 4],
         lights: &[Light],
         camera_position: Point3<f32>,
@@ -808,7 +808,7 @@ impl Renderer {
     fn render_mask_texture(
         &mut self,
         geometry_batches: &GeometryBatches,
-        resources: &Resources,
+        resources: &Assets,
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
         display: &Display<WindowSurface>,

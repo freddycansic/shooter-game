@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use fxhash::{FxBuildHasher, FxHashMap};
-use glium::{Display, glutin::surface::WindowSurface};
+use glium::{glutin::surface::WindowSurface, Display};
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
 
-use crate::engine::resources::{Resources, TextureHandle};
+use crate::engine::assets::{Assets, TextureHandle};
 use crate::{
     quad::{Quad, QuadVertex},
     serde::SerializeWithContext,
@@ -48,20 +48,16 @@ pub struct SerializedQuadTree(Vec<Vec<SerializedQuad>>);
 impl SerializeWithContext for QuadTree {
     type Serialized = SerializedQuadTree;
 
-    fn serialize_with(&self, resources: &Resources) -> Self::Serialized {
+    fn serialize_with(&self, assets: &Assets) -> Self::Serialized {
         SerializedQuadTree(
             self.0
                 .iter()
-                .map(|quads| quads.iter().map(|quad| quad.serialize_with(resources)).collect_vec())
+                .map(|quads| quads.iter().map(|quad| quad.serialize_with(assets)).collect_vec())
                 .collect_vec(),
         )
     }
 
-    fn deserialize_with(
-        serialized: Self::Serialized,
-        display: &Display<WindowSurface>,
-        resources: &mut Resources,
-    ) -> Self {
+    fn deserialize_with(serialized: Self::Serialized, display: &Display<WindowSurface>, assets: &mut Assets) -> Self {
         QuadTree(
             serialized
                 .0
@@ -69,7 +65,7 @@ impl SerializeWithContext for QuadTree {
                 .map(|quads| {
                     quads
                         .into_iter()
-                        .map(|quad| Quad::deserialize_with(quad, display, resources))
+                        .map(|quad| Quad::deserialize_with(quad, display, assets))
                         .collect_vec()
                 })
                 .collect_vec(),
@@ -90,8 +86,8 @@ pub struct SerializedQuad {
 impl SerializeWithContext for Quad {
     type Serialized = SerializedQuad;
 
-    fn serialize_with(&self, resources: &Resources) -> Self::Serialized {
-        let texture_path = resources.get_texture_path(self.texture);
+    fn serialize_with(&self, assets: &Assets) -> Self::Serialized {
+        let texture_path = assets.get_texture_path(self.texture);
 
         Self::Serialized {
             position: self.position,
@@ -106,9 +102,9 @@ impl SerializeWithContext for Quad {
     fn deserialize_with(
         serialized: Self::Serialized,
         display: &Display<WindowSurface>,
-        resources: &mut Resources,
+        assets: &mut Assets,
     ) -> Self {
-        let texture_handle = resources.get_texture_handle(&serialized.texture, display).unwrap();
+        let texture_handle = assets.get_texture_handle(&serialized.texture, display).unwrap();
 
         Quad {
             position: serialized.position,
