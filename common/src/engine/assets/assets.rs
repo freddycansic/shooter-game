@@ -7,11 +7,11 @@ use glium::{Display, glutin::surface::WindowSurface};
 
 use itertools::Itertools;
 
-use crate::engine::resources::handle::{CubemapHandle, GeometryHandle, TextureHandle};
+use crate::engine::assets::handle::{CubemapHandle, GeometryHandle, TextureHandle};
 use crate::geometry::Geometry;
 use crate::material::{Cubemap, Texture2DResource};
 
-pub struct Resources {
+pub struct Assets {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
     textures: FxHashMap<TextureHandle, Texture2DResource>,
     default_texture: Option<TextureHandle>,
@@ -27,7 +27,7 @@ pub struct Resources {
 // 2 tiered handles
 // 1 is stable and derived from the path etc
 // 2 is unstable, and derived at runtime
-impl Resources {
+impl Assets {
     pub fn new() -> Self {
         let hasher = FxBuildHasher::default();
 

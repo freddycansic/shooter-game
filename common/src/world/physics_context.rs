@@ -4,7 +4,7 @@ use crate::collision::collidable::{
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::resources::{GeometryHandle, Resources};
+use crate::engine::assets::{GeometryHandle, Assets};
 use crate::maths::{Local, Ray};
 use crate::world::{World, WorldGraph};
 use fxhash::FxHashMap;
@@ -21,7 +21,7 @@ pub enum Collider {
 }
 
 impl BroadPhaseCollisionQuery<Local<Ray>> for Collider {
-    fn broad_intersect(&self, query: &Local<Ray>, resources: &Resources) -> bool {
+    fn broad_intersect(&self, query: &Local<Ray>, resources: &Assets) -> bool {
         match self {
             Collider::Aabb(aabb) => aabb.narrow_intersect(query, resources).is_some(),
             Collider::Capsule(capsule) => capsule.narrow_intersect(query, resources).is_some(),
@@ -39,7 +39,7 @@ impl BroadPhaseCollisionQuery<Local<Ray>> for Collider {
 impl NarrowPhaseCollisionQuery<Local<Ray>> for Collider {
     type Hit = Option<RayHit>;
 
-    fn narrow_intersect(&self, query: &Local<Ray>, resources: &Resources) -> Self::Hit {
+    fn narrow_intersect(&self, query: &Local<Ray>, resources: &Assets) -> Self::Hit {
         match self {
             Collider::Aabb(aabb) => aabb.narrow_intersect(query, resources),
             Collider::Capsule(capsule) => capsule.narrow_intersect(query, resources),
@@ -53,7 +53,7 @@ impl NarrowPhaseCollisionQuery<Local<Ray>> for Collider {
 }
 
 impl BroadPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
-    fn broad_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> bool {
+    fn broad_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Assets) -> bool {
         match self {
             Collider::Aabb(aabb) => aabb.broad_intersect(query, resources),
             Collider::Capsule(_capsule) => unimplemented!(),
@@ -71,7 +71,7 @@ impl BroadPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
 impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
     type Hit = Option<SweepHit>;
 
-    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Self::Hit {
+    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Assets) -> Self::Hit {
         match self {
             Collider::Aabb(_aabb) => unimplemented!(),
             Collider::Capsule(_capsule) => unimplemented!(),
@@ -112,7 +112,7 @@ impl ColliderSet {
     }
 
     // TODO do some cast<T> type shiz to reduce code duplication
-    pub fn raycast(&self, local_ray: &Local<Ray>, resources: &Resources) -> Option<RayHit> {
+    pub fn raycast(&self, local_ray: &Local<Ray>, resources: &Assets) -> Option<RayHit> {
         if let Some(broad_collider) = &self.broad {
             if !broad_collider.broad_intersect(local_ray, resources) {
                 return None;
@@ -122,7 +122,7 @@ impl ColliderSet {
         self.narrow.narrow_intersect(local_ray, resources)
     }
 
-    pub fn spherecast(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> Option<SweepHit> {
+    pub fn spherecast(&self, query: &Local<Sweep<Sphere>>, resources: &Assets) -> Option<SweepHit> {
         if let Some(broad_collider) = &self.broad {
             if !broad_collider.broad_intersect(query, resources) {
                 return None;
@@ -149,7 +149,7 @@ impl PhysicsContext {
         }
     }
 
-    pub fn raycast(&self, ray: &Ray, world_graph: &WorldGraph, resources: &Resources) -> Option<RayHitNode> {
+    pub fn raycast(&self, ray: &Ray, world_graph: &WorldGraph, resources: &Assets) -> Option<RayHitNode> {
         self.colliders
             .iter()
             .filter_map(|(node_index, collider_set)| {
@@ -187,7 +187,7 @@ impl PhysicsContext {
         &self,
         query: &Sweep<Sphere>,
         world_graph: &WorldGraph,
-        resources: &Resources,
+        resources: &Assets,
     ) -> Option<SweepHitNode> {
         // dbg!(self.colliders.len());
 

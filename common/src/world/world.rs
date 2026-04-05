@@ -5,7 +5,7 @@ use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::ecs::resource::{Resource, ResourceStore};
 use crate::engine::renderer::Background;
-use crate::engine::resources::{GeometryHandle, Resources, TextureHandle};
+use crate::engine::assets::{GeometryHandle, Assets, TextureHandle};
 use crate::light::Light;
 use crate::line::Line;
 use crate::maths::Ray;
@@ -68,15 +68,15 @@ impl World {
         matching_archetypes
     }
 
-    pub fn raycast(&self, ray: &Ray, resources: &Resources) -> Option<RayHitNode> {
+    pub fn raycast(&self, ray: &Ray, resources: &Assets) -> Option<RayHitNode> {
         self.physics_context.raycast(ray, &self.graph, resources)
     }
 
-    pub fn spherecast(&self, sphere: &Sweep<Sphere>, resources: &Resources) -> Option<SweepHitNode> {
+    pub fn spherecast(&self, sphere: &Sweep<Sphere>, resources: &Assets) -> Option<SweepHitNode> {
         self.physics_context.spherecast(sphere, &self.graph, resources)
     }
 
-    pub fn save_as(&self, resources: &Resources) {
+    pub fn save_as(&self, resources: &Assets) {
         let serialized_world = SerializedWorld::from_world(self, resources);
 
         let serialized = serde_json::to_string(&serialized_world).unwrap();

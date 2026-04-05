@@ -69,7 +69,7 @@ impl Application for Game {
 
         let mut engine = Engine::new(None /* full size */, display, window, event_loop);
 
-        engine.resources.initialise_default_texture(display).unwrap();
+        engine.assets.initialise_default_texture(display).unwrap();
 
         let mut world = {
             let args = Args::parse();
@@ -87,7 +87,7 @@ impl Application for Game {
 
             serde_json::from_str::<SerializedWorld>(&serialized_world_string)
                 .unwrap()
-                .into_world(display, &mut engine.resources)
+                .into_world(display, &mut engine.assets)
                 .unwrap()
         };
 
@@ -101,7 +101,7 @@ impl Application for Game {
         );*/
 
         let crosshair_texture = engine
-            .resources
+            .assets
             .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
             .unwrap();
 
@@ -113,7 +113,7 @@ impl Application for Game {
 
         let state = FrameState::default();
 
-        let player = PlayerController::initialise(&mut world, &mut engine.resources, display);
+        let player = PlayerController::initialise(&mut world, &mut engine.assets, display);
 
         let inner_size = window.inner_size();
         let camera = OrbitalCamera::new(
@@ -221,7 +221,7 @@ impl Game {
 
             let hit = self
                 .world
-                .spherecast(&Sweep::new(world_sphere, player_displacement), &self.engine.resources);
+                .spherecast(&Sweep::new(world_sphere, player_displacement), &self.engine.assets);
 
             log::debug!("hit {:?}", &hit);
 
@@ -265,7 +265,7 @@ impl Game {
             self.engine.renderer.render_world(
                 &self.world,
                 &self.camera,
-                &self.engine.resources,
+                &self.engine.assets,
                 &[],
                 display,
                 &mut target,

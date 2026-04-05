@@ -1,7 +1,7 @@
 use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit, Sweep, SweepHit};
 use crate::collision::colliders::cylinder;
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use crate::maths::{Local, Ray};
 use nalgebra::{Point3, Vector3};
 
@@ -136,7 +136,7 @@ impl Triangle {
 impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Triangle {
     type Hit = Option<SweepHit>;
 
-    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, _resources: &Resources) -> Option<SweepHit> {
+    fn narrow_intersect(&self, query: &Local<Sweep<Sphere>>, _resources: &Assets) -> Option<SweepHit> {
         let mut closest_hit = None;
 
         if let Some(hit) = self.sweep_intersect_sphere_on_face(&query.object, &query.velocity) {
@@ -188,7 +188,7 @@ impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Triangle {
 impl NarrowPhaseCollisionQuery<Local<Ray>> for Triangle {
     type Hit = Option<RayHit>;
 
-    fn narrow_intersect(&self, ray: &Local<Ray>, _resources: &Resources) -> Option<RayHit> {
+    fn narrow_intersect(&self, ray: &Local<Ray>, _resources: &Assets) -> Option<RayHit> {
         let n = self.plane_normal();
 
         let denom = ray.direction().dot(&n);

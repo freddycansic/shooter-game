@@ -1,14 +1,14 @@
 use glium::{Display, glutin::surface::WindowSurface};
 
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 
 pub trait SerializeWithContext {
     type Serialized;
 
-    fn serialize_with(&self, resources: &Resources) -> Self::Serialized;
+    fn serialize_with(&self, assets: &Assets) -> Self::Serialized;
     fn deserialize_with(
         serialized: Self::Serialized,
         display: &Display<WindowSurface>,
-        resources: &mut Resources,
+        assets: &mut Assets,
     ) -> Self;
 }

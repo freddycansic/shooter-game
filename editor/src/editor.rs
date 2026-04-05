@@ -8,8 +8,8 @@ use common::maths::Ray;
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
 use egui_glium::egui_winit::egui::{self, Align, Button};
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Point3, Vector4};
@@ -31,8 +31,8 @@ use common::engine::engine::Engine;
 use common::engine::renderer::Background;
 use common::light::Light;
 use common::line::Line;
-use common::world::World;
 use common::world::physics_context::ColliderSet;
+use common::world::World;
 use common::*;
 
 struct FrameState {
@@ -184,14 +184,14 @@ impl Editor {
                     let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
 
                     self.world = serialized_world
-                        .into_world(display, &mut self.engine.resources)
+                        .into_world(display, &mut self.engine.assets)
                         .unwrap();
                 }
                 EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
                     self.world.background = Background::HDRI(
                         self.engine
-                            .resources
+                            .assets
                             .get_cubemap_handle(&hdri_directory_path, display)
                             .unwrap(),
                     )
@@ -209,7 +209,7 @@ impl Editor {
         {
             let ray = self.mouse_ray();
 
-            let intersection = self.world.raycast(&ray, &self.engine.resources);
+            let intersection = self.world.raycast(&ray, &self.engine.assets);
 
             if self.state.gui.render_debug_mouse_rays {
                 self.world.lines.push(Line::new(
@@ -270,7 +270,7 @@ impl Editor {
             self.engine.renderer.render_world(
                 &self.world,
                 &self.camera,
-                &self.engine.resources,
+                &self.engine.assets,
                 &self.selection,
                 display,
                 &mut target,
@@ -317,7 +317,7 @@ impl Editor {
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving project...");
-                                self.world.save_as(&self.engine.resources);
+                                self.world.save_as(&self.engine.assets);
                             }
                         });
 
@@ -348,7 +348,7 @@ impl Editor {
                                 let mut temp_path = std::env::temp_dir();
                                 temp_path.push(uuid.clone());
 
-                                let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.resources);
+                                let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.assets);
                                 let serialized_string = serde_json::to_string(&serialized_world).unwrap();
 
                                 std::fs::write(&temp_path, serialized_string).unwrap();
@@ -476,7 +476,7 @@ impl Editor {
 
     /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
-        let handles = self.engine.resources.get_geometry_handles(path, Some(display))?;
+        let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
 
         let group_node = self.world.graph.add_root_node(WorldNode::default());
 

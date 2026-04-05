@@ -1,7 +1,7 @@
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep};
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use crate::maths::Local;
 use crate::{collision::collidable::RayHit, maths::Ray};
 use nalgebra::{Point3, Vector3};
@@ -43,7 +43,7 @@ impl Aabb {
 }
 
 impl BroadPhaseCollisionQuery<Local<Sphere>> for Aabb {
-    fn broad_intersect(&self, sphere: &Local<Sphere>, _resources: &Resources) -> bool {
+    fn broad_intersect(&self, sphere: &Local<Sphere>, _resources: &Assets) -> bool {
         let clamped = Point3::new(
             sphere.origin.x.clamp(self.min.x, self.max.x),
             sphere.origin.y.clamp(self.min.y, self.max.y),
@@ -55,7 +55,7 @@ impl BroadPhaseCollisionQuery<Local<Sphere>> for Aabb {
 }
 
 impl BroadPhaseCollisionQuery<Local<Sweep<Sphere>>> for Aabb {
-    fn broad_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Resources) -> bool {
+    fn broad_intersect(&self, query: &Local<Sweep<Sphere>>, resources: &Assets) -> bool {
         let swept_sphere = Local(Capsule::new(
             query.object.origin,
             query.object.origin + query.velocity,
@@ -67,7 +67,7 @@ impl BroadPhaseCollisionQuery<Local<Sweep<Sphere>>> for Aabb {
 }
 
 impl BroadPhaseCollisionQuery<Local<Capsule>> for Aabb {
-    fn broad_intersect(&self, capsule: &Local<Capsule>, _resources: &Resources) -> bool {
+    fn broad_intersect(&self, capsule: &Local<Capsule>, _resources: &Assets) -> bool {
         let ba = capsule.p2 - capsule.p1;
 
         // Test endpoints
@@ -104,7 +104,7 @@ impl BroadPhaseCollisionQuery<Local<Capsule>> for Aabb {
 impl NarrowPhaseCollisionQuery<Local<Ray>> for Aabb {
     type Hit = Option<RayHit>;
 
-    fn narrow_intersect(&self, local_ray: &Local<Ray>, _resources: &Resources) -> Option<RayHit> {
+    fn narrow_intersect(&self, local_ray: &Local<Ray>, _resources: &Assets) -> Option<RayHit> {
         let mut tmin = f32::NEG_INFINITY; // earliest possible intersection
         let mut tmax = f32::INFINITY; // latest possible intersection
 

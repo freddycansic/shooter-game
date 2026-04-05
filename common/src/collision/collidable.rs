@@ -1,4 +1,4 @@
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
 
@@ -39,11 +39,11 @@ pub struct SweepHitNode {
 }
 
 pub trait BroadPhaseCollisionQuery<T> {
-    fn broad_intersect(&self, query: &T, resources: &Resources) -> bool;
+    fn broad_intersect(&self, query: &T, resources: &Assets) -> bool;
 }
 
 pub trait NarrowPhaseCollisionQuery<T> {
     type Hit;
 
-    fn narrow_intersect(&self, query: &T, resources: &Resources) -> Self::Hit;
+    fn narrow_intersect(&self, query: &T, resources: &Assets) -> Self::Hit;
 }

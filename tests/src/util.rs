@@ -1,8 +1,8 @@
-use common::engine::resources::{GeometryHandle, Resources};
+use common::engine::assets::{GeometryHandle, Assets};
 use common::geometry::Geometry;
 use std::path::Path;
 
-pub fn load_test_geometry_handle(path: &Path, resources: &mut Resources) -> GeometryHandle {
+pub fn load_test_geometry_handle(path: &Path, resources: &mut Assets) -> GeometryHandle {
     resources.get_geometry_handles(path, None).unwrap()[0]
 }
 
