@@ -3,7 +3,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
-use crate::ecs::event::{Event, EventQueue};
+use crate::ecs::event::{Event, EventMessage, EventQueue};
 use crate::ecs::resource::{Resource, ResourceStore};
 use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use crate::engine::renderer::Background;
@@ -39,6 +39,8 @@ pub struct World {
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
     pub events: FxHashMap<StableId, EventQueue>,
+
+    callbacks: FxHashMap<StableId, Vec<Box<dyn Fn(&dyn EventMessage)>>>,
 }
 
 impl World {
@@ -109,6 +111,28 @@ impl World {
     pub fn event_queue<T: Event + 'static>(&mut self) -> &mut EventQueue {
         self.events.entry(T::ID).or_insert(EventQueue::default())
     }
+
+    pub fn dispatch<T: Event + 'static>(&mut self, event: T) {
+        if let Entry::Occupied(callbacks) = self.callbacks.entry(T::ID) {
+            for callback in callbacks.get().iter() {
+                callback(&event);
+            }
+        } else {
+            log::warn!("No callbacks for Event {:?}", T::ID);
+        }
+    }
+
+    pub fn add_callback<T: Event + 'static, F>(&mut self, func: F)
+    where
+        F: Fn(&T) + 'static,
+    {
+        let wrapper = Box::new(move |event: &dyn EventMessage| {
+            let e = event.as_any_ref().downcast_ref::<T>().unwrap();
+            func(e);
+        });
+
+        self.callbacks.entry(T::ID).or_default().push(wrapper);
+    }
 }
 
 impl Default for World {
@@ -128,6 +152,7 @@ impl Default for World {
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
             events: FxHashMap::default(),
+            callbacks: FxHashMap::default(),
         }
     }
 }
