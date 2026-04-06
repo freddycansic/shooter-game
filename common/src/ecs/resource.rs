@@ -5,6 +5,7 @@ pub trait Resource {
     const ID: StableId;
 }
 
+// TODO make AsAny trait cause this is duplicated
 trait ResourceData {
     fn as_any_ref(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -27,7 +28,7 @@ pub struct ResourceStore {
 impl<T: Resource + 'static> From<T> for ResourceStore {
     fn from(value: T) -> Self {
         Self {
-            resource: Box::new(value)
+            resource: Box::new(value),
         }
     }
 }

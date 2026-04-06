@@ -6,3 +6,4 @@ pub mod resource;
 pub mod stable_id;
 pub mod system;
 pub mod system_parameters;
+pub mod event;

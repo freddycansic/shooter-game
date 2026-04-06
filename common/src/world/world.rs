@@ -3,9 +3,10 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
+use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::resource::{Resource, ResourceStore};
+use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use crate::engine::renderer::Background;
-use crate::engine::assets::{GeometryHandle, Assets, TextureHandle};
 use crate::light::Light;
 use crate::line::Line;
 use crate::maths::Ray;
@@ -34,8 +35,10 @@ pub struct World {
     pub player_spawn: Option<NodeIndex>,
     pub physics_context: PhysicsContext,
 
+    // ECS
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
+    pub events: FxHashMap<StableId, EventQueue>,
 }
 
 impl World {
@@ -98,9 +101,13 @@ impl World {
     pub fn get_resource<T: Resource + 'static>(&self) -> Option<&T> {
         self.resources.get(&T::ID).and_then(|store| store.get())
     }
-    
+
     pub fn get_resource_mut<T: Resource + 'static>(&mut self) -> Option<&mut T> {
         self.resources.get_mut(&T::ID).and_then(|store| store.get_mut())
+    }
+
+    pub fn event_queue<T: Event + 'static>(&mut self) -> &mut EventQueue {
+        self.events.entry(T::ID).or_insert(EventQueue::default())
     }
 }
 
@@ -120,6 +127,7 @@ impl Default for World {
             player_spawn: None,
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
+            events: FxHashMap::default(),
         }
     }
 }
