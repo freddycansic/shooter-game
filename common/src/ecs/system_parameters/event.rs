@@ -1,23 +1,35 @@
-use std::marker::PhantomData;
 use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
+use std::marker::PhantomData;
 
 pub struct EventReader<'w, T: Event> {
-    queue: &'w mut EventQueue,
+    queue: &'w EventQueue,
+    last_index: usize,
     _marker: PhantomData<T>,
 }
 
 impl<'w, T: Event + 'static> EventReader<'w, T> {
-    pub fn new(queue: &'w mut EventQueue) -> Self {
+    pub fn new(queue: &'w EventQueue) -> Self {
         Self {
             queue,
+            last_index: queue.0.len(),
             _marker: PhantomData,
         }
     }
-    
-    pub fn drain(&mut self) -> impl Iterator<Item = T> {
-        self.queue.drain().map(|event| *event.into_any().downcast::<T>().unwrap())
+
+    pub fn read(&mut self) -> impl Iterator<Item = &T> {
+        // only read new events
+        dbg!(self.last_index);
+        let events = &self.queue.0[self.last_index..];
+
+        self.last_index = self.queue.0.len();
+
+        dbg!(self.last_index);
+
+        events
+            .iter()
+            .map(|event| event.as_any_ref().downcast_ref::<T>().unwrap())
     }
 }
 
@@ -41,7 +53,7 @@ impl<'w, T: Event + 'static> EventWriter<'w, T> {
             _marker: PhantomData,
         }
     }
-    
+
     pub fn send(&mut self, event: T) {
         self.queue.send(Box::new(event));
     }
