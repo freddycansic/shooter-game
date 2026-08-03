@@ -1,14 +1,18 @@
+use fxhash::FxHashMap;
+use crate::ecs::component::StableId;
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
 use crate::world::World;
 
 pub struct System {
     function: Box<dyn FnMut(&mut World)>,
+    event_reader_cursors: FxHashMap<StableId, Vec<usize>>
 }
 
 impl System {
     fn new<T: FnMut(&mut World) + 'static>(function: T) -> Self {
         Self {
             function: Box::new(function),
+            event_reader_cursors: FxHashMap::default()
         }
     }
 

@@ -1,6 +1,6 @@
 use clap::Parser;
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use std::path::PathBuf;
 use std::time::Instant;

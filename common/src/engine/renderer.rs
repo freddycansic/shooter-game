@@ -4,9 +4,9 @@ use std::hash::{Hash, Hasher};
 use crate::camera::{Camera, OrbitalCamera};
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
-use crate::engine::input::Input;
+use crate::engine::assets::{Assets, GeometryHandle};
 use crate::engine::assets::{CubemapHandle, TextureHandle};
-use crate::engine::assets::{GeometryHandle, Assets};
+use crate::engine::input::Input;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
@@ -25,8 +25,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
+    Program, Surface, Vertex, VertexBuffer,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};

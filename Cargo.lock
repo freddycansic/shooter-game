@@ -801,6 +801,7 @@ dependencies = [
  "cfg-if",
  "color-eyre",
  "common",
+ "common-macros",
  "egui_glium",
  "egui_ltreeview",
  "glium",

@@ -20,12 +20,9 @@ impl<'w, T: Event + 'static> EventReader<'w, T> {
 
     pub fn read(&mut self) -> impl Iterator<Item = &T> {
         // only read new events
-        dbg!(self.last_index);
         let events = &self.queue.0[self.last_index..];
 
         self.last_index = self.queue.0.len();
-
-        dbg!(self.last_index);
 
         events
             .iter()

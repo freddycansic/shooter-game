@@ -4,7 +4,7 @@ use crate::collision::collidable::{
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
-use crate::engine::assets::{GeometryHandle, Assets};
+use crate::engine::assets::{Assets, GeometryHandle};
 use crate::maths::{Local, Ray};
 use crate::world::{World, WorldGraph};
 use fxhash::FxHashMap;

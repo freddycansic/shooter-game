@@ -100,11 +100,11 @@ impl World {
         };
     }
 
-    pub fn get_resource<T: Resource + 'static>(&self) -> Option<&T> {
+    pub fn resource<T: Resource + 'static>(&self) -> Option<&T> {
         self.resources.get(&T::ID).and_then(|store| store.get())
     }
 
-    pub fn get_resource_mut<T: Resource + 'static>(&mut self) -> Option<&mut T> {
+    pub fn resource_mut<T: Resource + 'static>(&mut self) -> Option<&mut T> {
         self.resources.get_mut(&T::ID).and_then(|store| store.get_mut())
     }
 
