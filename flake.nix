@@ -45,7 +45,7 @@
             (pkgs.rust-bin.selectLatestNightlyWith
               (toolchain:
                 toolchain.default.override {
-                  extensions = ["llvm-tools-preview" "rustc-codegen-cranelift-preview"];
+                  extensions = ["rust-src" "llvm-tools-preview" "rustc-codegen-cranelift-preview"];
                 }))
             pkgs.cargo-tarpaulin # code coverage
             pkgs.clang
@@ -55,6 +55,12 @@
           WINIT_UNIX_BACKEND = "wayland";
           LD_LIBRARY_PATH = libPath;
           RUSTFLAGS = "-Clink-arg=-Wl,-rpath,${libPath} -Clink-arg=-fuse-ld=${pkgs.mold}/bin/mold -Clink-arg=-flto";
+
+          shellHook = ''
+            mkdir -p .nix
+            ln -sfn "$(rustc --print sysroot)/bin" .nix/rust-toolchain
+            ln -sfn "$(rustc --print sysroot)/lib/rustlib/src/rust" .nix/rust-src
+          '';
         };
       }
     );
