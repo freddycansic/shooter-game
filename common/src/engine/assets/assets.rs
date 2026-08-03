@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use glium::{Display, glutin::surface::WindowSurface};
+use glium::{glutin::surface::WindowSurface, Display};
 
 use itertools::Itertools;
 

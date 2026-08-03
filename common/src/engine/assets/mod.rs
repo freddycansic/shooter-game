@@ -1,5 +1,5 @@
-mod handle;
 mod assets;
+mod handle;
 
-pub use handle::{CubemapHandle, GeometryHandle, TextureHandle};
 pub use assets::Assets;
+pub use handle::{CubemapHandle, GeometryHandle, TextureHandle};

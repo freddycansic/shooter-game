@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
-use glium::{Display, glutin::surface::WindowSurface};
+use glium::{glutin::surface::WindowSurface, Display};
 use serde::{Deserialize, Serialize};
 
 use crate::colors::Color;
-use crate::engine::renderer::Background;
 use crate::engine::assets::Assets;
+use crate::engine::renderer::Background;
 
 #[derive(Serialize, Deserialize)]
 pub enum SerializedBackground {

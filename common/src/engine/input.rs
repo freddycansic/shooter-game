@@ -1,3 +1,4 @@
+use common_macros::Resource;
 use log::warn;
 use nalgebra::Vector2;
 use winit::dpi::PhysicalPosition;
@@ -10,6 +11,7 @@ use winit::{
 const NUM_KEYS: usize = 194;
 const NUM_MOUSE_BUTTONS: usize = 6;
 
+#[derive(Resource)]
 pub struct Input {
     key_states: [KeyState; NUM_KEYS],
     mouse_button_states: [KeyState; NUM_MOUSE_BUTTONS],
@@ -30,12 +32,6 @@ enum KeyState {
 
 impl Default for Input {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Input {
-    pub fn new() -> Self {
         Self {
             key_states: [KeyState::Released; NUM_KEYS],
             mouse_button_states: [KeyState::Released; NUM_MOUSE_BUTTONS],
@@ -46,7 +42,9 @@ impl Input {
             mouse_on_window: false,
         }
     }
+}
 
+impl Input {
     pub fn key_pressed(&self, key_code: KeyCode) -> bool {
         self.key_states[key_code as usize] == KeyState::Pressed
     }

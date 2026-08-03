@@ -17,7 +17,7 @@ impl<T: Resource + 'static> SystemParameter for Res<'_, T> {
     type Item<'w> = Res<'w, T>;
 
     fn get(world: &mut World) -> Self::Item<'_> {
-        Res(world.get_resource::<T>().unwrap())
+        Res(world.resource::<T>().unwrap())
     }
 }
 
@@ -41,6 +41,6 @@ impl<T: Resource + 'static> SystemParameter for ResMut<'_, T> {
     type Item<'w> = ResMut<'w, T>;
 
     fn get(world: &mut World) -> Self::Item<'_> {
-        ResMut(world.get_resource_mut::<T>().unwrap())
+        ResMut(world.resource_mut::<T>().unwrap())
     }
 }

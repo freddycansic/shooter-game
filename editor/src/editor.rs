@@ -27,15 +27,19 @@ use common::application::Application;
 use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
+use common::ecs::system_parameters::res::ResMut;
 use common::engine::engine::Engine;
+use common::engine::input::Input;
 use common::engine::renderer::Background;
 use common::light::Light;
 use common::line::Line;
 use common::world::physics_context::ColliderSet;
 use common::world::World;
 use common::*;
+use common_macros::Resource;
 
-struct FrameState {
+#[derive(Resource)]
+pub struct FrameState {
     pub last_frame_end: Instant,
     pub frame_count: u128,
     pub deltatime: f64,
@@ -51,15 +55,13 @@ struct GuiState {
     pub render_debug_mouse_rays: bool,
 }
 
-impl FrameState {
-    pub fn update_statistics(&mut self) {
-        self.frame_count = (self.frame_count + 1) % u128::MAX;
+pub fn update_statistics(mut frame_state: ResMut<FrameState>) {
+    frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
 
-        self.deltatime = self.last_frame_end.elapsed().as_secs_f64();
-        self.fps = (1.0 / self.deltatime) as f32;
+    frame_state.deltatime = frame_state.last_frame_end.elapsed().as_secs_f64();
+    frame_state.fps = (1.0 / frame_state.deltatime) as f32;
 
-        self.last_frame_end = Instant::now();
-    }
+    frame_state.last_frame_end = Instant::now();
 }
 
 enum EngineEvent {
@@ -71,7 +73,6 @@ enum EngineEvent {
 pub struct Editor {
     engine: Engine,
     camera: OrbitalCamera,
-    state: FrameState,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
     debug_cuboids: Vec<Cuboid>,
@@ -88,7 +89,8 @@ impl Application for Editor {
 
         let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
 
-        let engine = Engine::new(None /* full size*/, display, window, event_loop);
+        let mut engine = Engine::new(None /* full size*/, display, window, event_loop);
+        engine.scheduler.register(update_statistics);
 
         let state = FrameState {
             last_frame_end: Instant::now(),
@@ -104,17 +106,19 @@ impl Application for Editor {
             },
         };
 
-        let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
-
         let mut world = World::default();
+        world.register_resource(state);
+        world.register_resource(Input::default());
+
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
         }];
 
+        let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
+
         Self {
             engine,
-            state,
             sender,
             receiver,
             camera,
@@ -131,7 +135,8 @@ impl Application for Editor {
         window: &Window,
         display: &Display<WindowSurface>,
     ) {
-        self.engine.input.process_window_event(&event);
+        let input = self.world.resource_mut::<Input>().unwrap();
+        input.process_window_event(&event);
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -142,14 +147,12 @@ impl Application for Editor {
                     .update_projection_matrices(new_size.width as f32, new_size.height as f32);
             }
             WindowEvent::RedrawRequested => {
-                if self.engine.input.key_pressed(KeyCode::Escape) {
+                if input.key_pressed(KeyCode::Escape) {
                     event_loop.exit();
                 }
 
                 self.update(window, display);
                 self.render(window, display);
-
-                self.state.update_statistics();
             }
             _ => (),
         };
@@ -183,9 +186,7 @@ impl Editor {
                     // In the future it might be necessary to have multiple worlds in one project.
                     let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
 
-                    self.world = serialized_world
-                        .into_world(display, &mut self.engine.assets)
-                        .unwrap();
+                    self.world = serialized_world.into_world(display, &mut self.engine.assets).unwrap();
                 }
                 EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
                 EngineEvent::ImportHDRIBackground(hdri_directory_path) => {

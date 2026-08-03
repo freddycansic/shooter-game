@@ -1,6 +1,5 @@
-use crate::engine::input::Input;
-use crate::engine::renderer::Renderer;
 use crate::engine::assets::Assets;
+use crate::engine::renderer::Renderer;
 use common::engine::scheduler::Scheduler;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::ViewportId;
@@ -12,7 +11,6 @@ use winit::window::Window;
 
 pub struct Engine {
     pub renderer: Renderer,
-    pub input: Input,
     pub assets: Assets,
     pub gui: EguiGlium,
     pub scheduler: Scheduler,
@@ -30,7 +28,6 @@ impl Engine {
 
         Self {
             renderer: Renderer::new(viewport, display).unwrap(),
-            input: Input::new(),
             assets,
             gui: EguiGlium::new(ViewportId::ROOT, display, window, event_loop),
             scheduler: Scheduler::default(),
