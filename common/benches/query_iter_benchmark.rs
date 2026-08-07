@@ -15,7 +15,7 @@ pub fn query_iter_benchmark(c: &mut Criterion) {
     }
 
     let mut scheduler = Scheduler::default();
-    scheduler.register(query_iter);
+    scheduler.register_continuous(query_iter);
 
     for magnitude in 3..8 {
         let num_previous_components = 10_u32.pow(magnitude - 1);

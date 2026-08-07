@@ -40,7 +40,7 @@ mod tests {
         }
 
         let mut scheduler = Scheduler::default();
-        scheduler.register(read_resources);
+        scheduler.register_continuous(read_resources);
         scheduler.run_systems(&mut world);
     }
 
@@ -62,9 +62,9 @@ mod tests {
         }
 
         let mut scheduler = Scheduler::default();
-        scheduler.register(read_resource_before);
-        scheduler.register(write_resource);
-        scheduler.register(read_resource_after);
+        scheduler.register_continuous(read_resource_before);
+        scheduler.register_continuous(write_resource);
+        scheduler.register_continuous(read_resource_after);
         scheduler.run_systems(&mut world);
     }
 }

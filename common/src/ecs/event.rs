@@ -3,6 +3,7 @@ use std::any::Any;
 
 pub trait Event {
     const ID: StableId;
+    const NAME: &'static str;
 }
 
 // TODO make this a type erased Vec<T> like column for cache locality.
@@ -21,7 +22,7 @@ impl<T: Event + 'static> EventMessage for T {
 pub struct EventQueue(pub Vec<Box<dyn EventMessage>>);
 
 impl EventQueue {
-    pub fn send(&mut self, event: Box<dyn EventMessage>) {
+    pub fn write(&mut self, event: Box<dyn EventMessage>) {
         self.0.push(event);
     }
 }

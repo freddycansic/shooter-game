@@ -2,7 +2,6 @@ use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::keyboard::KeyCode;
 
-use crate::camera::camera::Camera;
 use crate::engine::input::Input;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -22,9 +21,7 @@ impl FpsCamera {
             looking_direction: Vector3::new(1.0, 0.0, 0.0),
         }
     }
-}
 
-impl Camera for FpsCamera {
     fn update(&mut self, input: &Input, deltatime: f32) {
         let mouse_sensitivity = 100.0;
 

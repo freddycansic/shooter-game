@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use fxhash::{FxBuildHasher, FxHashMap};
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use serde::{Deserialize, Serialize};
@@ -99,11 +99,7 @@ impl SerializeWithContext for Quad {
         }
     }
 
-    fn deserialize_with(
-        serialized: Self::Serialized,
-        display: &Display<WindowSurface>,
-        assets: &mut Assets,
-    ) -> Self {
+    fn deserialize_with(serialized: Self::Serialized, display: &Display<WindowSurface>, assets: &mut Assets) -> Self {
         let texture_handle = assets.get_texture_handle(&serialized.texture, display).unwrap();
 
         Quad {

@@ -1,4 +1,4 @@
-use common::engine::assets::{GeometryHandle, Assets};
+use common::engine::assets::{Assets, GeometryHandle};
 use common::geometry::Geometry;
 use std::path::Path;
 

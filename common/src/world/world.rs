@@ -3,7 +3,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
-use crate::ecs::event::{Event, EventMessage, EventQueue};
+use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::resource::{Resource, ResourceStore};
 use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use crate::engine::renderer::Background;
@@ -39,8 +39,6 @@ pub struct World {
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
     pub events: FxHashMap<StableId, EventQueue>,
-
-    callbacks: FxHashMap<StableId, Vec<Box<dyn Fn(&dyn EventMessage)>>>,
 }
 
 impl World {
@@ -108,31 +106,63 @@ impl World {
         self.resources.get_mut(&T::ID).and_then(|store| store.get_mut())
     }
 
-    pub fn event_queue<T: Event + 'static>(&mut self) -> &mut EventQueue {
-        self.events.entry(T::ID).or_insert(EventQueue::default())
-    }
+    pub fn resources_mut<T1: Resource + 'static, T2: Resource + 'static>(&mut self) -> Option<(&mut T1, &mut T2)> {
+        assert_ne!(T1::ID, T2::ID);
 
-    pub fn dispatch<T: Event + 'static>(&mut self, event: T) {
-        if let Entry::Occupied(callbacks) = self.callbacks.entry(T::ID) {
-            for callback in callbacks.get().iter() {
-                callback(&event);
-            }
+        let resources_ptr = &mut self.resources as *mut FxHashMap<StableId, ResourceStore>;
+
+        let r1 = unsafe {
+            (&mut *resources_ptr as &mut FxHashMap<StableId, ResourceStore>)
+                .get_mut(&T1::ID)
+                .and_then(|store| store.get_mut())
+        };
+        let r2 = unsafe {
+            (&mut *resources_ptr as &mut FxHashMap<StableId, ResourceStore>)
+                .get_mut(&T2::ID)
+                .and_then(|store| store.get_mut())
+        };
+
+        if r1.is_some() && r2.is_some() {
+            Some((r1.unwrap(), r2.unwrap()))
         } else {
-            log::warn!("No callbacks for Event {:?}", T::ID);
+            None
         }
     }
 
-    pub fn add_callback<T: Event + 'static, F>(&mut self, func: F)
-    where
-        F: Fn(&T) + 'static,
-    {
-        let wrapper = Box::new(move |event: &dyn EventMessage| {
-            let e = event.as_any_ref().downcast_ref::<T>().unwrap();
-            func(e);
-        });
-
-        self.callbacks.entry(T::ID).or_default().push(wrapper);
+    pub fn write_event<E: Event + 'static>(&mut self, event: E) {
+        self.event_queue::<E>().write(Box::new(event));
     }
+
+    pub fn event_queue<T: Event + 'static>(&mut self) -> &mut EventQueue {
+        self.event_queue_from_id(T::ID)
+    }
+
+    pub fn event_queue_from_id(&mut self, id: StableId) -> &mut EventQueue {
+        self.events.entry(id).or_insert(EventQueue::default())
+    }
+
+    // // TODO TEST
+    // pub fn dispatch<T: Event + 'static>(&mut self, event: T) {
+    //     if let Entry::Occupied(callbacks) = self.callbacks.entry(T::ID) {
+    //         for callback in callbacks.get().iter() {
+    //             callback(&event);
+    //         }
+    //     } else {
+    //         log::warn!("No callbacks for Event {:?}", T::ID);
+    //     }
+    // }
+    //
+    // pub fn add_callback<T: Event + 'static, F>(&mut self, func: F)
+    // where
+    //     F: Fn(&T) + 'static,
+    // {
+    //     let wrapper = Box::new(move |event: &dyn EventMessage| {
+    //         let e = event.as_any_ref().downcast_ref::<T>().unwrap();
+    //         func(e);
+    //     });
+    //
+    //     self.callbacks.entry(T::ID).or_default().push(wrapper);
+    // }
 }
 
 impl Default for World {
@@ -152,7 +182,6 @@ impl Default for World {
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
             events: FxHashMap::default(),
-            callbacks: FxHashMap::default(),
         }
     }
 }

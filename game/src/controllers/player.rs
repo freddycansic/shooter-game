@@ -1,5 +1,5 @@
-use common::engine::input::Input;
 use common::engine::assets::Assets;
+use common::engine::input::Input;
 use common::world::{World, WorldNode};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;

@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use nalgebra::{Point3, Vector3};
-use petgraph::{graph::NodeIndex, Direction, Graph};
+use petgraph::{Direction, Graph, graph::NodeIndex};
 
 use crate::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, Sweep, SweepHit};
 use crate::collision::colliders::sphere::Sphere;

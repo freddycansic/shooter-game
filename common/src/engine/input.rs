@@ -1,4 +1,10 @@
-use common_macros::Resource;
+use crate::ecs::system_parameters::event::EventReader;
+use crate::ecs::system_parameters::res::ResMut;
+use crate::window::{WinitDeviceEvent, WinitWindowEvent};
+use common::ecs::subsystem::Subsystem;
+use common::engine::scheduler::Scheduler;
+use common::world::World;
+use common_macros::{Event, Resource};
 use log::warn;
 use nalgebra::Vector2;
 use winit::dpi::PhysicalPosition;
@@ -21,6 +27,9 @@ pub struct Input {
     mouse_wheel_offset: f32,
     mouse_on_window: bool,
 }
+
+#[derive(Event)]
+pub struct InputReceived;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 enum KeyState {
@@ -117,36 +126,40 @@ impl Input {
         self.mouse_wheel_offset = 0.0;
     }
 
-    pub fn process_window_event(&mut self, window_event: &WindowEvent) {
-        match &window_event {
-            WindowEvent::KeyboardInput { event, .. } => {
-                self.process_key_event(event.clone());
-            }
-            WindowEvent::CursorMoved { position, .. } => {
-                self.process_mouse_moved_window_event(*position);
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                self.process_mouse_button_event(*button, *state);
-            }
-            WindowEvent::MouseWheel {
-                delta: MouseScrollDelta::LineDelta(_, y_offset),
-                ..
-            } => {
-                self.process_mouse_wheel_event(*y_offset);
-            }
-            WindowEvent::CursorEntered { .. } => {
-                self.mouse_on_window = true;
-            }
-            WindowEvent::CursorLeft { .. } => {
-                self.mouse_on_window = false;
-            }
-            _ => (),
-        };
+    fn process_window_event(mut input: ResMut<Input>, mut window_events: EventReader<WinitWindowEvent>) {
+        for window_event in window_events.read() {
+            match window_event.0 {
+                WindowEvent::KeyboardInput { ref event, .. } => {
+                    input.process_key_event(event.clone());
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    input.process_mouse_moved_window_event(position);
+                }
+                WindowEvent::MouseInput { state, button, .. } => {
+                    input.process_mouse_button_event(button, state);
+                }
+                WindowEvent::MouseWheel {
+                    delta: MouseScrollDelta::LineDelta(_, y_offset),
+                    ..
+                } => {
+                    input.process_mouse_wheel_event(y_offset);
+                }
+                WindowEvent::CursorEntered { .. } => {
+                    input.mouse_on_window = true;
+                }
+                WindowEvent::CursorLeft { .. } => {
+                    input.mouse_on_window = false;
+                }
+                _ => (),
+            };
+        }
     }
 
-    pub fn process_device_event(&mut self, device_event: DeviceEvent) {
-        if let DeviceEvent::MouseMotion { delta, .. } = device_event {
-            self.process_mouse_moved_device_event(delta);
+    pub fn process_device_event(mut input: ResMut<Input>, mut device_events: EventReader<WinitDeviceEvent>) {
+        for device_event in device_events.read() {
+            if let DeviceEvent::MouseMotion { delta, .. } = device_event.0 {
+                input.process_mouse_moved_device_event(delta);
+            }
         }
     }
 
@@ -242,5 +255,16 @@ impl Input {
             MouseButton::Forward => 4,
             MouseButton::Other(code) => panic!("Cannot query for unidentified mouse button with code {}", code),
         }
+    }
+}
+
+impl Subsystem for Input {
+    fn register_resources(world: &mut World) {
+        world.register_resource(Input::default());
+    }
+
+    fn register_systems(scheduler: &mut Scheduler) {
+        scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::process_window_event);
+        scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::process_device_event);
     }
 }

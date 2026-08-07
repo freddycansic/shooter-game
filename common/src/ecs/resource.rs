@@ -2,6 +2,7 @@ use common::ecs::component::StableId;
 use std::any::Any;
 
 pub trait Resource {
+    const NAME: &'static str;
     const ID: StableId;
 }
 
