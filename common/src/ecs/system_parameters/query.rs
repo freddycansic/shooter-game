@@ -1,10 +1,12 @@
 use crate::ecs::component::Component;
 use common::ecs::archetype::Column;
 use common::ecs::component::StableId;
+use common::ecs::system::SystemState;
 use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
 use itertools::Itertools;
 use std::marker::PhantomData;
+use crate::executor::{CommandExecutor, RuntimeExecutor};
 
 /// The parameter of `Query`, a mixture of immutable and mutable references to `Component`s
 pub trait ComponentQuery<'w> {
@@ -110,9 +112,9 @@ impl<'a, T: ComponentQuery<'a>> Query<'a, T> {
 }
 
 impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
-    type Item<'w> = Query<'w, T>;
+    type Item<'w, 's, 'e> = Query<'w, T>;
 
-    fn get(world: &mut World) -> Self::Item<'_> {
+    fn get<'w, 's, 'e>(world: &'w mut World, state: &'s mut SystemState, executor: &'e mut dyn CommandExecutor) -> Self::Item<'w, 's, 'e> {
         Query::new(world)
     }
 }

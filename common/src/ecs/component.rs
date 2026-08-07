@@ -13,6 +13,7 @@ pub fn archetype_id(ids: &[StableId]) -> u64 {
 
 pub trait Component {
     const ID: StableId;
+    const NAME: &'static str;
 }
 
 // TODO ununsed?

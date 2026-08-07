@@ -1,6 +1,6 @@
 use crate::ecs::component::Component;
-use common::ecs::archetype::Archetype;
 use crate::ecs::stable_id::StableId;
+use common::ecs::archetype::Archetype;
 
 // These are components which are owned and can be consumed by an archetype
 pub trait OwnedComponents {

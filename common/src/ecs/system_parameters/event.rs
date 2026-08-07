@@ -1,28 +1,30 @@
 use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
+use crate::executor::CommandExecutor;
+use common::ecs::system::SystemState;
 use common::world::World;
 use std::marker::PhantomData;
 
-pub struct EventReader<'w, T: Event> {
+pub struct EventReader<'w, 's, T: Event> {
     queue: &'w EventQueue,
-    last_index: usize,
+    event_cursor: &'s mut usize,
     _marker: PhantomData<T>,
 }
 
-impl<'w, T: Event + 'static> EventReader<'w, T> {
-    pub fn new(queue: &'w EventQueue) -> Self {
+impl<'w, 's, T: Event + 'static> EventReader<'w, 's, T> {
+    pub fn new(queue: &'w EventQueue, event_cursor: &'s mut usize) -> Self {
         Self {
             queue,
-            last_index: queue.0.len(),
+            event_cursor,
             _marker: PhantomData,
         }
     }
 
     pub fn read(&mut self) -> impl Iterator<Item = &T> {
         // only read new events
-        let events = &self.queue.0[self.last_index..];
+        let events = &self.queue.0[*self.event_cursor..];
 
-        self.last_index = self.queue.0.len();
+        *self.event_cursor = self.queue.0.len();
 
         events
             .iter()
@@ -30,11 +32,18 @@ impl<'w, T: Event + 'static> EventReader<'w, T> {
     }
 }
 
-impl<T: Event + 'static> SystemParameter for EventReader<'_, T> {
-    type Item<'w> = EventReader<'w, T>;
+impl<T: Event + 'static> SystemParameter for EventReader<'_, '_, T> {
+    type Item<'w, 's, 'e> = EventReader<'w, 's, T>;
 
-    fn get(world: &mut World) -> Self::Item<'_> {
-        EventReader::new(world.event_queue::<T>())
+    fn get<'w, 's, 'e>(
+        world: &'w mut World,
+        state: &'s mut SystemState,
+        executor: &'e mut dyn CommandExecutor,
+    ) -> Self::Item<'w, 's, 'e> {
+        EventReader::new(
+            world.event_queue::<T>(),
+            state.event_reader_cursors.entry(T::ID).or_insert(0),
+        )
     }
 }
 
@@ -51,15 +60,19 @@ impl<'w, T: Event + 'static> EventWriter<'w, T> {
         }
     }
 
-    pub fn send(&mut self, event: T) {
-        self.queue.send(Box::new(event));
+    pub fn write(&mut self, event: T) {
+        self.queue.write(Box::new(event));
     }
 }
 
 impl<T: Event + 'static> SystemParameter for EventWriter<'_, T> {
-    type Item<'w> = EventWriter<'w, T>;
+    type Item<'w, 's, 'e> = EventWriter<'w, T>;
 
-    fn get(world: &mut World) -> Self::Item<'_> {
+    fn get<'w, 's, 'e>(
+        world: &'w mut World,
+        state: &'s mut SystemState,
+        executor: &'e mut dyn CommandExecutor,
+    ) -> Self::Item<'w, 's, 'e> {
         EventWriter::new(world.event_queue::<T>())
     }
 }

@@ -4,9 +4,17 @@ use winit::dpi::LogicalPosition;
 use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{CursorGrabMode, Window};
+use crate::executor::RuntimeExecutor;
+use crate::world::World;
 
 pub trait Application {
     fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self;
+
+    fn world(&mut self) -> &mut World;
+
+    fn run_systems(&mut self, executor: RuntimeExecutor, display: &Display<WindowSurface>);
+    
+    fn render(&mut self, event_loop: &ActiveEventLoop, window: &Window, display: &Display<WindowSurface>);
 
     fn window_event(
         &mut self,
@@ -14,9 +22,8 @@ pub trait Application {
         event_loop: &ActiveEventLoop,
         window: &Window,
         display: &Display<WindowSurface>,
-    );
+    ) {}
 
-    #[allow(clippy::unused_variables)]
     fn device_event(
         &mut self,
         _event: DeviceEvent,
@@ -26,24 +33,5 @@ pub trait Application {
     ) {
     }
 
-    fn capture_cursor(&mut self, window: &Window) {
-        window
-            .set_cursor_grab(CursorGrabMode::Locked)
-            .or_else(|_| window.set_cursor_grab(CursorGrabMode::Confined))
-            .unwrap();
-    }
-
-    fn release_cursor(&mut self, window: &Window) {
-        window.set_cursor_grab(CursorGrabMode::None).unwrap();
-    }
-
-    fn center_cursor(&mut self, window: &Window) {
-        let dimensions = window.inner_size();
-        let center = LogicalPosition::new(dimensions.width / 2, dimensions.height / 2);
-
-        match window.set_cursor_position(center) {
-            Ok(_) => (),
-            Err(e) => log::warn!("Failed to set cursor position: {:?}", e),
-        }
-    }
+    fn new_events(&mut self) {}
 }

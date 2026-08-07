@@ -1,14 +1,14 @@
 use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
-use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::serde::SerializedArchetype;
+use crate::serde::serialized_handles::SerializedGeometryHandle;
 use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
-    serde::{serialized_background::SerializedBackground, SerializeWithContext},
+    serde::{SerializeWithContext, serialized_background::SerializedBackground},
 };
 use color_eyre::eyre::Result;
 use fxhash::FxHashMap;
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};

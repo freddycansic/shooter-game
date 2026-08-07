@@ -24,51 +24,32 @@ use winit::window::Window;
 
 use crate::ui::Show;
 use common::application::Application;
-use common::camera::Camera;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
+use common::context::WindowSize;
+use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::res::ResMut;
 use common::engine::engine::Engine;
 use common::engine::input::Input;
 use common::engine::renderer::Background;
+use common::executor::{CommandExecutor, RuntimeExecutor};
 use common::light::Light;
 use common::line::Line;
+use common::subsystems::frame_timing::{FrameState, FrameTiming, WinitNewEvents};
+use common::window::{WindowResized, WinitWindowEvent};
 use common::world::physics_context::ColliderSet;
 use common::world::World;
 use common::*;
-use common_macros::Resource;
-
-#[derive(Resource)]
-pub struct FrameState {
-    pub last_frame_end: Instant,
-    pub frame_count: u128,
-    pub deltatime: f64,
-    pub fps: f32,
-    pub is_moving_camera: bool,
-    pub gui: GuiState,
-}
-
-struct GuiState {
-    pub render_lights: bool,
-    pub debug_cube_index: usize,
-    pub debug_cube_opacity: f32,
-    pub render_debug_mouse_rays: bool,
-}
-
-pub fn update_statistics(mut frame_state: ResMut<FrameState>) {
-    frame_state.frame_count = (frame_state.frame_count + 1) % u128::MAX;
-
-    frame_state.deltatime = frame_state.last_frame_end.elapsed().as_secs_f64();
-    frame_state.fps = (1.0 / frame_state.deltatime) as f32;
-
-    frame_state.last_frame_end = Instant::now();
-}
+use common_macros::{Event, Resource};
 
 enum EngineEvent {
     ImportHDRIBackground(PathBuf),
     LoadProject(String),
     ImportModel(PathBuf),
 }
+
+#[derive(Event)]
+struct ViewportClick {}
 
 pub struct Editor {
     engine: Engine,
@@ -87,28 +68,15 @@ impl Application for Editor {
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
 
+        let mut world = World::default();
+        world.register_resource(WindowSize {
+            width: window.inner_size().width,
+            height: window.inner_size().height,
+        });
+
         let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
 
-        let mut engine = Engine::new(None /* full size*/, display, window, event_loop);
-        engine.scheduler.register(update_statistics);
-
-        let state = FrameState {
-            last_frame_end: Instant::now(),
-            frame_count: 0,
-            deltatime: 0.0,
-            fps: 0.0,
-            is_moving_camera: false,
-            gui: GuiState {
-                render_lights: true,
-                debug_cube_index: 0,
-                debug_cube_opacity: 0.5,
-                render_debug_mouse_rays: false,
-            },
-        };
-
-        let mut world = World::default();
-        world.register_resource(state);
-        world.register_resource(Input::default());
+        let engine = Engine::new(None /* full size*/, display, window, event_loop);
 
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -117,7 +85,7 @@ impl Application for Editor {
 
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
-        Self {
+        let mut editor = Self {
             engine,
             sender,
             receiver,
@@ -125,60 +93,65 @@ impl Application for Editor {
             world,
             debug_cuboids: vec![],
             selection: vec![],
+        };
+
+        editor.register_subsystem::<FrameTiming>();
+        editor.register_subsystem::<Input>();
+
+        editor
+    }
+
+    fn world(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    fn run_systems(&mut self, mut executor: RuntimeExecutor, display: &Display<WindowSurface>) {
+        let input = self.world.resource::<Input>().unwrap();
+
+        if input.key_pressed(KeyCode::Escape) {
+            executor.exit();
         }
+
+        // TODO turn this into ECS systems
+        self.update(/* TODO: temporary */ executor.window, display);
+
+        self.engine.scheduler.run_systems(&mut self.world, executor);
+    }
+
+    fn render(&mut self, event_loop: &ActiveEventLoop, window: &Window, display: &Display<WindowSurface>) {
+        self.render(window, display);
     }
 
     fn window_event(
         &mut self,
         event: WindowEvent,
-        event_loop: &ActiveEventLoop,
+        _event_loop: &ActiveEventLoop,
         window: &Window,
-        display: &Display<WindowSurface>,
+        _display: &Display<WindowSurface>,
     ) {
-        let input = self.world.resource_mut::<Input>().unwrap();
-        input.process_window_event(&event);
-
-        match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(new_size) => {
-                display.resize((new_size.width, new_size.height));
-
-                self.camera
-                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
-            }
-            WindowEvent::RedrawRequested => {
-                if input.key_pressed(KeyCode::Escape) {
-                    event_loop.exit();
-                }
-
-                self.update(window, display);
-                self.render(window, display);
-            }
-            _ => (),
-        };
-
         let gui_event_response = self.engine.gui.on_event(window, &event);
 
         if gui_event_response.repaint {
             window.request_redraw();
         }
     }
-
-    fn device_event(
-        &mut self,
-        device_event: DeviceEvent,
-        _event_loop: &ActiveEventLoop,
-        _window: &Window,
-        _display: &Display<WindowSurface>,
-    ) {
-        self.engine.input.process_device_event(device_event);
-    }
 }
 
 impl Editor {
+    // TODO figure out where to put this
+    pub fn register_subsystem<S>(&mut self)
+    where
+        S: Subsystem,
+    {
+        S::register_resources(&mut self.world);
+        S::register_systems(&mut self.engine.scheduler);
+    }
+
+    // TODO turn all this into ECS event stuff
     fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
         let events = self.receiver.try_iter().collect_vec();
 
+        // TODO turn these into executor events
         for engine_event in events.into_iter() {
             match engine_event {
                 EngineEvent::LoadProject(serialized_project) => {
@@ -200,19 +173,20 @@ impl Editor {
             }
         }
 
-        self.camera.update_zoom(&self.engine.input);
+        let (input, state) = self.world.resources_mut::<Input, FrameState>().unwrap();
+        let mouse_in_viewport = self.engine.renderer.is_mouse_in_viewport(&input);
+        let left_just_released = input.mouse_button_just_released(MouseButton::Left);
 
-        self.state.is_moving_camera =
-            self.engine.input.mouse_button_down(MouseButton::Middle) || self.engine.input.key_down(KeyCode::Space);
+        if left_just_released && mouse_in_viewport {
+            self.world
+                .event_queue::<ViewportClick>()
+                .write(Box::new(ViewportClick {}));
 
-        if self.engine.input.mouse_button_just_released(MouseButton::Left)
-            && self.engine.renderer.is_mouse_in_viewport(&self.engine.input)
-        {
             let ray = self.mouse_ray();
 
             let intersection = self.world.raycast(&ray, &self.engine.assets);
 
-            if self.state.gui.render_debug_mouse_rays {
+            if state.gui.render_debug_mouse_rays {
                 self.world.lines.push(Line::new(
                     ray.origin,
                     ray.origin + ray.direction() * 1000.0,
@@ -231,17 +205,7 @@ impl Editor {
             };
         }
 
-        if self.state.is_moving_camera {
-            self.camera.update(&self.engine.input, self.state.deltatime as f32);
-            self.capture_cursor(window);
-            window.set_cursor_visible(false);
-            self.center_cursor(window);
-        } else {
-            self.release_cursor(window);
-            window.set_cursor_visible(true);
-        }
-
-        self.engine.input.reset_internal_state();
+        input.reset_internal_state();
 
         // if self.state.frame_count % 5 == 0 {
         //     info!("{} FPS", self.state.fps);

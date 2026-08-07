@@ -1,8 +1,9 @@
 mod tests {
     use common::ecs::system_parameters::event::{EventReader, EventWriter};
+    use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::scheduler::Scheduler;
     use common::world::World;
-    use common_macros::Event;
+    use common_macros::{Event, Resource};
 
     #[derive(Event)]
     struct A(u32);
@@ -18,18 +19,18 @@ mod tests {
 
         let mut world = World::default();
         let mut scheduler = Scheduler::default();
-        scheduler.register(read_nothing);
+        scheduler.register_continuous(read_nothing);
         scheduler.run_systems(&mut world);
     }
 
     #[test]
     fn can_send_and_read_events() {
         fn send(mut events: EventWriter<A>) {
-            events.send(A(1));
-            events.send(A(2));
-            events.send(A(3));
+            events.write(A(1));
+            events.write(A(2));
+            events.write(A(3));
         }
-    
+
         fn read(mut events: EventReader<A>) {
             let mut events = events.read();
             assert_eq!(events.next().unwrap().0, 1);
@@ -37,12 +38,41 @@ mod tests {
             assert_eq!(events.next().unwrap().0, 3);
             assert!(events.next().is_none());
         }
-    
+
         let mut world = World::default();
         let mut scheduler = Scheduler::default();
-        scheduler.register(send);
-        scheduler.register(read);
+        scheduler.register_continuous(send);
+        scheduler.register_continuous(read);
 
         scheduler.run_systems(&mut world);
+    }
+
+    #[derive(Resource)]
+    struct EventsSent(u32);
+
+    #[test]
+    fn can_read_new_events() {
+        fn send(mut events: EventWriter<A>, mut events_sent: ResMut<EventsSent>) {
+            events_sent.0 += 1;
+            events.write(A(events_sent.0));
+        }
+
+        fn read(mut events: EventReader<A>, event_sent: Res<EventsSent>) {
+            let mut events = events.read();
+            let event = events.next();
+            assert!(event.is_some());
+            assert_eq!(event.unwrap().0, event_sent.0);
+            assert!(events.next().is_none());
+        }
+
+        let mut world = World::default();
+        world.register_resource(EventsSent(0));
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(send);
+        scheduler.register_continuous(read);
+
+        for _ in 0..3 {
+            scheduler.run_systems(&mut world);
+        }
     }
 }

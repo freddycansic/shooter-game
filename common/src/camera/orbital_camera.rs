@@ -1,11 +1,24 @@
+use crate::ecs::system_parameters::commands::Commands;
+use crate::ecs::system_parameters::event::{EventReader, EventWriter};
+use crate::ecs::system_parameters::res::Res;
+use crate::engine::input::{Input, InputReceived};
+use crate::maths;
+use crate::window::{CaptureCursor, CenterCursor, WindowResized};
+use common::context::WindowSize;
+use common::ecs::subsystem::Subsystem;
+use common::ecs::system_parameters::res::ResMut;
+use common::engine::scheduler::Scheduler;
+use common::subsystems::frame_timing::FrameState;
+use common::world::World;
+use common_macros::Resource;
 use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
+use std::fmt::Alignment::Center;
+use winit::event::MouseButton;
+use winit::keyboard::KeyCode;
+use common::executor::CommandExecutor;
 
-use crate::camera::camera::Camera;
-use crate::engine::input::Input;
-use crate::maths;
-
-#[derive(Serialize, Deserialize)]
+#[derive(Resource, Serialize, Deserialize)]
 pub struct OrbitalCamera {
     pub target: Point3<f32>,
     pub radius: f32,
@@ -44,13 +57,16 @@ impl OrbitalCamera {
         self.orthograhic_projection = maths::orthographic_matrix_from_dimensions(width, height);
     }
 
-    pub fn update_zoom(&mut self, input: &Input) {
-        let mouse_wheel_offset = input.mouse_wheel_offset();
+    pub fn position(&self) -> Point3<f32> {
+        self.position
+    }
 
-        let zoom_step = 0.4;
-        self.radius -= mouse_wheel_offset * zoom_step;
+    pub fn view(&self) -> Matrix4<f32> {
+        Matrix4::look_at_rh(&self.position, &self.target, &Vector3::new(0.0, 1.0, 0.0))
+    }
 
-        self.update_position();
+    pub fn direction(&self) -> Vector3<f32> {
+        (self.target - self.position).normalize()
     }
 
     fn update_position(&mut self) {
@@ -63,30 +79,64 @@ impl OrbitalCamera {
     }
 }
 
-impl Camera for OrbitalCamera {
-    fn update(&mut self, input: &Input, deltatime: f32) {
+fn update_zoom(mut camera: ResMut<OrbitalCamera>, input: Res<Input>) {
+    let mouse_wheel_offset = input.mouse_wheel_offset();
+
+    let zoom_step = 0.4;
+    camera.radius -= mouse_wheel_offset * zoom_step;
+
+    camera.update_position();
+}
+
+fn update_angles(
+    mut camera: ResMut<OrbitalCamera>,
+    frame_state: Res<FrameState>,
+    input: Res<Input>,
+    mut engine_commands: Commands,
+) {
+    let can_move_camera = input.mouse_button_down(MouseButton::Middle) || input.key_down(KeyCode::Space);
+
+    if can_move_camera {
         let sensitivity = 200.0;
 
-        let offset = input.device_offset() * deltatime * sensitivity;
+        let offset = input.device_offset() * frame_state.deltatime as f32 * sensitivity;
 
-        self.yaw += offset.x;
-        self.yaw %= 2.0 * std::f32::consts::PI;
+        camera.yaw += offset.x;
+        camera.yaw %= 2.0 * std::f32::consts::PI;
 
-        self.pitch -= offset.y;
-        self.pitch = self.pitch.clamp(f32::EPSILON, std::f32::consts::PI - f32::EPSILON);
+        camera.pitch -= offset.y;
+        camera.pitch = camera.pitch.clamp(f32::EPSILON, std::f32::consts::PI - f32::EPSILON);
 
-        self.update_position();
+        camera.update_position();
+
+        engine_commands.capture_cursor();
+        engine_commands.center_cursor();
+    } else {
+        engine_commands.release_cursor();
+    }
+}
+
+fn window_resized(mut camera: ResMut<OrbitalCamera>, mut resized: EventReader<WindowResized>) {
+    let resized = resized.read().next().unwrap();
+
+    camera.update_projection_matrices(resized.new_width as f32, resized.new_height as f32);
+}
+
+impl Subsystem for OrbitalCamera {
+    fn register_resources(world: &mut World) {
+        let window_size = world.resource::<WindowSize>().unwrap();
+        let camera_radius = 5.0;
+
+        world.register_resource(OrbitalCamera::new(
+            Point3::origin(),
+            camera_radius,
+            window_size.width as f32,
+            window_size.height as f32,
+        ));
     }
 
-    fn position(&self) -> Point3<f32> {
-        self.position
-    }
-
-    fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(&self.position, &self.target, &Vector3::new(0.0, 1.0, 0.0))
-    }
-
-    fn direction(&self) -> Vector3<f32> {
-        (self.target - self.position).normalize()
+    fn register_systems(scheduler: &mut Scheduler) {
+        scheduler.register_triggered::<InputReceived, _, _>(update_zoom);
+        scheduler.register_triggered::<InputReceived, _, _>(update_angles);
     }
 }
