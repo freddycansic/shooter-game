@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::hash::{Hash, Hasher};
 
-use crate::camera::{OrbitalCamera};
+use crate::camera::OrbitalCamera;
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
 use crate::engine::assets::{Assets, GeometryHandle};

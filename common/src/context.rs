@@ -1,6 +1,7 @@
 use std::fs;
 
 use crate::application::Application;
+use crate::executor::RuntimeExecutor;
 use crate::window::WinitDeviceEvent;
 use crate::world::World;
 use color_eyre::Result;
@@ -18,7 +19,6 @@ use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::{CursorGrabMode, Window, WindowAttributes, WindowId};
-use crate::executor::RuntimeExecutor;
 
 #[derive(Resource)]
 pub struct WindowSize {
@@ -104,9 +104,8 @@ impl<A: Application> Runtime<A> {
             }
             WindowEvent::RedrawRequested => {
                 let executor = RuntimeExecutor::new(&mut self.window, event_loop);
-                
-                self.application
-                    .run_systems(executor, &self.display);
+
+                self.application.run_systems(executor, &self.display);
 
                 self.application.render(event_loop, &self.window, &self.display);
             }
