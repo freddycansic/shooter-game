@@ -1,6 +1,7 @@
 use crate::engine::assets::Assets;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
+use crate::ecs::entity::Entity;
 
 #[derive(Debug)]
 pub struct RayHit {
@@ -9,9 +10,9 @@ pub struct RayHit {
 }
 
 #[derive(Debug)]
-pub struct RayHitNode {
+pub struct RayHitEntity {
     pub hit: RayHit,
-    pub node: NodeIndex,
+    pub entity: Entity,
 }
 
 pub struct Sweep<T> {

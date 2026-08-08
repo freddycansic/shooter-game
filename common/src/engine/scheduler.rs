@@ -65,7 +65,9 @@ impl SchedulerStage {
             let event_queue_len = world.event_queue_from_id(event_id.clone()).0.len();
 
             for system_id in system_ids {
-                let system = self.triggerable_systems.iter_mut()
+                let system = self
+                    .triggerable_systems
+                    .iter_mut()
                     .find(|system| system.id == *system_id)
                     .unwrap();
 
@@ -79,10 +81,14 @@ impl SchedulerStage {
             }
         }
 
-        for triggerable_system in self.triggerable_systems.iter_mut() {
-            if triggered_systems_to_run.contains(&triggerable_system.id) {
-                triggerable_system.run(world, executor);
-            }
+        for system_id_to_trigger in triggered_systems_to_run.into_iter() {
+            let system = self
+                .triggerable_systems
+                .iter_mut()
+                .find(|system| system.id == system_id_to_trigger)
+                .unwrap();
+
+            system.run(world, executor);
         }
 
         for system in self.continuous_systems.iter_mut() {

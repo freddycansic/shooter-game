@@ -1,7 +1,7 @@
 use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use crate::serde::SerializedArchetype;
 use crate::serde::serialized_handles::SerializedGeometryHandle;
-use crate::world::{PhysicsContext, QuadTree, SerializedQuadTree, World, WorldGraph};
+use crate::world::{QuadTree, SerializedQuadTree, World, WorldGraph};
 use crate::{
     light::Light,
     serde::{SerializeWithContext, serialized_background::SerializedBackground},
@@ -22,7 +22,6 @@ pub struct SerializedWorld {
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
     pub quads: SerializedQuadTree,
-    pub physics_context: PhysicsContext,
     pub geometries: FxHashMap<NodeIndex, SerializedGeometryHandle>,
     pub textures: FxHashMap<NodeIndex, PathBuf>,
     pub player_spawn: Option<NodeIndex>,
@@ -53,7 +52,6 @@ impl SerializedWorld {
             background: SerializedBackground::from_background(&value.background, &resources),
             lights: value.lights.clone(),
             // terrain: value.terrain.clone(),
-            physics_context: value.physics_context.clone(),
 
             textures: serialized_textures,
             geometries: serialized_geometries,

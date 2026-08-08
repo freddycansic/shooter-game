@@ -1,11 +1,12 @@
 use crate::collision::collidable::{
-    BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitNode, Sweep, SweepHit, SweepHitNode,
+    BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitEntity, Sweep, SweepHit, SweepHitNode,
 };
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
 use crate::collision::colliders::sphere::Sphere;
+use crate::ecs::entity::Entity;
 use crate::engine::assets::{Assets, GeometryHandle};
-use crate::maths::{Local, Ray};
+use crate::maths::{Local, Ray, WorldTransform};
 use crate::world::{World, WorldGraph};
 use common_macros::Component;
 use fxhash::FxHashMap;
@@ -134,106 +135,84 @@ impl ColliderSet {
     }
 }
 
-/// This struct owns the physics state of the world
-/// It does not do any physics work.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct PhysicsContext {
-    pub colliders: FxHashMap<NodeIndex, ColliderSet>,
-    // TODO should have a bvh which is built when adding colliders for fast broad phase
-    // collider_bvh: Bvh
+// TODO should have a bvh which is built when adding colliders for fast broad phase
+
+pub fn raycast<'a, I>(ray: &Ray, colliders: I, assets: &Assets) -> Option<RayHitEntity>
+where
+    I: Iterator<Item = (Entity, &'a ColliderSet, &'a WorldTransform)>,
+{
+    colliders
+        .filter_map(|(entity, collider_set, world_transform)| {
+            // collider is in local space, ray is in world space
+            let local_ray = ray.to_local(&world_transform.0);
+
+            collider_set
+                .raycast(&local_ray, assets)
+                .map(|local_hit| (local_hit, local_ray, world_transform, entity))
+        })
+        .min_by(|(a, _, _, _), (b, _, _, _)| a.tmin.partial_cmp(&b.tmin).unwrap())
+        .map(|(local_hit, local_ray, world_transform, entity)| {
+            let hit_point_local = local_ray.point_at(local_hit.tmin);
+            let hit_point_world = world_transform.0.matrix().transform_point(&hit_point_local);
+            let tmin_world = (hit_point_world - ray.origin).norm();
+
+            RayHitEntity {
+                entity,
+                hit: RayHit {
+                    tmin: tmin_world,
+                    tmax: (world_transform.0
+                        .matrix()
+                        .transform_point(&local_ray.point_at(local_hit.tmax))
+                        - ray.origin)
+                        .norm(),
+                },
+            }
+        })
 }
 
-impl PhysicsContext {
-    pub fn new() -> Self {
-        Self {
-            colliders: FxHashMap::default(),
-        }
-    }
-
-    pub fn raycast(&self, ray: &Ray, world_graph: &WorldGraph, resources: &Assets) -> Option<RayHitNode> {
-        self.colliders
-            .iter()
-            .filter_map(|(node_index, collider_set)| {
-                let node = world_graph.graph.node_weight(*node_index).unwrap();
-
-                // collider is in local space, ray is in world space
-                let local_ray = ray.to_local(&node.world_transform());
-
-                collider_set
-                    .raycast(&local_ray, resources)
-                    .map(|hit| (hit, local_ray, node, node_index))
-            })
-            .min_by(|(a, _, _, _), (b, _, _, _)| a.tmin.partial_cmp(&b.tmin).unwrap())
-            .map(|(local_hit, local_ray, node, node_index)| {
-                let hit_point_local = local_ray.point_at(local_hit.tmin);
-                let hit_point_world = node.world_transform().matrix().transform_point(&hit_point_local);
-                let tmin_world = (hit_point_world - ray.origin).norm();
-
-                RayHitNode {
-                    node: *node_index,
-                    hit: RayHit {
-                        tmin: tmin_world,
-                        tmax: (node
-                            .world_transform()
-                            .matrix()
-                            .transform_point(&local_ray.point_at(local_hit.tmax))
-                            - ray.origin)
-                            .norm(),
-                    },
-                }
-            })
-    }
-
-    pub fn spherecast(
-        &self,
-        query: &Sweep<Sphere>,
-        world_graph: &WorldGraph,
-        resources: &Assets,
-    ) -> Option<SweepHitNode> {
-        // dbg!(self.colliders.len());
-
-        self.colliders
-            .iter()
-            .filter_map(|(&node_index, collider_set)| {
-                let node = world_graph.graph.node_weight(node_index)?;
-
-                let world_inverse = node.world_transform().matrix().try_inverse().unwrap();
-
-                let local_query = {
-                    let local_sphere =
-                        Sphere::new(world_inverse.transform_point(&query.object.origin), query.object.radius);
-                    let local_velocity = world_inverse.transform_vector(&query.velocity);
-
-                    Local(Sweep {
-                        object: local_sphere,
-                        velocity: local_velocity,
-                    })
-                };
-
-                collider_set
-                    .spherecast(&local_query, resources)
-                    .map(|hit| (hit, node, node_index))
-            })
-            .min_by(|(a, _, _), (b, _, _)| a.t.partial_cmp(&b.t).unwrap())
-            .map(|(local_hit, node, node_index)| {
-                let world_point = node.world_transform().matrix().transform_point(&local_hit.point);
-                let world_normal = node
-                    .world_transform()
-                    .rotation()
-                    .transform_vector(&local_hit.normal)
-                    .normalize();
-
-                let world_t =
-                    ((world_point - query.object.origin).norm() - query.object.radius) / query.velocity.norm();
-
-                SweepHitNode {
-                    hit: SweepHit {
-                        t: world_t,
-                        point: world_point,
-                        normal: world_normal,
-                    },
-                    node: node_index,
-                }
-            })
-    }
-}
+// pub fn spherecast(&self, query: &Sweep<Sphere>, world_graph: &WorldGraph, resources: &Assets) -> Option<SweepHitNode> {
+//     // dbg!(self.colliders.len());
+// 
+//     self.colliders
+//         .iter()
+//         .filter_map(|(&node_index, collider_set)| {
+//             let node = world_graph.graph.node_weight(node_index)?;
+// 
+//             let world_inverse = node.world_transform().matrix().try_inverse().unwrap();
+// 
+//             let local_query = {
+//                 let local_sphere =
+//                     Sphere::new(world_inverse.transform_point(&query.object.origin), query.object.radius);
+//                 let local_velocity = world_inverse.transform_vector(&query.velocity);
+// 
+//                 Local(Sweep {
+//                     object: local_sphere,
+//                     velocity: local_velocity,
+//                 })
+//             };
+// 
+//             collider_set
+//                 .spherecast(&local_query, resources)
+//                 .map(|hit| (hit, node, node_index))
+//         })
+//         .min_by(|(a, _, _), (b, _, _)| a.t.partial_cmp(&b.t).unwrap())
+//         .map(|(local_hit, node, node_index)| {
+//             let world_point = node.world_transform().matrix().transform_point(&local_hit.point);
+//             let world_normal = node
+//                 .world_transform()
+//                 .rotation()
+//                 .transform_vector(&local_hit.normal)
+//                 .normalize();
+// 
+//             let world_t = ((world_point - query.object.origin).norm() - query.object.radius) / query.velocity.norm();
+// 
+//             SweepHitNode {
+//                 hit: SweepHit {
+//                     t: world_t,
+//                     point: world_point,
+//                     normal: world_normal,
+//                 },
+//                 node: node_index,
+//             }
+//         })
+// }

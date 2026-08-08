@@ -4,7 +4,7 @@ mod tests {
     use common::ecs::resource::Resource;
     use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::engine::Engine;
-    use common::engine::scheduler::Scheduler;
+    use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
     use common_macros::Resource;
 
@@ -41,8 +41,8 @@ mod tests {
         }
 
         let mut scheduler = Scheduler::default();
-        scheduler.register_continuous(read_resources);
-        scheduler.run_systems(&mut world, &mut DummyExecutor::default());
+        scheduler.register_continuous(read_resources, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
     }
 
     #[test]
@@ -63,9 +63,9 @@ mod tests {
         }
 
         let mut scheduler = Scheduler::default();
-        scheduler.register_continuous(read_resource_before);
-        scheduler.register_continuous(write_resource);
-        scheduler.register_continuous(read_resource_after);
-        scheduler.run_systems(&mut world, &mut DummyExecutor::default());
+        scheduler.register_continuous(read_resource_before, Stage::Main);
+        scheduler.register_continuous(write_resource, Stage::Main);
+        scheduler.register_continuous(read_resource_after, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
     }
 }
