@@ -4,6 +4,8 @@ use std::hash::{Hash, Hasher};
 use crate::camera::OrbitalCamera;
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
+use crate::ecs::system_parameters::event::EventReader;
+use crate::ecs::system_parameters::res::{Res, ResMut};
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::engine::assets::{CubemapHandle, TextureHandle};
 use crate::engine::input::Input;
@@ -16,6 +18,7 @@ use crate::quad::QuadVertex;
 use crate::world::{QuadBatches, World};
 use crate::{context, maths};
 use color_eyre::Result;
+use common_macros::{Event, Resource};
 use egui_glium::egui_winit::egui::{self, Pos2};
 use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
 use glium::framebuffer::SimpleFrameBuffer;
@@ -152,11 +155,15 @@ impl Default for Background {
     }
 }
 
+#[derive(Resource, Clone)]
+pub struct Viewport(Option<egui::Rect>);
+
+#[derive(Event)]
+pub struct ViewportChanged(Viewport);
+
 pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
-
-    pub viewport: Option<egui::Rect>,
 }
 
 impl Renderer {
@@ -257,24 +264,18 @@ impl Renderer {
                 solid_color: solid_color_program,
                 white: white_program,
             },
-            viewport,
         })
     }
 
-    pub fn update_viewport(&mut self, viewport: egui::Rect, camera: &mut OrbitalCamera) {
-        camera.update_projection_matrices(viewport.width(), viewport.height());
-        self.viewport = Some(viewport);
-    }
+    pub fn update_viewport(
+        // TODO make systems which run on resource change
+        mut viewport_changed: EventReader<ViewportChanged>,
+        mut viewport: ResMut<Viewport>,
+        mut camera: ResMut<OrbitalCamera>,
+    ) {
+        *viewport = viewport_changed.read().next().unwrap().0.clone();
 
-    pub fn is_mouse_in_viewport(&self, input: &Input) -> bool {
-        if !input.mouse_on_window() {
-            return false;
-        }
-
-        input.mouse_position().is_some_and(|position| {
-            self.viewport
-                .is_some_and(|viewport| viewport.contains(Pos2::new(position.x as f32, position.y as f32)))
-        })
+        camera.update_projection_matrices(viewport.0.unwrap().width(), viewport.0.unwrap().height());
     }
 
     fn glium_viewport(&self) -> Option<glium::Rect> {

@@ -71,16 +71,16 @@ impl World {
         matching_archetypes
     }
 
-    pub fn raycast(&self, ray: &Ray, resources: &Assets) -> Option<RayHitNode> {
-        self.physics_context.raycast(ray, &self.graph, resources)
+    pub fn raycast(&self, ray: &Ray, assets: &Assets) -> Option<RayHitNode> {
+        self.physics_context.raycast(ray, &self.graph, assets)
     }
 
-    pub fn spherecast(&self, sphere: &Sweep<Sphere>, resources: &Assets) -> Option<SweepHitNode> {
-        self.physics_context.spherecast(sphere, &self.graph, resources)
+    pub fn spherecast(&self, sphere: &Sweep<Sphere>, assets: &Assets) -> Option<SweepHitNode> {
+        self.physics_context.spherecast(sphere, &self.graph, assets)
     }
 
-    pub fn save_as(&self, resources: &Assets) {
-        let serialized_world = SerializedWorld::from_world(self, resources);
+    pub fn save_as(&self, assets: &Assets) {
+        let serialized_world = SerializedWorld::from_world(self, assets);
 
         let serialized = serde_json::to_string(&serialized_world).unwrap();
 

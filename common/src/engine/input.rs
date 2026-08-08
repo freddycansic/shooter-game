@@ -1,4 +1,4 @@
-use crate::ecs::system_parameters::event::EventReader;
+use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
 use crate::window::{WinitDeviceEvent, WinitWindowEvent};
 use common::ecs::subsystem::Subsystem;
@@ -21,11 +21,12 @@ const NUM_MOUSE_BUTTONS: usize = 6;
 pub struct Input {
     key_states: [KeyState; NUM_KEYS],
     mouse_button_states: [KeyState; NUM_MOUSE_BUTTONS],
-    mouse_position: Option<Vector2<f64>>,
+    mouse_position: Vector2<f64>,
     window_offset: Vector2<f32>,
     device_offset: Vector2<f32>,
     mouse_wheel_offset: f32,
     mouse_on_window: bool,
+    first_mouse_move: bool,
 }
 
 #[derive(Event)]
@@ -44,11 +45,12 @@ impl Default for Input {
         Self {
             key_states: [KeyState::Released; NUM_KEYS],
             mouse_button_states: [KeyState::Released; NUM_MOUSE_BUTTONS],
-            mouse_position: None,
+            mouse_position: Vector2::zeros(),
             window_offset: Vector2::zeros(),
             device_offset: Vector2::zeros(),
             mouse_wheel_offset: 0.0,
             mouse_on_window: false,
+            first_mouse_move: true,
         }
     }
 }
@@ -100,7 +102,7 @@ impl Input {
         self.mouse_wheel_offset
     }
 
-    pub fn mouse_position(&self) -> Option<Vector2<f64>> {
+    pub fn mouse_position(&self) -> Vector2<f64> {
         self.mouse_position
     }
 
@@ -126,23 +128,33 @@ impl Input {
         self.mouse_wheel_offset = 0.0;
     }
 
-    fn process_window_event(mut input: ResMut<Input>, mut window_events: EventReader<WinitWindowEvent>) {
+    fn process_window_event(
+        mut input: ResMut<Input>,
+        mut window_events: EventReader<WinitWindowEvent>,
+        mut input_received: EventWriter<InputReceived>,
+    ) {
         for window_event in window_events.read() {
+            let mut input_device_event = false;
+
             match window_event.0 {
                 WindowEvent::KeyboardInput { ref event, .. } => {
                     input.process_key_event(event.clone());
+                    input_device_event = true;
                 }
                 WindowEvent::CursorMoved { position, .. } => {
                     input.process_mouse_moved_window_event(position);
+                    input_device_event = true;
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
                     input.process_mouse_button_event(button, state);
+                    input_device_event = true;
                 }
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(_, y_offset),
                     ..
                 } => {
                     input.process_mouse_wheel_event(y_offset);
+                    input_device_event = true;
                 }
                 WindowEvent::CursorEntered { .. } => {
                     input.mouse_on_window = true;
@@ -152,6 +164,10 @@ impl Input {
                 }
                 _ => (),
             };
+
+            if input_device_event {
+                input_received.write(InputReceived);
+            }
         }
     }
 
@@ -199,17 +215,18 @@ impl Input {
     fn process_mouse_moved_window_event(&mut self, new_position: PhysicalPosition<f64>) {
         let new_vector_position = Vector2::new(new_position.x, new_position.y);
 
-        if self.mouse_position.is_none() {
-            self.mouse_position = Some(new_vector_position);
+        if self.first_mouse_move {
+            self.mouse_position = new_vector_position;
+            self.first_mouse_move = false;
             return;
         }
 
         self.window_offset = Vector2::new(
-            ((new_vector_position.x - self.mouse_position.unwrap().x) * Self::MOUSE_SENSITIVITY) as f32,
-            ((new_vector_position.y - self.mouse_position.unwrap().y) * Self::MOUSE_SENSITIVITY) as f32,
+            ((new_vector_position.x - self.mouse_position.x) * Self::MOUSE_SENSITIVITY) as f32,
+            ((new_vector_position.y - self.mouse_position.y) * Self::MOUSE_SENSITIVITY) as f32,
         );
 
-        self.mouse_position = Some(new_vector_position);
+        self.mouse_position = new_vector_position;
     }
 
     fn process_mouse_moved_device_event(&mut self, offset: (f64, f64)) {

@@ -15,6 +15,7 @@ pub mod ecs;
 pub mod engine;
 pub mod executor;
 pub mod geometry;
+pub mod gui;
 pub mod import;
 pub mod light;
 pub mod line;

@@ -11,9 +11,3 @@ pub struct WinitWindowEvent(pub winit::event::WindowEvent);
 
 #[derive(Event)]
 pub struct WinitDeviceEvent(pub winit::event::DeviceEvent);
-
-#[derive(Event)]
-pub struct CaptureCursor(pub bool);
-
-#[derive(Event)]
-pub struct CenterCursor;
