@@ -130,7 +130,7 @@ impl Application for Editor {
         // TODO turn this into ECS systems
         self.update(display);
 
-        self.engine.scheduler.run_systems(&mut self.world, &mut executor);
+        self.engine.scheduler.run(&mut self.world, &mut executor);
     }
 
     fn render(&mut self, event_loop: &ActiveEventLoop, window: &Window, display: &Display<WindowSurface>) {
@@ -164,31 +164,30 @@ impl Editor {
 
     // TODO turn all this into ECS event stuff
     fn update(&mut self, display: &Display<WindowSurface>) {
-        let events = self.receiver.try_iter().collect_vec();
+        // let events = self.receiver.try_iter().collect_vec();
+        // 
+        // // TODO turn these into executor events
+        // for engine_event in events.into_iter() {
+        //     match engine_event {
+        //         EngineEvent::LoadProject(serialized_project) => {
+        //             // At the moment this just loads a world
+        //             // In the future it might be necessary to have multiple worlds in one project.
+        //             let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
+        // 
+        //             self.world = serialized_world.into_world(display, &mut self.engine.assets).unwrap();
+        //         }
+        //         EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
+        //         EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+        //             self.world.background = Background::HDRI(
+        //                 self.engine
+        //                     .assets
+        //                     .get_cubemap_handle(&hdri_directory_path, display)
+        //                     .unwrap(),
+        //             )
+        //         }
+        //     }
+        // }
 
-        // TODO turn these into executor events
-        for engine_event in events.into_iter() {
-            match engine_event {
-                EngineEvent::LoadProject(serialized_project) => {
-                    // At the moment this just loads a world
-                    // In the future it might be necessary to have multiple worlds in one project.
-                    let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
-
-                    self.world = serialized_world.into_world(display, &mut self.engine.assets).unwrap();
-                }
-                EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
-                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                    self.world.background = Background::HDRI(
-                        self.engine
-                            .assets
-                            .get_cubemap_handle(&hdri_directory_path, display)
-                            .unwrap(),
-                    )
-                }
-            }
-        }
-
-        input.reset_internal_state();
 
         // if self.state.frame_count % 5 == 0 {
         //     info!("{} FPS", self.state.fps);

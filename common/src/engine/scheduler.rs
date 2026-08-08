@@ -5,13 +5,31 @@ use common::ecs::component::StableId;
 use common::ecs::event::Event;
 use fxhash::{FxHashMap, FxHashSet};
 
-pub struct Scheduler {
+#[repr(u8)]
+pub enum Stage {
+    Pre = 0,
+    Main = 1,
+    Post = 2,
+    Count,
+}
+
+pub struct SchedulerStage {
     pub continuous_systems: Vec<System>,
     pub triggerable_systems: Vec<System>,
     pub triggers: FxHashMap<StableId, Vec<StableId>>,
 }
 
-impl Scheduler {
+impl Default for SchedulerStage {
+    fn default() -> Self {
+        Self {
+            continuous_systems: vec![],
+            triggerable_systems: vec![],
+            triggers: FxHashMap::default(),
+        }
+    }
+}
+
+impl SchedulerStage {
     /// These systems run continuously, once per frame.
     pub fn register_continuous<S, P>(&mut self, system: S)
     where
@@ -40,16 +58,14 @@ impl Scheduler {
         self.triggerable_systems.push(new_system);
     }
 
-    pub fn run_systems(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
+    pub fn run(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
         let mut triggered_systems_to_run = FxHashSet::<StableId>::default();
 
         for (event_id, system_ids) in self.triggers.iter_mut() {
             let event_queue_len = world.event_queue_from_id(event_id.clone()).0.len();
 
             for system_id in system_ids {
-                let system = self
-                    .triggerable_systems
-                    .iter_mut()
+                let system = self.triggerable_systems.iter_mut()
                     .find(|system| system.id == *system_id)
                     .unwrap();
 
@@ -63,14 +79,10 @@ impl Scheduler {
             }
         }
 
-        for system_id in triggered_systems_to_run {
-            let system = self
-                .triggerable_systems
-                .iter_mut()
-                .find(|system| system.id == system_id)
-                .unwrap();
-
-            system.run(world, executor);
+        for triggerable_system in self.triggerable_systems.iter_mut() {
+            if triggered_systems_to_run.contains(&triggerable_system.id) {
+                triggerable_system.run(world, executor);
+            }
         }
 
         for system in self.continuous_systems.iter_mut() {
@@ -79,12 +91,39 @@ impl Scheduler {
     }
 }
 
+pub struct Scheduler {
+    stages: [SchedulerStage; Stage::Count as usize],
+}
+
 impl Default for Scheduler {
     fn default() -> Self {
         Self {
-            continuous_systems: vec![],
-            triggerable_systems: vec![],
-            triggers: FxHashMap::default(),
+            stages: core::array::from_fn(|_| SchedulerStage::default()),
+        }
+    }
+}
+
+impl Scheduler {
+    /// These systems run continuously, once per frame.
+    pub fn register_continuous<S, P>(&mut self, system: S, stage: Stage)
+    where
+        S: IntoSystem<P>,
+    {
+        self.stages[stage as usize].register_continuous(system);
+    }
+
+    /// These systems run once when triggered, regardless of the number of times they are triggered.
+    pub fn register_triggered<E, S, P>(&mut self, system: S, stage: Stage)
+    where
+        S: IntoSystem<P>,
+        E: Event,
+    {
+        self.stages[stage as usize].register_triggered::<E, S, P>(system);
+    }
+
+    pub fn run(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
+        for stage in self.stages.iter_mut() {
+            stage.run(world, executor);
         }
     }
 }

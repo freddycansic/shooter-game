@@ -1,5 +1,6 @@
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
+use crate::engine::scheduler::Stage;
 use crate::window::{WinitDeviceEvent, WinitWindowEvent};
 use common::ecs::subsystem::Subsystem;
 use common::engine::scheduler::Scheduler;
@@ -110,22 +111,22 @@ impl Input {
         self.mouse_on_window
     }
 
-    pub fn reset_internal_state(&mut self) {
-        for key_state in self.key_states.iter_mut() {
+    fn reset_internal_state(mut input: ResMut<Input>) {
+        for key_state in input.key_states.iter_mut() {
             if *key_state == KeyState::JustReleased {
                 *key_state = KeyState::Released;
             }
         }
 
-        for mouse_button_state in self.mouse_button_states.iter_mut() {
+        for mouse_button_state in input.mouse_button_states.iter_mut() {
             if *mouse_button_state == KeyState::JustReleased {
                 *mouse_button_state = KeyState::Released;
             }
         }
 
-        self.window_offset = Vector2::zeros();
-        self.device_offset = Vector2::zeros();
-        self.mouse_wheel_offset = 0.0;
+        input.window_offset = Vector2::zeros();
+        input.device_offset = Vector2::zeros();
+        input.mouse_wheel_offset = 0.0;
     }
 
     fn process_window_event(
@@ -281,7 +282,10 @@ impl Subsystem for Input {
     }
 
     fn register_systems(scheduler: &mut Scheduler) {
-        scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::process_window_event);
-        scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::process_device_event);
+        scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::process_window_event, Stage::Pre);
+        scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::process_device_event, Stage::Pre);
+
+        scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::reset_internal_state, Stage::Post);
+        scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::reset_internal_state, Stage::Post);
     }
 }

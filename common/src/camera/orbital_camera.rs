@@ -2,6 +2,7 @@ use crate::ecs::system_parameters::commands::Commands;
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::Res;
 use crate::engine::input::{Input, InputReceived};
+use crate::engine::scheduler::Stage;
 use crate::maths;
 use crate::window::WindowResized;
 use common::context::WindowSize;
@@ -170,8 +171,8 @@ impl Subsystem for OrbitalCamera {
     }
 
     fn register_systems(scheduler: &mut Scheduler) {
-        scheduler.register_triggered::<InputReceived, _, _>(update_zoom);
-        scheduler.register_triggered::<InputReceived, _, _>(update_angles);
-        scheduler.register_triggered::<WindowResized, _, _>(window_resized);
+        scheduler.register_triggered::<InputReceived, _, _>(update_zoom, Stage::Main);
+        scheduler.register_triggered::<InputReceived, _, _>(update_angles, Stage::Main);
+        scheduler.register_triggered::<WindowResized, _, _>(window_resized, Stage::Main);
     }
 }
