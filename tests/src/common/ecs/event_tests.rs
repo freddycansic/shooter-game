@@ -1,4 +1,5 @@
 mod tests {
+    use crate::util::DummyExecutor;
     use common::ecs::system_parameters::event::{EventReader, EventWriter};
     use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::scheduler::Scheduler;
@@ -20,7 +21,7 @@ mod tests {
         let mut world = World::default();
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(read_nothing);
-        scheduler.run_systems(&mut world);
+        scheduler.run_systems(&mut world, &mut DummyExecutor::default());
     }
 
     #[test]
@@ -44,7 +45,7 @@ mod tests {
         scheduler.register_continuous(send);
         scheduler.register_continuous(read);
 
-        scheduler.run_systems(&mut world);
+        scheduler.run_systems(&mut world, &mut DummyExecutor::default());
     }
 
     #[derive(Resource)]
@@ -72,7 +73,7 @@ mod tests {
         scheduler.register_continuous(read);
 
         for _ in 0..3 {
-            scheduler.run_systems(&mut world);
+            scheduler.run_systems(&mut world, &mut DummyExecutor::default());
         }
     }
 }

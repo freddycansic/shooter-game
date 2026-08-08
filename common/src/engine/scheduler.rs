@@ -1,9 +1,8 @@
 use crate::ecs::system::{IntoSystem, System};
-use crate::executor::{CommandExecutor, RuntimeExecutor};
+use crate::executor::CommandExecutor;
 use crate::world::World;
 use common::ecs::component::StableId;
 use common::ecs::event::Event;
-use common::ecs::subsystem::Subsystem;
 use fxhash::{FxHashMap, FxHashSet};
 
 pub struct Scheduler {
@@ -41,7 +40,7 @@ impl Scheduler {
         self.triggerable_systems.push(new_system);
     }
 
-    pub fn run_systems(&mut self, world: &mut World, mut executor: RuntimeExecutor) {
+    pub fn run_systems(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
         let mut triggered_systems_to_run = FxHashSet::<StableId>::default();
 
         for (event_id, system_ids) in self.triggers.iter_mut() {
@@ -71,11 +70,11 @@ impl Scheduler {
                 .find(|system| system.id == system_id)
                 .unwrap();
 
-            system.run(world, &mut executor);
+            system.run(world, executor);
         }
 
         for system in self.continuous_systems.iter_mut() {
-            system.run(world, &mut executor);
+            system.run(world, executor);
         }
     }
 }
