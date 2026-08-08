@@ -7,6 +7,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::maths::{Local, Ray};
 use crate::world::{World, WorldGraph};
+use common_macros::Component;
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
 use petgraph::prelude::NodeIndex;
@@ -84,7 +85,7 @@ impl NarrowPhaseCollisionQuery<Local<Sweep<Sphere>>> for Collider {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Component)]
 pub struct ColliderSet {
     pub broad: Option<Collider>,
     pub narrow: Collider,

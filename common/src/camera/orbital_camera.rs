@@ -3,13 +3,13 @@ use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::Res;
 use crate::engine::input::{Input, InputReceived};
 use crate::maths;
-use crate::window::{CaptureCursor, CenterCursor, WindowResized};
+use crate::window::WindowResized;
 use common::context::WindowSize;
 use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::res::ResMut;
 use common::engine::scheduler::Scheduler;
 use common::executor::CommandExecutor;
-use common::subsystems::frame_timing::FrameState;
+use common::subsystems::frame_timing::FrameTiming;
 use common::world::World;
 use common_macros::Resource;
 use nalgebra::{Matrix4, Point3, Vector3};
@@ -23,8 +23,11 @@ pub struct OrbitalCamera {
     pub target: Point3<f32>,
     pub radius: f32,
 
-    orthograhic_projection: Matrix4<f32>,
+    orthographic_projection: Matrix4<f32>,
     perspective_projection: Matrix4<f32>,
+    view: Matrix4<f32>,
+    vp: Matrix4<f32>,
+    inv_vp: Matrix4<f32>,
 
     position: Point3<f32>,
     yaw: f32,
@@ -33,14 +36,25 @@ pub struct OrbitalCamera {
 
 impl OrbitalCamera {
     pub fn new(target: Point3<f32>, radius: f32, width: f32, height: f32) -> Self {
+        let perspective_projection = maths::perspective_matrix_from_dimensions(width, height);
+        let orthographic_projection = maths::orthographic_matrix_from_dimensions(width, height);
+
+        let position = Point3::new(radius, 0.0, 0.0);
+        let view = Self::calculate_view(&position, &target);
+        let vp = view * perspective_projection;
+        let inv_vp = vp.try_inverse().unwrap();
+
         Self {
-            position: Point3::new(radius, 0.0, 0.0),
+            position,
             radius,
             target,
             yaw: 0.0,
             pitch: std::f32::consts::FRAC_PI_2,
-            perspective_projection: maths::perspective_matrix_from_dimensions(width, height),
-            orthograhic_projection: maths::orthographic_matrix_from_dimensions(width, height),
+            perspective_projection,
+            orthographic_projection,
+            view,
+            vp,
+            inv_vp,
         }
     }
 
@@ -49,12 +63,12 @@ impl OrbitalCamera {
     }
 
     pub fn orthographic_projection(&self) -> Matrix4<f32> {
-        self.orthograhic_projection
+        self.orthographic_projection
     }
 
     pub fn update_projection_matrices(&mut self, width: f32, height: f32) {
         self.perspective_projection = maths::perspective_matrix_from_dimensions(width, height);
-        self.orthograhic_projection = maths::orthographic_matrix_from_dimensions(width, height);
+        self.orthographic_projection = maths::orthographic_matrix_from_dimensions(width, height);
     }
 
     pub fn position(&self) -> Point3<f32> {
@@ -62,7 +76,15 @@ impl OrbitalCamera {
     }
 
     pub fn view(&self) -> Matrix4<f32> {
-        Matrix4::look_at_rh(&self.position, &self.target, &Vector3::new(0.0, 1.0, 0.0))
+        self.view
+    }
+
+    pub fn vp(&self) -> Matrix4<f32> {
+        self.vp
+    }
+
+    pub fn inv_vp(&self) -> Matrix4<f32> {
+        self.inv_vp
     }
 
     pub fn direction(&self) -> Vector3<f32> {
@@ -76,6 +98,18 @@ impl OrbitalCamera {
                 self.radius * self.pitch.cos(),
                 self.radius * self.pitch.sin() * self.yaw.sin(),
             );
+
+        self.update_view_matrices();
+    }
+
+    fn calculate_view(position: &Point3<f32>, target: &Point3<f32>) -> Matrix4<f32> {
+        Matrix4::look_at_rh(position, target, &Vector3::new(0.0, 1.0, 0.0))
+    }
+
+    fn update_view_matrices(&mut self) {
+        self.view = Self::calculate_view(&self.position, &self.target);
+        self.vp = self.view * self.perspective_projection;
+        self.inv_vp = self.vp.try_inverse().unwrap();
     }
 }
 
@@ -90,7 +124,7 @@ fn update_zoom(mut camera: ResMut<OrbitalCamera>, input: Res<Input>) {
 
 fn update_angles(
     mut camera: ResMut<OrbitalCamera>,
-    frame_state: Res<FrameState>,
+    frame_state: Res<FrameTiming>,
     input: Res<Input>,
     mut engine_commands: Commands,
 ) {
@@ -138,5 +172,6 @@ impl Subsystem for OrbitalCamera {
     fn register_systems(scheduler: &mut Scheduler) {
         scheduler.register_triggered::<InputReceived, _, _>(update_zoom);
         scheduler.register_triggered::<InputReceived, _, _>(update_angles);
+        scheduler.register_triggered::<WindowResized, _, _>(window_resized);
     }
 }

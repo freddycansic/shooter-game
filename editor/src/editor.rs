@@ -4,15 +4,15 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::Instant;
 
 use common::debug::Cuboid;
-use common::maths::Ray;
+use common::maths::{Ray, Transform};
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
-use egui_glium::egui_winit::egui::{self, Align, Button};
+use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
-use nalgebra::{Point3, Vector4};
+use nalgebra::{Matrix4, Point3, Vector2, Vector4};
 use palette::Srgb;
 use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
@@ -27,15 +27,20 @@ use common::application::Application;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::context::WindowSize;
+use common::ecs::entity::Entity;
 use common::ecs::subsystem::Subsystem;
-use common::ecs::system_parameters::res::ResMut;
+use common::ecs::system_parameters::event::{EventReader, EventWriter};
+use common::ecs::system_parameters::query::Query;
+use common::ecs::system_parameters::res::{Res, ResMut};
+use common::engine::assets::Assets;
 use common::engine::engine::Engine;
 use common::engine::input::Input;
-use common::engine::renderer::Background;
+use common::engine::renderer::{Background, Viewport, ViewportChanged};
 use common::executor::{CommandExecutor, RuntimeExecutor};
+use common::gui::GuiState;
 use common::light::Light;
 use common::line::Line;
-use common::subsystems::frame_timing::{FrameState, FrameTiming, WinitNewEvents};
+use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common::window::{WindowResized, WinitWindowEvent};
 use common::world::World;
 use common::world::physics_context::ColliderSet;
@@ -49,11 +54,15 @@ enum EngineEvent {
 }
 
 #[derive(Event)]
-struct ViewportClick {}
+struct ViewportClick {
+    mouse_ray: Ray,
+}
+
+#[derive(Resource)]
+struct Selection(Vec<Entity>);
 
 pub struct Editor {
     engine: Engine,
-    camera: OrbitalCamera,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
     debug_cuboids: Vec<Cuboid>,
@@ -74,8 +83,6 @@ impl Application for Editor {
             height: window.inner_size().height,
         });
 
-        let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
-
         let engine = Engine::new(None /* full size*/, display, window, event_loop);
 
         world.lights = vec![Light {
@@ -89,14 +96,22 @@ impl Application for Editor {
             engine,
             sender,
             receiver,
-            camera,
             world,
             debug_cuboids: vec![],
             selection: vec![],
         };
 
+        let mut assets = Assets::new();
+        assets.initialise_default_texture(&display).unwrap();
+        editor.world.register_resource(assets);
+
         editor.register_subsystem::<FrameTiming>();
         editor.register_subsystem::<Input>();
+        editor.engine.scheduler.register_continuous(Self::detect_viewport_click);
+        editor
+            .engine
+            .scheduler
+            .register_triggered::<ViewportClick, _, _>(Self::selection_stuff);
 
         editor
     }
@@ -113,9 +128,9 @@ impl Application for Editor {
         }
 
         // TODO turn this into ECS systems
-        self.update(/* TODO: temporary */ executor.window, display);
+        self.update(display);
 
-        self.engine.scheduler.run_systems(&mut self.world, executor);
+        self.engine.scheduler.run_systems(&mut self.world, &mut executor);
     }
 
     fn render(&mut self, event_loop: &ActiveEventLoop, window: &Window, display: &Display<WindowSurface>) {
@@ -148,7 +163,7 @@ impl Editor {
     }
 
     // TODO turn all this into ECS event stuff
-    fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
+    fn update(&mut self, display: &Display<WindowSurface>) {
         let events = self.receiver.try_iter().collect_vec();
 
         // TODO turn these into executor events
@@ -173,38 +188,6 @@ impl Editor {
             }
         }
 
-        let (input, state) = self.world.resources_mut::<Input, FrameState>().unwrap();
-        let mouse_in_viewport = self.engine.renderer.is_mouse_in_viewport(&input);
-        let left_just_released = input.mouse_button_just_released(MouseButton::Left);
-
-        if left_just_released && mouse_in_viewport {
-            self.world
-                .event_queue::<ViewportClick>()
-                .write(Box::new(ViewportClick {}));
-
-            let ray = self.mouse_ray();
-
-            let intersection = self.world.raycast(&ray, &self.engine.assets);
-
-            if state.gui.render_debug_mouse_rays {
-                self.world.lines.push(Line::new(
-                    ray.origin,
-                    ray.origin + ray.direction() * 1000.0,
-                    if intersection.is_some() {
-                        Srgb::new(0.0, 1.0, 0.0)
-                    } else {
-                        Srgb::new(1.0, 0.0, 0.0)
-                    },
-                    2,
-                ));
-            }
-
-            self.selection = match intersection {
-                Some(hit) => vec![hit.node],
-                None => vec![],
-            };
-        }
-
         input.reset_internal_state();
 
         // if self.state.frame_count % 5 == 0 {
@@ -213,6 +196,66 @@ impl Editor {
         //         format!("Editing {} at {:.1} FPS", self.scene.title, self.state.fps).as_str(),
         //     );
         // }
+    }
+
+    fn detect_viewport_click(
+        input: Res<Input>,
+        viewport: Res<Viewport>,
+        camera: Res<OrbitalCamera>,
+        mut viewport_click: EventWriter<ViewportClick>,
+    ) {
+        let mouse_in_viewport = Self::is_mouse_in_viewport(&input, viewport.0);
+        let left_just_released = input.mouse_button_just_released(MouseButton::Left);
+
+        if left_just_released && mouse_in_viewport {
+            let mouse_ray = mouse_ray(input.mouse_position(), &camera.inv_vp(), viewport.0.unwrap());
+
+            viewport_click.write(ViewportClick { mouse_ray });
+        }
+    }
+
+    pub fn is_mouse_in_viewport(input: &Input, viewport: &Viewport) -> bool {
+        if !input.mouse_on_window() {
+            return false;
+        }
+
+        let mouse_position = input.mouse_position();
+
+        viewport.is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
+    }
+
+    fn selection_stuff(
+        gui_state: Res<GuiState>,
+        mut viewport_click: EventReader<Viewport>,
+        assets: Res<Assets>,
+        mut selection: ResMut<Selection>,
+        mut colliders: Query<(&ColliderSet, &Transform)>,
+    ) {
+        let mouse_ray = viewport_click.read().next().unwrap();
+
+        for (collider_set, transform) in colliders.iter() {
+            
+        }
+
+        let intersection = self.world.raycast(&mouse_ray, &assets);
+
+        if gui_state.render_debug_mouse_rays {
+            self.world.lines.push(Line::new(
+                ray.origin,
+                ray.origin + ray.direction() * 1000.0,
+                if intersection.is_some() {
+                    Srgb::new(0.0, 1.0, 0.0)
+                } else {
+                    Srgb::new(1.0, 0.0, 0.0)
+                },
+                2,
+            ));
+        }
+
+        selection = match intersection {
+            Some(hit) => vec![hit.node],
+            None => vec![],
+        };
     }
 
     fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
@@ -247,7 +290,7 @@ impl Editor {
         target.finish().unwrap();
     }
 
-    fn render_gui(&mut self, window: &Window) {
+    fn render_gui(&mut self, window: &Window, mut viewport_changed: EventWriter<ViewportChanged>) {
         self.engine.gui.run(window, |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
@@ -433,9 +476,7 @@ impl Editor {
             });
 
             // Update the viewport size with the amount of space after then panels have been added
-            self.engine
-                .renderer
-                .update_viewport(ctx.available_rect(), &mut self.camera);
+            viewport_changed.write(ViewportChanged(Viewport(Some(ctx.available_rect()))));
         });
     }
 
@@ -459,40 +500,36 @@ impl Editor {
 
         Ok(())
     }
+}
 
-    fn mouse_ray(&self) -> Ray {
-        // mouse coordinates in window coordinates
-        let mouse = self.engine.input.mouse_position().unwrap();
+fn mouse_ray(mouse_position: Vector2<f64>, inv_vp: &Matrix4<f32>, viewport: egui::Rect) -> Ray {
+    // mouse coordinates in window coordinates
+    // mouse_position
 
-        // mouse coordinates in viewport coordinates
-        let viewport = self.engine.renderer.viewport.unwrap();
-        let x_in_viewport = (mouse.x as f32) - viewport.left();
-        let y_in_viewport = (mouse.y as f32) - viewport.top();
+    // mouse coordinates in viewport coordinates
+    let x_in_viewport = (mouse_position.x as f32) - viewport.left();
+    let y_in_viewport = (mouse_position.y as f32) - viewport.top();
 
-        // mouse coordinates in ndc coordinates (-1..1)
-        let x_ndc = maths::linear_map(x_in_viewport, 0.0, viewport.width(), -1.0, 1.0);
+    // mouse coordinates in ndc coordinates (-1..1)
+    let x_ndc = maths::linear_map(x_in_viewport, 0.0, viewport.width(), -1.0, 1.0);
 
-        // for y, 1 is top and -1 is bottom
-        let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
+    // for y, 1 is top and -1 is bottom
+    let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
 
-        let vp = self.camera.perspective_projection() * self.camera.view();
-        let inv_vp = vp.try_inverse().unwrap();
+    // position of mouse coordinate on near and far plane in clip space
+    let near_clip = Vector4::new(x_ndc, y_ndc, -1.0, 1.0);
+    let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
 
-        // position of mouse coordinate on near and far plane in clip space
-        let near_clip = Vector4::new(x_ndc, y_ndc, -1.0, 1.0);
-        let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
+    // unproject to get points in world space
+    let near_world_h = inv_vp * near_clip;
+    let far_world_h = inv_vp * far_clip;
 
-        // unproject to get points in world space
-        let near_world_h = inv_vp * near_clip;
-        let far_world_h = inv_vp * far_clip;
+    // convert homogenous coordinates into cartesian
+    let near_world = near_world_h.xyz() / near_world_h.w;
+    let far_world = far_world_h.xyz() / far_world_h.w;
 
-        // convert homogenous coordinates into cartesian
-        let near_world = near_world_h.xyz() / near_world_h.w;
-        let far_world = far_world_h.xyz() / far_world_h.w;
+    let origin = near_world;
+    let direction = (far_world - near_world).normalize();
 
-        let origin = near_world;
-        let direction = (far_world - near_world).normalize();
-
-        Ray::new(origin.into(), direction.into())
-    }
+    Ray::new(origin.into(), direction.into())
 }

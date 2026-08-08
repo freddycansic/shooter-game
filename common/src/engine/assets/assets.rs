@@ -5,12 +5,13 @@ use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use glium::{Display, glutin::surface::WindowSurface};
 
-use itertools::Itertools;
-
 use crate::engine::assets::handle::{CubemapHandle, GeometryHandle, TextureHandle};
 use crate::geometry::Geometry;
 use crate::material::{Cubemap, Texture2DResource};
+use common_macros::Resource;
+use itertools::Itertools;
 
+#[derive(Resource)]
 pub struct Assets {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
     textures: FxHashMap<TextureHandle, Texture2DResource>,

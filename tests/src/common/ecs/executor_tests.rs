@@ -1,8 +1,8 @@
 mod tests {
+    use crate::util::DummyExecutor;
     use common::ecs::system_parameters::commands::Commands;
     use common::engine::scheduler::Scheduler;
     use common::world::World;
-    use crate::util::DummyExecutor;
 
     #[test]
     fn can_execute_commands() {
