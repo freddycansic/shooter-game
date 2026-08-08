@@ -1,5 +1,5 @@
 use crate::ecs::system_parameters::event::EventReader;
-use crate::engine::scheduler::Scheduler;
+use crate::engine::scheduler::{Scheduler, Stage};
 use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::res::ResMut;
 use common::engine::engine::Engine;
@@ -40,6 +40,6 @@ impl Subsystem for FrameTiming {
     }
 
     fn register_systems(scheduler: &mut Scheduler) {
-        scheduler.register_triggered::<WinitNewEvents, _, _>(update_statistics);
+        scheduler.register_triggered::<WinitNewEvents, _, _>(update_statistics, Stage::Pre);
     }
 }
