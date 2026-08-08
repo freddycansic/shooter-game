@@ -1,5 +1,3 @@
-use crate::collision::collidable::{RayHitNode, Sweep, SweepHitNode};
-use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
@@ -9,10 +7,9 @@ use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use crate::engine::renderer::Background;
 use crate::light::Light;
 use crate::line::Line;
-use crate::maths::Ray;
 use crate::serde::SerializedWorld;
 use crate::world::graph::WorldGraph;
-use crate::world::{PhysicsContext, QuadTree};
+use crate::world::QuadTree;
 use common::ecs::component;
 use common::ecs::owned_components::OwnedComponents;
 use fxhash::FxHashMap;
@@ -33,7 +30,6 @@ pub struct World {
     pub geometries: FxHashMap<NodeIndex, GeometryHandle>,
     pub textures: FxHashMap<NodeIndex, TextureHandle>,
     pub player_spawn: Option<NodeIndex>,
-    pub physics_context: PhysicsContext,
 
     // ECS
     pub archetypes: FxHashMap<u64, Archetype>,
@@ -69,14 +65,6 @@ impl World {
         }
 
         matching_archetypes
-    }
-
-    pub fn raycast(&self, ray: &Ray, assets: &Assets) -> Option<RayHitNode> {
-        self.physics_context.raycast(ray, &self.graph, assets)
-    }
-
-    pub fn spherecast(&self, sphere: &Sweep<Sphere>, assets: &Assets) -> Option<SweepHitNode> {
-        self.physics_context.spherecast(sphere, &self.graph, assets)
     }
 
     pub fn save_as(&self, assets: &Assets) {
@@ -174,7 +162,6 @@ impl Default for World {
             lines: vec![],
             graph: WorldGraph::new(),
             lights: vec![],
-            physics_context: PhysicsContext::new(),
 
             geometries: FxHashMap::default(),
             textures: FxHashMap::default(),

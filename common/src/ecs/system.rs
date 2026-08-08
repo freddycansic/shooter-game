@@ -2,15 +2,19 @@ use crate::ecs::component::StableId;
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
 use crate::executor::CommandExecutor;
 use crate::world::World;
+use derive_more::Debug;
 use fxhash::FxHashMap;
 use std::hash::{Hash, Hasher};
 
+#[derive(Debug)]
 pub struct System {
     pub id: StableId,
+    #[debug("traitname")] // trait objects don't implement std::fmt::Debug by default
     pub function: Box<dyn FnMut(&mut World, &mut SystemState, &mut dyn CommandExecutor)>,
     pub state: SystemState,
 }
 
+#[derive(Debug)]
 pub struct SystemState {
     pub event_reader_cursors: FxHashMap<StableId, usize>,
     pub trigger_cursors: FxHashMap<StableId, usize>,

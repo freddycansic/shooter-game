@@ -3,7 +3,7 @@ use common_macros::Component;
 use nalgebra::{Matrix4, Scale3, Translation3, UnitQuaternion, Vector3};
 use serde::{Deserialize, Serialize};
 
-#[derive(Component, Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Transform {
     translation: Translation3<f32>,
     rotation: UnitQuaternion<f32>,
@@ -13,6 +13,12 @@ pub struct Transform {
     #[serde(skip)]
     dirty: bool,
 }
+
+#[derive(Component)]
+pub struct LocalTransform(Transform);
+
+#[derive(Component)]
+pub struct WorldTransform(pub(crate) Transform);
 
 impl Transform {
     pub fn compute_transform_matrix(&mut self) {

@@ -8,8 +8,8 @@ use common::maths::{Ray, Transform};
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
@@ -35,6 +35,8 @@ use common::ecs::system_parameters::res::{Res, ResMut};
 use common::engine::assets::Assets;
 use common::engine::engine::Engine;
 use common::engine::input::Input;
+use common::engine::physics;
+use common::engine::physics::ColliderSet;
 use common::engine::renderer::{Background, Viewport, ViewportChanged};
 use common::executor::{CommandExecutor, RuntimeExecutor};
 use common::gui::GuiState;
@@ -43,8 +45,8 @@ use common::line::Line;
 use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common::window::{WindowResized, WinitWindowEvent};
 use common::world::World;
-use common::world::physics_context::ColliderSet;
 use common::*;
+use common::maths::transform::WorldTransform;
 use common_macros::{Event, Resource};
 
 enum EngineEvent {
@@ -165,7 +167,7 @@ impl Editor {
     // TODO turn all this into ECS event stuff
     fn update(&mut self, display: &Display<WindowSurface>) {
         // let events = self.receiver.try_iter().collect_vec();
-        // 
+        //
         // // TODO turn these into executor events
         // for engine_event in events.into_iter() {
         //     match engine_event {
@@ -173,7 +175,7 @@ impl Editor {
         //             // At the moment this just loads a world
         //             // In the future it might be necessary to have multiple worlds in one project.
         //             let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
-        // 
+        //
         //             self.world = serialized_world.into_world(display, &mut self.engine.assets).unwrap();
         //         }
         //         EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
@@ -187,7 +189,6 @@ impl Editor {
         //         }
         //     }
         // }
-
 
         // if self.state.frame_count % 5 == 0 {
         //     info!("{} FPS", self.state.fps);
@@ -225,18 +226,14 @@ impl Editor {
 
     fn selection_stuff(
         gui_state: Res<GuiState>,
-        mut viewport_click: EventReader<Viewport>,
+        mut viewport_click: EventReader<ViewportClick>,
         assets: Res<Assets>,
         mut selection: ResMut<Selection>,
-        mut colliders: Query<(&ColliderSet, &Transform)>,
+        colliders: Query<(&ColliderSet, &WorldTransform)>,
     ) {
-        let mouse_ray = viewport_click.read().next().unwrap();
+        let mouse_ray = viewport_click.read().next().unwrap().mouse_ray;
 
-        for (collider_set, transform) in colliders.iter() {
-            
-        }
-
-        let intersection = self.world.raycast(&mouse_ray, &assets);
+        let intersection = physics::raycast(&mouse_ray, colliders, &assets);
 
         if gui_state.render_debug_mouse_rays {
             self.world.lines.push(Line::new(

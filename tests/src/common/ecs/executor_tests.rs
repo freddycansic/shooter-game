@@ -1,7 +1,7 @@
 mod tests {
     use crate::util::DummyExecutor;
     use common::ecs::system_parameters::commands::Commands;
-    use common::engine::scheduler::Scheduler;
+    use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
 
     #[test]
@@ -14,10 +14,10 @@ mod tests {
         }
 
         let mut scheduler = Scheduler::default();
-        scheduler.register_continuous(system);
+        scheduler.register_continuous(system, Stage::Main);
 
         let mut executor = DummyExecutor::default();
-        scheduler.run_systems(&mut World::default(), &mut executor);
+        scheduler.run(&mut World::default(), &mut executor);
 
         assert_eq!(executor.commands_executed, 4);
     }

@@ -28,8 +28,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
+    Program, Surface, Vertex, VertexBuffer,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
@@ -278,9 +278,9 @@ impl Renderer {
         camera.update_projection_matrices(viewport.0.unwrap().width(), viewport.0.unwrap().height());
     }
 
-    fn glium_viewport(&self) -> Option<glium::Rect> {
+    fn glium_viewport(egui_viewport: Option<&egui::Rect>) -> Option<glium::Rect> {
         // Convert to bottom left rect from top right
-        self.viewport.map(|viewport| glium::Rect {
+        egui_viewport.map(|viewport| glium::Rect {
             left: viewport.min.x as u32,
             bottom: (viewport.height() - viewport.max.y) as u32,
             width: viewport.width() as u32,
@@ -292,16 +292,27 @@ impl Renderer {
         &mut self,
         world: &World,
         camera: &OrbitalCamera,
-        resources: &Assets,
+        assets: &Assets,
         selection: &[NodeIndex],
         display: &Display<WindowSurface>,
+        viewport: &Viewport,
         target: &mut Frame,
     ) {
         let render_queue = self.build_render_queue(world, selection);
 
-        self.render_background(&world.background, camera, resources, target);
-        self.render_queue(render_queue, camera, resources, &world.lights, display, target);
-        self.render_lines(&world.lines, camera, display, target);
+        let glium_viewport = Self::glium_viewport(viewport.0.as_ref());
+
+        self.render_background(&world.background, camera, assets, glium_viewport, target);
+        self.render_queue(
+            render_queue,
+            camera,
+            assets,
+            &world.lights,
+            display,
+            glium_viewport,
+            target,
+        );
+        self.render_lines(&world.lines, camera, display, glium_viewport, target);
     }
 
     fn render_background(
@@ -309,6 +320,7 @@ impl Renderer {
         background: &Background,
         camera: &OrbitalCamera,
         resources: &Assets,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         match background {
@@ -319,7 +331,7 @@ impl Renderer {
                     1.0,
                     0,
                 );
-                self.render_skybox(camera, *cubemap_handle, resources, target);
+                self.render_skybox(camera, *cubemap_handle, resources, glium_viewport, target);
             }
         }
     }
@@ -371,16 +383,17 @@ impl Renderer {
         resources: &Assets,
         lights: &[Light],
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         // dbg!(&queue);
         // panic!();
 
-        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
+        let vp = maths::raw_matrix(camera.vp());
 
         let dimensions = target.get_dimensions();
 
-        let mask_texture = self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, display);
+        let mask_texture = self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, glium_viewport, display);
 
         self.render_model_instances_color(
             &queue.geometry_batches,
@@ -389,6 +402,7 @@ impl Renderer {
             lights,
             camera.position(),
             display,
+            glium_viewport,
             target,
         );
 
@@ -396,7 +410,7 @@ impl Renderer {
         self.render_outline(outline_texture, target);
 
         // Render quads last so they stay on top
-        self.render_quads(camera, &queue.quad_batches, resources, display, target);
+        self.render_quads(camera, &queue.quad_batches, resources, display, glium_viewport, target);
     }
 
     // pub fn render_terrain(
@@ -442,6 +456,7 @@ impl Renderer {
         camera: &OrbitalCamera,
         opacity: f32,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         assert!(opacity > 0.0 && opacity <= 1.0);
@@ -474,7 +489,7 @@ impl Renderer {
             display,
         );
 
-        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
+        let vp = maths::raw_matrix(camera.vp());
 
         let premultiplied_alpha = Blend {
             color: BlendingFunction::Addition {
@@ -512,7 +527,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     blend: premultiplied_alpha,
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -544,7 +559,7 @@ impl Renderer {
                     blend: premultiplied_alpha,
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -557,6 +572,7 @@ impl Renderer {
         quad_batches: &QuadBatches,
         resources: &Assets,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         let sample_behaviour = SamplerBehavior {
@@ -564,8 +580,6 @@ impl Renderer {
             magnify_filter: MagnifySamplerFilter::Nearest,
             ..SamplerBehavior::default()
         };
-
-        let viewport = self.glium_viewport();
 
         for (texture_handle, quad_vertices) in quad_batches.iter() {
             let quad_buffer = RendererBuffers::get_vertex_buffer(
@@ -591,7 +605,7 @@ impl Renderer {
                     &DrawParameters {
                         // Depth buffer is disabled so that they appear on top
                         blend: Blend::alpha_blending(),
-                        viewport,
+                        viewport: glium_viewport,
                         ..Default::default()
                     },
                 )
@@ -604,6 +618,7 @@ impl Renderer {
         camera: &OrbitalCamera,
         cubemap_handle: CubemapHandle,
         resources: &Assets,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         // Strip translation from view matrix = skybox is always in the same place
@@ -630,7 +645,7 @@ impl Renderer {
                 &self.programs.skybox,
                 &uniforms,
                 &DrawParameters {
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -642,6 +657,7 @@ impl Renderer {
         lines: &[Line],
         camera: &OrbitalCamera,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         if lines.is_empty() {
@@ -664,7 +680,6 @@ impl Renderer {
         }
 
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
-        let viewport = self.glium_viewport();
 
         for (width, points) in batched {
             let buffer =
@@ -678,7 +693,7 @@ impl Renderer {
                     &uniform! { vp: vp },
                     &DrawParameters {
                         line_width: Some(width as f32),
-                        viewport,
+                        viewport: glium_viewport,
                         ..DrawParameters::default()
                     },
                 )
@@ -738,6 +753,7 @@ impl Renderer {
         lights: &[Light],
         camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         let camera_position = <[f32; 3]>::from(camera_position);
@@ -747,8 +763,6 @@ impl Renderer {
             magnify_filter: MagnifySamplerFilter::Nearest,
             ..SamplerBehavior::default()
         };
-
-        let viewport = self.glium_viewport();
 
         // Draw regular color buffer
         for (key, instances) in geometry_batches.iter() {
@@ -796,7 +810,7 @@ impl Renderer {
                                 write: true,
                                 ..Default::default()
                             },
-                            viewport,
+                            viewport: glium_viewport,
                             // backface_culling: BackfaceCullingMode::CullClockwise,
                             ..DrawParameters::default()
                         },
@@ -812,6 +826,7 @@ impl Renderer {
         resources: &Assets,
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
+        glium_viewport: Option<glium::Rect>,
         display: &Display<WindowSurface>,
     ) -> glium::texture::Texture2d {
         let mask_texture = Texture2d::empty_with_format(
@@ -827,8 +842,6 @@ impl Renderer {
         let uniform = uniform! {
             vp: *vp,
         };
-
-        let viewport = self.glium_viewport();
 
         // Only draw selected models into mask
         for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {
@@ -860,7 +873,7 @@ impl Renderer {
                         &self.programs.white,
                         &uniform,
                         &DrawParameters {
-                            viewport,
+                            viewport: glium_viewport,
                             ..DrawParameters::default()
                         },
                     )

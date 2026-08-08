@@ -4,7 +4,7 @@ mod transform;
 
 pub use local::Local;
 pub use ray::Ray;
-pub use transform::Transform;
+pub use transform::*;
 
 use nalgebra::Matrix4;
 
