@@ -1,5 +1,5 @@
 use crate::ecs::component::Component;
-use crate::executor::{CommandExecutor, RuntimeExecutor};
+use crate::executor::{CommandExecutor, RuntimeContext};
 use common::ecs::archetype::Column;
 use common::ecs::component::StableId;
 use common::ecs::system::SystemState;

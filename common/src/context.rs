@@ -1,30 +1,20 @@
 use std::fs;
 
 use crate::application::Application;
-use crate::executor::RuntimeExecutor;
-use crate::window::WinitDeviceEvent;
-use crate::world::World;
+use crate::executor::RuntimeContext;
+use crate::subsystems::window_size::{WindowResized, WindowSize};
 use color_eyre::Result;
-use common::engine::input::Input;
-use common::subsystems::frame_timing::WinitNewEvents;
-use common::window::{WindowResized, WinitWindowEvent};
-use common_macros::Resource;
+use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
+use common_macros::Event;
 use glium::backend::glutin::SimpleWindowBuilder;
 use glium::glutin::surface::WindowSurface;
 use glium::{Display, Program, Vertex, VertexBuffer};
-use palette::white_point::A;
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalPosition;
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
-use winit::keyboard::KeyCode;
-use winit::window::{CursorGrabMode, Window, WindowAttributes, WindowId};
-
-#[derive(Resource)]
-pub struct WindowSize {
-    pub width: u32,
-    pub height: u32,
-}
+use winit::window::{Window, WindowAttributes, WindowId};
+use common::engine::assets::Assets;
+use common::engine::input::Input;
 
 #[derive(Debug)]
 pub struct OpenGLContext<A: Application> {
@@ -38,6 +28,12 @@ pub struct Runtime<A: Application> {
     pub display: Display<WindowSurface>,
     pub application: A,
 }
+
+#[derive(Event)]
+pub struct WinitWindowEvent(pub winit::event::WindowEvent);
+
+#[derive(Event)]
+pub struct WinitDeviceEvent(pub winit::event::DeviceEvent);
 
 impl<'a, A: Application> OpenGLContext<A> {
     pub fn new(window_attributes: WindowAttributes) -> Self {
@@ -75,9 +71,12 @@ impl<'a, A: Application> ApplicationHandler for OpenGLContext<A> {
 }
 
 impl<A: Application> Runtime<A> {
-    pub fn new(window: Window, display: Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
-        let application = A::new(&window, &display, event_loop);
+    pub fn new(mut window: Window, display: Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
+        let context = RuntimeContext::new(&mut window, &display, event_loop);
 
+        let mut application = A::new(&context);
+        application.register_core_ecs_state(&context);
+        
         Runtime {
             window,
             display,
@@ -97,17 +96,15 @@ impl<A: Application> Runtime<A> {
             WindowEvent::Resized(new_size) => {
                 self.display.resize((new_size.width, new_size.height));
 
-                self.application.world().write_event(WindowResized {
-                    new_width: new_size.width,
-                    new_height: new_size.height,
-                });
+                self.application.world().write_event(WindowResized(WindowSize {
+                    width: new_size.width,
+                    height: new_size.height,
+                }));
             }
             WindowEvent::RedrawRequested => {
-                let executor = RuntimeExecutor::new(&mut self.window, event_loop);
+                let context = RuntimeContext::new(&mut self.window, &self.display, event_loop);
 
-                self.application.run_systems(executor, &self.display);
-
-                self.application.render(event_loop, &self.window, &self.display);
+                self.application.run(context);
             }
             _ => (),
         };

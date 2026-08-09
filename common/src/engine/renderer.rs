@@ -4,11 +4,11 @@ use std::hash::{Hash, Hasher};
 use crate::camera::OrbitalCamera;
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
+use crate::ecs::subsystem::Subsystem;
 use crate::ecs::system_parameters::event::EventReader;
-use crate::ecs::system_parameters::res::{Res, ResMut};
+use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::engine::assets::{CubemapHandle, TextureHandle};
-use crate::engine::input::Input;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
@@ -18,8 +18,10 @@ use crate::quad::QuadVertex;
 use crate::world::{QuadBatches, World};
 use crate::{context, maths};
 use color_eyre::Result;
+use common::engine::scheduler::Scheduler;
+use common::executor::RuntimeContext;
 use common_macros::{Event, Resource};
-use egui_glium::egui_winit::egui::{self, Pos2};
+use egui_glium::egui_winit::egui::{self};
 use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
@@ -156,18 +158,27 @@ impl Default for Background {
 }
 
 #[derive(Resource, Clone)]
-pub struct Viewport(Option<egui::Rect>);
+pub struct Viewport(pub Option<egui::Rect>);
 
 #[derive(Event)]
-pub struct ViewportChanged(Viewport);
+pub struct ViewportChanged(pub Viewport);
 
+#[derive(Resource)]
 pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
 }
 
+impl Subsystem for Renderer {
+    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
+        world.register_resource(Renderer::new(context.unwrap().display).unwrap());
+    }
+
+    fn register_systems(scheduler: &mut Scheduler) {}
+}
+
 impl Renderer {
-    pub fn new(viewport: Option<egui::Rect>, display: &Display<WindowSurface>) -> Result<Self> {
+    pub fn new(display: &Display<WindowSurface>) -> Result<Self> {
         let default_program = context::new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
@@ -393,7 +404,14 @@ impl Renderer {
 
         let dimensions = target.get_dimensions();
 
-        let mask_texture = self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, glium_viewport, display);
+        let mask_texture = self.render_mask_texture(
+            &queue.geometry_batches,
+            resources,
+            dimensions,
+            &vp,
+            glium_viewport,
+            display,
+        );
 
         self.render_model_instances_color(
             &queue.geometry_batches,

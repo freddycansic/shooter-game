@@ -1,7 +1,7 @@
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::scheduler::Stage;
-use crate::window::{WinitDeviceEvent, WinitWindowEvent};
+use crate::executor::RuntimeContext;
 use common::ecs::subsystem::Subsystem;
 use common::engine::scheduler::Scheduler;
 use common::world::World;
@@ -14,6 +14,7 @@ use winit::{
     event::{ElementState, KeyEvent},
     keyboard::{KeyCode, NativeKeyCode, PhysicalKey},
 };
+use crate::context::{WinitDeviceEvent, WinitWindowEvent};
 
 const NUM_KEYS: usize = 194;
 const NUM_MOUSE_BUTTONS: usize = 6;
@@ -172,10 +173,11 @@ impl Input {
         }
     }
 
-    pub fn process_device_event(mut input: ResMut<Input>, mut device_events: EventReader<WinitDeviceEvent>) {
+    pub fn process_device_event(mut input: ResMut<Input>, mut device_events: EventReader<WinitDeviceEvent>, mut input_received: EventWriter<InputReceived>,) {
         for device_event in device_events.read() {
             if let DeviceEvent::MouseMotion { delta, .. } = device_event.0 {
                 input.process_mouse_moved_device_event(delta);
+                input_received.write(InputReceived);
             }
         }
     }
@@ -277,7 +279,7 @@ impl Input {
 }
 
 impl Subsystem for Input {
-    fn register_resources(world: &mut World) {
+    fn register_resources(world: &mut World, _context: Option<&RuntimeContext>) {
         world.register_resource(Input::default());
     }
 
@@ -285,7 +287,6 @@ impl Subsystem for Input {
         scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::process_window_event, Stage::Pre);
         scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::process_device_event, Stage::Pre);
 
-        scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::reset_internal_state, Stage::Post);
-        scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::reset_internal_state, Stage::Post);
+        scheduler.register_triggered::<InputReceived, _, _>(Self::reset_internal_state, Stage::Post);
     }
 }

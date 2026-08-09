@@ -29,6 +29,7 @@ use common::colors::{Color, ColorExt};
 use common::context::WindowSize;
 use common::ecs::entity::Entity;
 use common::ecs::subsystem::Subsystem;
+use common::ecs::system_parameters::commands::Commands;
 use common::ecs::system_parameters::event::{EventReader, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
@@ -37,16 +38,17 @@ use common::engine::engine::Engine;
 use common::engine::input::Input;
 use common::engine::physics;
 use common::engine::physics::ColliderSet;
-use common::engine::renderer::{Background, Viewport, ViewportChanged};
-use common::executor::{CommandExecutor, RuntimeExecutor};
-use common::gui::GuiState;
+use common::engine::renderer::{Background, Renderer, Viewport, ViewportChanged};
+use common::engine::scheduler::{Scheduler, Stage};
+use common::executor::{CommandExecutor, RuntimeContext};
+use common::gui::{Gui, GuiState};
 use common::light::Light;
 use common::line::Line;
+use common::maths::transform::WorldTransform;
 use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common::window::{WindowResized, WinitWindowEvent};
 use common::world::World;
 use common::*;
-use common::maths::transform::WorldTransform;
 use common_macros::{Event, Resource};
 
 enum EngineEvent {
@@ -67,25 +69,19 @@ pub struct Editor {
     engine: Engine,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
-    debug_cuboids: Vec<Cuboid>,
-    selection: Vec<NodeIndex>,
     world: World,
 }
 
 impl Application for Editor {
-    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
+    fn new(context: &RuntimeContext) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
 
         let mut world = World::default();
-        world.register_resource(WindowSize {
-            width: window.inner_size().width,
-            height: window.inner_size().height,
-        });
 
-        let engine = Engine::new(None /* full size*/, display, window, event_loop);
+        let engine = Engine::new();
 
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
@@ -99,44 +95,34 @@ impl Application for Editor {
             sender,
             receiver,
             world,
-            debug_cuboids: vec![],
-            selection: vec![],
         };
 
-        let mut assets = Assets::new();
-        assets.initialise_default_texture(&display).unwrap();
-        editor.world.register_resource(assets);
-
-        editor.register_subsystem::<FrameTiming>();
-        editor.register_subsystem::<Input>();
-        editor.engine.scheduler.register_continuous(Self::detect_viewport_click);
+        editor.register_subsystem::<OrbitalCamera>();
+        editor.register_subsystem_with_context::<Gui>(context);
+        
         editor
             .engine
             .scheduler
-            .register_triggered::<ViewportClick, _, _>(Self::selection_stuff);
+            .register_continuous(Self::detect_viewport_click, Stage::Pre);
+        editor
+            .engine
+            .scheduler
+            .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
 
         editor
     }
 
-    fn world(&mut self) -> &mut World {
-        &mut self.world
-    }
-
-    fn run_systems(&mut self, mut executor: RuntimeExecutor, display: &Display<WindowSurface>) {
+    fn run(&mut self, mut context: RuntimeContext) {
         let input = self.world.resource::<Input>().unwrap();
 
         if input.key_pressed(KeyCode::Escape) {
-            executor.exit();
+            context.exit();
         }
 
         // TODO turn this into ECS systems
-        self.update(display);
+        self.update(context.display);
 
-        self.engine.scheduler.run(&mut self.world, &mut executor);
-    }
-
-    fn render(&mut self, event_loop: &ActiveEventLoop, window: &Window, display: &Display<WindowSurface>) {
-        self.render(window, display);
+        self.engine.scheduler.run(&mut self.world, &mut context);
     }
 
     fn window_event(
@@ -146,22 +132,40 @@ impl Application for Editor {
         window: &Window,
         _display: &Display<WindowSurface>,
     ) {
-        let gui_event_response = self.engine.gui.on_event(window, &event);
+        
+    }
 
-        if gui_event_response.repaint {
-            window.request_redraw();
-        }
+    fn world(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    fn scheduler(&mut self) -> &mut Scheduler {
+        &mut self.engine.scheduler
     }
 }
 
 impl Editor {
-    // TODO figure out where to put this
-    pub fn register_subsystem<S>(&mut self)
-    where
-        S: Subsystem,
-    {
-        S::register_resources(&mut self.world);
-        S::register_systems(&mut self.engine.scheduler);
+    fn render(window_size: Res<WindowSize>, mut renderer: ResMut<Renderer>, viewport: Res<Viewport>, commands: Commands) {
+        if window_size.width == 0 || window_size.height == 0 {
+            return;
+        }
+
+        let mut target = commands.display().draw();
+        {
+            renderer.render_world(
+                &self.world,
+                &self.camera,
+                &self.engine.assets,
+                &self.selection,
+                commands.display(),
+                &*viewport,
+                &mut target,
+            );
+
+            self.render_gui(window);
+            self.engine.gui.paint(display, &mut target);
+        }
+        target.finish().unwrap();
     }
 
     // TODO turn all this into ECS event stuff
@@ -221,7 +225,7 @@ impl Editor {
 
         let mouse_position = input.mouse_position();
 
-        viewport.is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
+        viewport.0.is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
     }
 
     fn selection_stuff(
@@ -254,230 +258,10 @@ impl Editor {
         };
     }
 
-    fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        let window_size = window.inner_size();
-        if window_size.width == 0 || window_size.height == 0 {
-            return;
-        }
-
-        // for node in self.scene.graph.graph.node_weights_mut() {
-        //     node.local_transform
-        //         .set_rotation(UnitQuaternion::from_axis_angle(
-        //             &Vector3::y_axis(),
-        //             (self.state.frame_count as f32 * 0.001) % 360.0,
-        //         ));
-        // }
-
-        let mut target = display.draw();
-        {
-            self.world.graph.calculate_world_matrices();
-            self.engine.renderer.render_world(
-                &self.world,
-                &self.camera,
-                &self.engine.assets,
-                &self.selection,
-                display,
-                &mut target,
-            );
-
-            self.render_gui(window);
-            self.engine.gui.paint(display, &mut target);
-        }
-        target.finish().unwrap();
-    }
-
-    fn render_gui(&mut self, window: &Window, mut viewport_changed: EventWriter<ViewportChanged>) {
-        self.engine.gui.run(window, |ctx| {
-            egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-                egui::MenuBar::new().ui(ui, |ui| {
-                    ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
-                        ui.menu_button("File", |ui| {
-                            if ui.add(Button::new("New")).clicked() {
-                                self.world = World::default();
-
-                                ui.close();
-                            }
-
-                            if ui.add(Button::new("Open project")).clicked() {
-                                let sender = self.sender.clone();
-
-                                std::thread::spawn(move || {
-                                    if let Some(file) = FileDialog::new()
-                                        .add_filter("json", &["json"])
-                                        .set_can_create_directories(true)
-                                        .set_directory("/")
-                                        .pick_file()
-                                    {
-                                        log::info!("Loading project {:?}", file);
-
-                                        let project_string = std::fs::read_to_string(file).unwrap();
-
-                                        sender.send(EngineEvent::LoadProject(project_string)).unwrap();
-                                    }
-                                });
-
-                                ui.close();
-                            }
-
-                            if ui.add(Button::new("Save as")).clicked() {
-                                info!("Saving project...");
-                                self.world.save_as(&self.engine.assets);
-                            }
-                        });
-
-                        ui.menu_button("Project", |ui| {
-                            if ui.add(Button::new("Import models")).clicked() {
-                                let sender = self.sender.clone();
-
-                                std::thread::spawn(move || {
-                                    if let Some(paths) = FileDialog::new()
-                                        .add_filter("gltf", &["gltf", "glb"])
-                                        .set_can_create_directories(true)
-                                        .set_directory("/")
-                                        .pick_files()
-                                    {
-                                        for path in paths {
-                                            sender.send(EngineEvent::ImportModel(path)).unwrap();
-                                        }
-                                    }
-                                });
-
-                                ui.close();
-                            }
-                        });
-
-                        ui.menu_button("Run", |ui| {
-                            if ui.add(Button::new("Run game")).clicked() {
-                                let uuid = Uuid::new_v4().to_string();
-                                let mut temp_path = std::env::temp_dir();
-                                temp_path.push(uuid.clone());
-
-                                let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.assets);
-                                let serialized_string = serde_json::to_string(&serialized_world).unwrap();
-
-                                std::fs::write(&temp_path, serialized_string).unwrap();
-
-                                std::process::Command::new("cargo")
-                                    .arg("run")
-                                    .arg("--package")
-                                    .arg("game")
-                                    .arg("--")
-                                    .arg("--project")
-                                    .arg(uuid)
-                                    .spawn()
-                                    .unwrap()
-                                    .wait()
-                                    .unwrap();
-
-                                ui.close();
-                            }
-                        });
-                    });
-                });
-            });
-
-            egui::SidePanel::left("left_panel")
-                .default_width(100.0)
-                .show(ctx, |ui| {
-                    self.world.graph.show(ui);
-
-                    ui.add(egui::Separator::default().horizontal());
-
-                    // ui.collapsing("Quads", |ui| {
-                    //     if self.scene.quads.node_count() == 0 {
-                    //         ui.label("There are no quads in the scene.");
-                    //     } else {
-                    //         ui::collapsing_graph(ui, &mut self.scene.quads);
-                    //     }
-                    // });
-                });
-
-            egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                ui.collapsing("Properties", |ui| {
-                    if self.selection.len() == 1 {
-                        let selected_node_index = self.selection[0];
-                        let selected_node = &mut self.world.graph.graph[selected_node_index];
-
-                        selected_node.local_transform.show(ui);
-
-                        dbg!(&selected_node.local_transform);
-
-                        ui.label(format!("Node index: {:?}", selected_node_index));
-
-                        ui.separator();
-
-                        ui.label("Components");
-
-                        if self.world.player_spawn == Some(selected_node_index) {
-                            ui.label("Player spawn");
-                        }
-                        if self.world.physics_context.colliders.contains_key(&selected_node_index) {
-                            ui.horizontal(|ui| {
-                                ui.label("Collider");
-                                if ui.button("-").clicked() {
-                                    self.world.physics_context.colliders.remove(&selected_node_index);
-                                }
-                            });
-                        }
-
-                        if ui.button("+").clicked() {
-                            self.world.player_spawn = Some(selected_node_index);
-                        }
-                    }
-                });
-
-                ui.collapsing("Debug", |ui| {
-                    ui.add(
-                        egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
-                    );
-
-                    ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
-
-                    ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
-                    if ui.button("Clear lines").clicked() {
-                        // self.engine.renderer.lines.clear();
-                        unimplemented!();
-                    }
-                });
-
-                ui.separator();
-
-                ui.collapsing("Background", |ui| {
-                    ui.horizontal(|ui| {
-                        // ui.selectable_value(
-                        //     &mut self.scene.background,
-                        //     Background::default(),
-                        //     "Color",
-                        // );
-
-                        if ui.selectable_label(false, "HDRI").clicked() {
-                            let sender = self.sender.clone();
-
-                            std::thread::spawn(move || {
-                                if let Some(path) = FileDialog::new()
-                                    .set_can_create_directories(true)
-                                    .set_directory("/")
-                                    .pick_folder()
-                                {
-                                    sender.send(EngineEvent::ImportHDRIBackground(path)).unwrap();
-                                }
-                            });
-                        }
-                    });
-                });
-
-                ui.collapsing("Lighting", |ui| {
-                    ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
-                });
-            });
-
-            // Update the viewport size with the amount of space after then panels have been added
-            viewport_changed.write(ViewportChanged(Viewport(Some(ctx.available_rect()))));
-        });
-    }
-
     /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
+        unimplemented!();
+        
         let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
 
         let group_node = self.world.graph.add_root_node(WorldNode::default());

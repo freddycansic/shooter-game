@@ -10,6 +10,10 @@ use crate::geometry::Geometry;
 use crate::material::{Cubemap, Texture2DResource};
 use common_macros::Resource;
 use itertools::Itertools;
+use common::engine::scheduler::Scheduler;
+use common::executor::RuntimeContext;
+use common::world::World;
+use crate::ecs::subsystem::Subsystem;
 
 #[derive(Resource)]
 pub struct Assets {
@@ -22,6 +26,17 @@ pub struct Assets {
 
     cubemap_handles: FxHashMap<PathBuf, CubemapHandle>,
     cubemaps: FxHashMap<CubemapHandle, Cubemap>,
+}
+
+impl Subsystem for Assets {
+    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
+        let mut assets = Assets::new();
+        assets.initialise_default_texture(context.unwrap().display).unwrap();
+        
+        world.register_resource(assets);
+    }
+
+    fn register_systems(scheduler: &mut Scheduler) {}
 }
 
 // TODO for possible performance

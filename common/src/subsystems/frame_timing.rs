@@ -6,6 +6,7 @@ use common::engine::engine::Engine;
 use common::world::World;
 use common_macros::{Event, Resource};
 use std::time::Instant;
+use common::executor::RuntimeContext;
 
 #[derive(Event)]
 pub struct WinitNewEvents;
@@ -28,7 +29,7 @@ pub fn update_statistics(mut frame_state: ResMut<FrameTiming>) {
 }
 
 impl Subsystem for FrameTiming {
-    fn register_resources(world: &mut World) {
+    fn register_resources(world: &mut World, _context: Option<&RuntimeContext>) {
         let state = FrameTiming {
             last_frame_end: Instant::now(),
             frame_count: 0,
