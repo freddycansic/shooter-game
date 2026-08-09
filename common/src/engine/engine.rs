@@ -13,8 +13,7 @@ pub struct Engine {
 }
 
 impl Engine {
-    pub fn new(
-    ) -> Self {
+    pub fn new() -> Self {
         Self {
             scheduler: Scheduler::default(),
         }

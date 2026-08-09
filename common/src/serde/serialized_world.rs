@@ -1,14 +1,14 @@
 use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
-use crate::serde::SerializedArchetype;
 use crate::serde::serialized_handles::SerializedGeometryHandle;
-use crate::world::{QuadTree, SerializedQuadTree, World, WorldGraph};
+use crate::serde::SerializedArchetype;
+use crate::world::{QuadTree, SerializedQuadTree, World};
 use crate::{
     light::Light,
-    serde::{SerializeWithContext, serialized_background::SerializedBackground},
+    serde::{serialized_background::SerializedBackground, SerializeWithContext},
 };
 use color_eyre::eyre::Result;
 use fxhash::FxHashMap;
-use glium::{Display, glutin::surface::WindowSurface};
+use glium::{glutin::surface::WindowSurface, Display};
 use itertools::Itertools;
 use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,6 @@ use std::path::PathBuf;
 #[derive(Serialize, Deserialize)]
 pub struct SerializedWorld {
     pub title: String,
-    pub graph: WorldGraph,
     pub background: SerializedBackground,
     pub lights: Vec<Light>,
     // pub terrain: Option<Terrain>,
@@ -30,35 +29,35 @@ pub struct SerializedWorld {
 
 impl SerializedWorld {
     pub fn from_world(value: &World, resources: &Assets) -> Self {
-        let serialized_geometries = value
-            .geometries
-            .iter()
-            .map(|(node, geometry_handle)| (*node, geometry_handle.serialize_with(resources)))
-            .collect();
-
-        let serialized_textures = value
-            .textures
-            .iter()
-            .map(|(node, texture_handle)| (*node, texture_handle.serialize_with(resources)))
-            .collect();
+        // let serialized_geometries = value
+        //     .geometries
+        //     .iter()
+        //     .map(|(node, geometry_handle)| (*node, geometry_handle.serialize_with(resources)))
+        //     .collect();
+        //
+        // let serialized_textures = value
+        //     .textures
+        //     .iter()
+        //     .map(|(node, texture_handle)| (*node, texture_handle.serialize_with(resources)))
+        //     .collect();
 
         // let serialized_archetypes = value.archetypes.iter().map(|archetype| archetype.ser)
         unimplemented!();
 
-        Self {
-            title: value.title.clone(),
-            quads: value.quads.serialize_with(resources),
-            graph: value.graph.clone(),
-            background: SerializedBackground::from_background(&value.background, &resources),
-            lights: value.lights.clone(),
-            // terrain: value.terrain.clone(),
-
-            textures: serialized_textures,
-            geometries: serialized_geometries,
-            player_spawn: value.player_spawn,
-
-            archetypes: vec![], // TODO
-        }
+        // Self {
+        //     title: value.title.clone(),
+        //     quads: value.quads.serialize_with(resources),
+        //     graph: value.graph.clone(),
+        //     background: SerializedBackground::from_background(&value.background, &resources),
+        //     lights: value.lights.clone(),
+        //     // terrain: value.terrain.clone(),
+        //
+        //     textures: serialized_textures,
+        //     geometries: serialized_geometries,
+        //     player_spawn: value.player_spawn,
+        //
+        //     archetypes: vec![], // TODO
+        // }
     }
 
     pub fn into_world(self, display: &Display<WindowSurface>, resources: &mut Assets) -> Result<World> {

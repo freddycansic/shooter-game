@@ -7,7 +7,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::entity::Entity;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::maths::{Local, Ray, WorldTransform};
-use crate::world::{World, WorldGraph};
+use crate::world::{World};
 use common_macros::Component;
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
@@ -160,7 +160,8 @@ where
                 entity,
                 hit: RayHit {
                     tmin: tmin_world,
-                    tmax: (world_transform.0
+                    tmax: (world_transform
+                        .0
                         .matrix()
                         .transform_point(&local_ray.point_at(local_hit.tmax))
                         - ray.origin)
@@ -172,25 +173,25 @@ where
 
 // pub fn spherecast(&self, query: &Sweep<Sphere>, world_graph: &WorldGraph, resources: &Assets) -> Option<SweepHitNode> {
 //     // dbg!(self.colliders.len());
-// 
+//
 //     self.colliders
 //         .iter()
 //         .filter_map(|(&node_index, collider_set)| {
 //             let node = world_graph.graph.node_weight(node_index)?;
-// 
+//
 //             let world_inverse = node.world_transform().matrix().try_inverse().unwrap();
-// 
+//
 //             let local_query = {
 //                 let local_sphere =
 //                     Sphere::new(world_inverse.transform_point(&query.object.origin), query.object.radius);
 //                 let local_velocity = world_inverse.transform_vector(&query.velocity);
-// 
+//
 //                 Local(Sweep {
 //                     object: local_sphere,
 //                     velocity: local_velocity,
 //                 })
 //             };
-// 
+//
 //             collider_set
 //                 .spherecast(&local_query, resources)
 //                 .map(|hit| (hit, node, node_index))
@@ -203,9 +204,9 @@ where
 //                 .rotation()
 //                 .transform_vector(&local_hit.normal)
 //                 .normalize();
-// 
+//
 //             let world_t = ((world_point - query.object.origin).norm() - query.object.radius) / query.velocity.norm();
-// 
+//
 //             SweepHitNode {
 //                 hit: SweepHit {
 //                     t: world_t,

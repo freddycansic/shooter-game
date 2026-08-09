@@ -4,6 +4,8 @@ use crate::application::Application;
 use crate::executor::RuntimeContext;
 use crate::subsystems::window_size::{WindowResized, WindowSize};
 use color_eyre::Result;
+use common::engine::assets::Assets;
+use common::engine::input::Input;
 use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common_macros::Event;
 use glium::backend::glutin::SimpleWindowBuilder;
@@ -13,8 +15,6 @@ use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes, WindowId};
-use common::engine::assets::Assets;
-use common::engine::input::Input;
 
 #[derive(Debug)]
 pub struct OpenGLContext<A: Application> {
@@ -76,7 +76,7 @@ impl<A: Application> Runtime<A> {
 
         let mut application = A::new(&context);
         application.register_core_ecs_state(&context);
-        
+
         Runtime {
             window,
             display,

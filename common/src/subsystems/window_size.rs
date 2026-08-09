@@ -1,11 +1,11 @@
-use common::engine::scheduler::Scheduler;
-use common::world::World;
-use common_macros::{Event, Resource};
 use crate::ecs::subsystem::Subsystem;
 use crate::ecs::system_parameters::event::EventReader;
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::scheduler::Stage;
 use crate::executor::RuntimeContext;
+use common::engine::scheduler::Scheduler;
+use common::world::World;
+use common_macros::{Event, Resource};
 
 #[derive(Resource, Copy, Clone)]
 pub struct WindowSize {
@@ -19,8 +19,11 @@ pub struct WindowResized(pub WindowSize);
 impl Subsystem for WindowSize {
     fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         let window_size = context.unwrap().window.inner_size();
-        
-        world.register_resource(WindowSize { width: window_size.width, height: window_size.height });
+
+        world.register_resource(WindowSize {
+            width: window_size.width,
+            height: window_size.height,
+        });
     }
 
     fn register_systems(scheduler: &mut Scheduler) {

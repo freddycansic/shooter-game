@@ -1,3 +1,4 @@
+use crate::context::{WinitDeviceEvent, WinitWindowEvent};
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::scheduler::Stage;
@@ -14,7 +15,6 @@ use winit::{
     event::{ElementState, KeyEvent},
     keyboard::{KeyCode, NativeKeyCode, PhysicalKey},
 };
-use crate::context::{WinitDeviceEvent, WinitWindowEvent};
 
 const NUM_KEYS: usize = 194;
 const NUM_MOUSE_BUTTONS: usize = 6;
@@ -173,7 +173,11 @@ impl Input {
         }
     }
 
-    pub fn process_device_event(mut input: ResMut<Input>, mut device_events: EventReader<WinitDeviceEvent>, mut input_received: EventWriter<InputReceived>,) {
+    pub fn process_device_event(
+        mut input: ResMut<Input>,
+        mut device_events: EventReader<WinitDeviceEvent>,
+        mut input_received: EventWriter<InputReceived>,
+    ) {
         for device_event in device_events.read() {
             if let DeviceEvent::MouseMotion { delta, .. } = device_event.0 {
                 input.process_mouse_moved_device_event(delta);

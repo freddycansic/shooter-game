@@ -8,8 +8,8 @@ use common::maths::{Ray, Transform};
 use common::serde::SerializedWorld;
 use common::world::WorldNode;
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
@@ -99,7 +99,7 @@ impl Application for Editor {
 
         editor.register_subsystem::<OrbitalCamera>();
         editor.register_subsystem_with_context::<Gui>(context);
-        
+
         editor
             .engine
             .scheduler
@@ -108,6 +108,7 @@ impl Application for Editor {
             .engine
             .scheduler
             .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
+        editor.engine.scheduler.register_continuous(Self::render, Stage::Render);
 
         editor
     }
@@ -132,7 +133,6 @@ impl Application for Editor {
         window: &Window,
         _display: &Display<WindowSurface>,
     ) {
-        
     }
 
     fn world(&mut self) -> &mut World {
@@ -145,7 +145,17 @@ impl Application for Editor {
 }
 
 impl Editor {
-    fn render(window_size: Res<WindowSize>, mut renderer: ResMut<Renderer>, viewport: Res<Viewport>, commands: Commands) {
+    fn render(
+        window_size: Res<WindowSize>,
+        mut renderer: ResMut<Renderer>,
+        viewport: Res<Viewport>,
+        commands: Commands,
+        background: Res<Background>,
+        selection: Res<Selection>,
+        assets: Res<Assets>,
+        camera: Res<OrbitalCamera>,
+        gui: Res<Gui>
+    ) {
         if window_size.width == 0 || window_size.height == 0 {
             return;
         }
@@ -154,16 +164,16 @@ impl Editor {
         {
             renderer.render_world(
                 &self.world,
-                &self.camera,
-                &self.engine.assets,
-                &self.selection,
+                &*camera,
+                &*assets,
+                &selection.0,
                 commands.display(),
                 &*viewport,
+                &*background,
                 &mut target,
             );
 
-            self.render_gui(window);
-            self.engine.gui.paint(display, &mut target);
+            gui.0.paint(commands.display(), &mut target);
         }
         target.finish().unwrap();
     }
@@ -225,7 +235,9 @@ impl Editor {
 
         let mouse_position = input.mouse_position();
 
-        viewport.0.is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
+        viewport
+            .0
+            .is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
     }
 
     fn selection_stuff(
@@ -261,7 +273,7 @@ impl Editor {
     /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
         unimplemented!();
-        
+
         let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
 
         let group_node = self.world.graph.add_root_node(WorldNode::default());

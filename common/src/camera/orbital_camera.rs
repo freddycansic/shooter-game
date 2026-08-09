@@ -3,7 +3,9 @@ use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::Res;
 use crate::engine::input::{Input, InputReceived};
 use crate::engine::scheduler::Stage;
+use crate::executor::RuntimeContext;
 use crate::maths;
+use crate::subsystems::window_size::{WindowResized, WindowSize};
 use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::res::ResMut;
 use common::engine::scheduler::Scheduler;
@@ -15,8 +17,6 @@ use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
-use crate::executor::RuntimeContext;
-use crate::subsystems::window_size::{WindowResized, WindowSize};
 
 #[derive(Resource, Serialize, Deserialize)]
 pub struct OrbitalCamera {
@@ -158,7 +158,7 @@ impl Subsystem for OrbitalCamera {
     fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         let camera_radius = 5.0;
         let window_size = context.unwrap().window.inner_size();
-        
+
         world.register_resource(OrbitalCamera::new(
             Point3::origin(),
             camera_radius,

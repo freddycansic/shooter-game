@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use crate::camera::OrbitalCamera;
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
+use crate::ecs::entity::Entity;
 use crate::ecs::subsystem::Subsystem;
 use crate::ecs::system_parameters::event::EventReader;
 use crate::ecs::system_parameters::res::ResMut;
@@ -30,8 +31,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
-    Program, Surface, Vertex, VertexBuffer,
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
@@ -145,7 +146,7 @@ pub struct RenderQueue {
     pub quad_batches: QuadBatches,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Resource, PartialEq, Clone)]
 pub enum Background {
     Color(Color),
     HDRI(CubemapHandle),
@@ -172,6 +173,7 @@ pub struct Renderer {
 impl Subsystem for Renderer {
     fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         world.register_resource(Renderer::new(context.unwrap().display).unwrap());
+        world.register_resource(Background::default());
     }
 
     fn register_systems(scheduler: &mut Scheduler) {}
@@ -304,26 +306,28 @@ impl Renderer {
         world: &World,
         camera: &OrbitalCamera,
         assets: &Assets,
-        selection: &[NodeIndex],
+        selection: &[Entity], // selection should really be application level
         display: &Display<WindowSurface>,
         viewport: &Viewport,
+        background: &Background,
         target: &mut Frame,
     ) {
-        let render_queue = self.build_render_queue(world, selection);
+        let render_queue = self.build_render_queue(world, /*selection*/ &[]);
 
         let glium_viewport = Self::glium_viewport(viewport.0.as_ref());
 
-        self.render_background(&world.background, camera, assets, glium_viewport, target);
+        self.render_background(background, camera, assets, glium_viewport, target);
         self.render_queue(
             render_queue,
             camera,
             assets,
-            &world.lights,
+            // &world.lights,
+            &[],
             display,
             glium_viewport,
             target,
         );
-        self.render_lines(&world.lines, camera, display, glium_viewport, target);
+        // self.render_lines(&world.lines, camera, display, glium_viewport, target);
     }
 
     fn render_background(
@@ -348,7 +352,7 @@ impl Renderer {
     }
 
     fn build_render_queue(&mut self, world: &World, selection: &[NodeIndex]) -> RenderQueue {
-        let geometry_batches = self.batch_geometry(world, selection);
+        let geometry_batches = self.batch_geometry(selection);
         // let quad_batches = self.quads.batch();
 
         RenderQueue {
@@ -357,32 +361,32 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, world: &World, selection: &[NodeIndex]) -> GeometryBatches {
+    fn batch_geometry(&self, selection: &[NodeIndex]) -> GeometryBatches {
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         let selection_set = FxHashSet::from_iter(selection.iter().cloned());
 
-        for (node_index, geometry_handle) in &world.geometries {
-            let node = world.graph.graph.node_weight(*node_index).unwrap();
-
-            if !node.visible {
-                continue;
-            }
-
-            let texture_handle = world.textures.get(node_index).cloned();
-
-            let node_key = GeometryBatchKey {
-                geometry_handle: *geometry_handle,
-                texture_handle,
-                selected: selection_set.contains(node_index),
-            };
-
-            let batch = batches.entry(node_key).or_insert(vec![]);
-
-            let transform = node.world_transform().raw_matrix();
-
-            batch.push(Instance { transform });
-        }
+        // for (node_index, geometry_handle) in &world.geometries {
+        //     let node = world.graph.graph.node_weight(*node_index).unwrap();
+        // 
+        //     if !node.visible {
+        //         continue;
+        //     }
+        // 
+        //     let texture_handle = world.textures.get(node_index).cloned();
+        // 
+        //     let node_key = GeometryBatchKey {
+        //         geometry_handle: *geometry_handle,
+        //         texture_handle,
+        //         selected: selection_set.contains(node_index),
+        //     };
+        // 
+        //     let batch = batches.entry(node_key).or_insert(vec![]);
+        // 
+        //     let transform = node.world_transform().raw_matrix();
+        // 
+        //     batch.push(Instance { transform });
+        // }
 
         batches
     }

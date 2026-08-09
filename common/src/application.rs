@@ -1,20 +1,20 @@
-use crate::executor::RuntimeContext;
-use crate::world::World;
-use glium::glutin::surface::WindowSurface;
-use glium::Display;
-use winit::event::{DeviceEvent, WindowEvent};
-use winit::event_loop::ActiveEventLoop;
-use winit::window::Window;
-use common::ecs::subsystem::Subsystem;
 use crate::engine::assets::Assets;
 use crate::engine::input::Input;
 use crate::engine::scheduler::Scheduler;
+use crate::executor::RuntimeContext;
 use crate::subsystems::frame_timing::FrameTiming;
 use crate::subsystems::window_size::WindowSize;
+use crate::world::World;
+use common::ecs::subsystem::Subsystem;
+use glium::Display;
+use glium::glutin::surface::WindowSurface;
+use winit::event::{DeviceEvent, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
+use winit::window::Window;
 
 pub trait Application {
     fn new(context: &RuntimeContext) -> Self;
-    
+
     fn run(&mut self, context: RuntimeContext);
 
     fn window_event(
@@ -60,8 +60,8 @@ pub trait Application {
         self.register_subsystem::<Input>();
         self.register_subsystem::<FrameTiming>();
     }
-    
+
     fn world(&mut self) -> &mut World;
-    
+
     fn scheduler(&mut self) -> &mut Scheduler;
 }

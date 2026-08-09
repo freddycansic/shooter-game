@@ -1,7 +1,7 @@
+use crate::ecs::entity::Entity;
 use crate::engine::assets::Assets;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
-use crate::ecs::entity::Entity;
 
 #[derive(Debug)]
 pub struct RayHit {

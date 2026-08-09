@@ -3,18 +3,15 @@ use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::resource::{Resource, ResourceStore};
-use crate::engine::assets::{Assets, GeometryHandle, TextureHandle};
-use crate::engine::renderer::Background;
+use crate::engine::assets::Assets;
 use crate::light::Light;
 use crate::line::Line;
 use crate::serde::SerializedWorld;
-use crate::world::graph::WorldGraph;
 use crate::world::QuadTree;
 use common::ecs::component;
 use common::ecs::owned_components::OwnedComponents;
 use fxhash::FxHashMap;
 use itertools::Itertools;
-use petgraph::prelude::NodeIndex;
 use rfd::FileDialog;
 use std::collections::hash_map::Entry;
 
@@ -22,14 +19,7 @@ pub struct World {
     pub title: String,
     pub lines: Vec<Line>,
     pub quads: QuadTree,
-    pub background: Background,
-    pub graph: WorldGraph,
     pub lights: Vec<Light>,
-
-    // Components
-    pub geometries: FxHashMap<NodeIndex, GeometryHandle>,
-    pub textures: FxHashMap<NodeIndex, TextureHandle>,
-    pub player_spawn: Option<NodeIndex>,
 
     // ECS
     pub archetypes: FxHashMap<u64, Archetype>,
@@ -157,15 +147,10 @@ impl Default for World {
     fn default() -> Self {
         Self {
             title: "Untitled".to_string(),
-            background: Background::default(),
             quads: QuadTree::new(),
             lines: vec![],
-            graph: WorldGraph::new(),
             lights: vec![],
 
-            geometries: FxHashMap::default(),
-            textures: FxHashMap::default(),
-            player_spawn: None,
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
             events: FxHashMap::default(),
