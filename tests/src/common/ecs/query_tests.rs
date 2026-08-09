@@ -34,10 +34,10 @@ mod tests {
         scheduler.run(&mut world, &mut DummyExecutor::default());
     }
 
-    #[derive(Component)]
+    #[derive(Component, PartialEq, Debug)]
     struct A(u32);
 
-    #[derive(Component)]
+    #[derive(Component, PartialEq, Debug)]
     struct B(u32);
 
     #[test]
@@ -237,6 +237,46 @@ mod tests {
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(read_and_modify, Stage::Main);
         scheduler.register_continuous(check_are_modified, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
+    }
+
+    #[test]
+    fn optional_component_exists() {
+        let mut world = World::default();
+
+        world.spawn(A(1));
+        world.spawn(A(2));
+        world.spawn(A(3));
+
+        fn optional_a(mut query: Query<Option<&A>>) {
+            let mut iter = query.iter();
+            assert_eq!(iter.next().unwrap(), Some(&A(1)));
+            assert_eq!(iter.next().unwrap(), Some(&A(2)));
+            assert_eq!(iter.next().unwrap(), Some(&A(3)));
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(optional_a, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
+    }
+
+    #[test]
+    fn optional_component_doesnt_exist() {
+        let mut world = World::default();
+
+        world.spawn(B(1));
+        world.spawn(B(2));
+        world.spawn(B(3));
+
+        fn optional_a(mut query: Query<Option<&A>>) {
+            let mut iter = query.iter();
+            assert_eq!(iter.next().unwrap(), None);
+            assert_eq!(iter.next().unwrap(), None);
+            assert_eq!(iter.next().unwrap(), None);
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(optional_a, Stage::Main);
         scheduler.run(&mut world, &mut DummyExecutor::default());
     }
 }

@@ -67,6 +67,30 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
     }
 }
 
+impl<'w, A: Component + 'static> ComponentQuery<'w> for Option<&A> {
+    type Item = Option<&'w A>;
+    type QueryPtr = Option<*const Column>;
+
+    fn unsorted_ids() -> Vec<StableId> {
+        vec![A::ID]
+    }
+
+    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+        let ptr = columns[*cursor];
+        *cursor += 1;
+
+        if ptr.is_null() {
+            None
+        } else {
+            Some(ptr as *const Column)
+        }
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        Some(query_ptr.and_then(|ptr| unsafe { ptr.as_ref().unwrap().as_type_ref_unchecked::<A>().get(index) }))
+    }
+}
+
 impl<'w, A, B> ComponentQuery<'w> for (A, B)
 where
     A: ComponentQuery<'w>,
@@ -125,6 +149,8 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
 
 impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
     pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
+        // TODO need to change this so it factors in optional arguments
+        
         let query_ids = T::unsorted_ids();
 
         let archetype_columns = self.world.find_matching_archetype_columns(&query_ids);
