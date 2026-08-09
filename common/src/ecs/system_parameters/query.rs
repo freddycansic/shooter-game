@@ -150,7 +150,7 @@ impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
 impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
     pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
         // TODO need to change this so it factors in optional arguments
-        
+
         let query_ids = T::unsorted_ids();
 
         let archetype_columns = self.world.find_matching_archetype_columns(&query_ids);

@@ -26,8 +26,12 @@ pub trait CommandExecutor {
     fn release_cursor(&mut self);
     fn center_cursor(&mut self);
     fn exit(&mut self);
-    fn display(&self) -> &Display<WindowSurface> { unimplemented!(); }
-    fn window(&self) -> &Window { unimplemented!(); }
+    fn display(&self) -> &Display<WindowSurface> {
+        unimplemented!();
+    }
+    fn window(&self) -> &Window {
+        unimplemented!();
+    }
 }
 
 impl<'a> CommandExecutor for RuntimeContext<'a> {
