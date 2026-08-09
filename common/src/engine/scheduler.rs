@@ -10,6 +10,7 @@ pub enum Stage {
     Pre = 0,
     Main = 1,
     Post = 2,
+    Render = 3,
     Count,
 }
 

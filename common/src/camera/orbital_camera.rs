@@ -4,8 +4,6 @@ use crate::ecs::system_parameters::res::Res;
 use crate::engine::input::{Input, InputReceived};
 use crate::engine::scheduler::Stage;
 use crate::maths;
-use crate::window::WindowResized;
-use common::context::WindowSize;
 use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::res::ResMut;
 use common::engine::scheduler::Scheduler;
@@ -15,9 +13,10 @@ use common::world::World;
 use common_macros::Resource;
 use nalgebra::{Matrix4, Point3, Vector3};
 use serde::{Deserialize, Serialize};
-use std::fmt::Alignment::Center;
 use winit::event::MouseButton;
 use winit::keyboard::KeyCode;
+use crate::executor::RuntimeContext;
+use crate::subsystems::window_size::{WindowResized, WindowSize};
 
 #[derive(Resource, Serialize, Deserialize)]
 pub struct OrbitalCamera {
@@ -151,17 +150,15 @@ fn update_angles(
     }
 }
 
-fn window_resized(mut camera: ResMut<OrbitalCamera>, mut resized: EventReader<WindowResized>) {
-    let resized = resized.read().next().unwrap();
-
-    camera.update_projection_matrices(resized.new_width as f32, resized.new_height as f32);
+fn window_resized(mut camera: ResMut<OrbitalCamera>, window_size: Res<WindowSize>) {
+    camera.update_projection_matrices(window_size.width as f32, window_size.height as f32);
 }
 
 impl Subsystem for OrbitalCamera {
-    fn register_resources(world: &mut World) {
-        let window_size = world.resource::<WindowSize>().unwrap();
+    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         let camera_radius = 5.0;
-
+        let window_size = context.unwrap().window.inner_size();
+        
         world.register_resource(OrbitalCamera::new(
             Point3::origin(),
             camera_radius,
