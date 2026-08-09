@@ -139,3 +139,5 @@ impl_into_system!(P1, P2, P3, P4);
 impl_into_system!(P1, P2, P3, P4, P5);
 impl_into_system!(P1, P2, P3, P4, P5, P6);
 impl_into_system!(P1, P2, P3, P4, P5, P6, P7);
+impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8);
+impl_into_system!(P1, P2, P3, P4, P5, P6, P7, P8, P9);

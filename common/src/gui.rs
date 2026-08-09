@@ -1,20 +1,20 @@
-use egui_glium::egui_winit::egui;
 use crate::context::WinitWindowEvent;
 use crate::ecs::subsystem::Subsystem;
 use crate::ecs::system_parameters::commands::Commands;
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
+use crate::engine::scheduler::Stage;
+use common::engine::renderer::{Viewport, ViewportChanged};
 use common::engine::scheduler::Scheduler;
 use common::executor::RuntimeContext;
+use common::serde::SerializedWorld;
 use common::world::World;
 use common_macros::Resource;
-use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use egui_glium::EguiGlium;
+use egui_glium::egui_winit::egui;
+use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use log::info;
 use rfd::FileDialog;
-use common::engine::renderer::{Viewport, ViewportChanged};
-use common::serde::SerializedWorld;
-use crate::engine::scheduler::Stage;
 
 // TODO move gui state into its own resource
 #[derive(Resource)]
@@ -53,7 +53,7 @@ impl Subsystem for Gui {
 
     fn register_systems(scheduler: &mut Scheduler) {
         scheduler.register_triggered::<WinitWindowEvent, _, _>(Gui::winit_window_event, Stage::Pre);
-        scheduler.register_continuous(Gui::render, Stage::Render);
+        scheduler.register_continuous(Gui::show, Stage::Main);
     }
 }
 
@@ -71,8 +71,8 @@ impl Gui {
             }
         }
     }
-    
-    fn render(mut gui: ResMut<Gui>, commands: Commands, mut viewport_changed: EventWriter<ViewportChanged>) {
+
+    fn show(mut gui: ResMut<Gui>, commands: Commands, mut viewport_changed: EventWriter<ViewportChanged>) {
         gui.0.run(commands.window(), |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
@@ -86,9 +86,9 @@ impl Gui {
 
                             if ui.add(Button::new("Open project")).clicked() {
                                 unimplemented!();
-                                
+
                                 // let sender = self.sender.clone();
-                                // 
+                                //
                                 // std::thread::spawn(move || {
                                 //     if let Some(file) = FileDialog::new()
                                 //         .add_filter("json", &["json"])
@@ -97,9 +97,9 @@ impl Gui {
                                 //         .pick_file()
                                 //     {
                                 //         log::info!("Loading project {:?}", file);
-                                // 
+                                //
                                 //         let project_string = std::fs::read_to_string(file).unwrap();
-                                // 
+                                //
                                 //         sender.send(EngineEvent::LoadProject(project_string)).unwrap();
                                 //     }
                                 // });
@@ -110,7 +110,7 @@ impl Gui {
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving project...");
                                 unimplemented!();
-                                
+
                                 // self.world.save_as(&self.engine.assets);
                             }
                         });
@@ -118,9 +118,9 @@ impl Gui {
                         ui.menu_button("Project", |ui| {
                             if ui.add(Button::new("Import models")).clicked() {
                                 unimplemented!();
-                                
+
                                 // let sender = self.sender.clone();
-                                // 
+                                //
                                 // std::thread::spawn(move || {
                                 //     if let Some(paths) = FileDialog::new()
                                 //         .add_filter("gltf", &["gltf", "glb"])
@@ -133,7 +133,7 @@ impl Gui {
                                 //         }
                                 //     }
                                 // });
-                                // 
+                                //
                                 // ui.close();
                             }
                         });
@@ -141,16 +141,16 @@ impl Gui {
                         ui.menu_button("Run", |ui| {
                             if ui.add(Button::new("Run game")).clicked() {
                                 unimplemented!();
-                                
+
                                 // let uuid = Uuid::new_v4().to_string();
                                 // let mut temp_path = std::env::temp_dir();
                                 // temp_path.push(uuid.clone());
-                                // 
+                                //
                                 // let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.assets);
                                 // let serialized_string = serde_json::to_string(&serialized_world).unwrap();
-                                // 
+                                //
                                 // std::fs::write(&temp_path, serialized_string).unwrap();
-                                // 
+                                //
                                 // std::process::Command::new("cargo")
                                 //     .arg("run")
                                 //     .arg("--package")
@@ -162,7 +162,7 @@ impl Gui {
                                 //     .unwrap()
                                 //     .wait()
                                 //     .unwrap();
-                                // 
+                                //
                                 // ui.close();
                             }
                         });
@@ -174,7 +174,7 @@ impl Gui {
                 .default_width(100.0)
                 .show(ctx, |ui| {
                     unimplemented!();
-                    
+
                     // self.world.graph.show(ui);
 
                     // ui.add(egui::Separator::default().horizontal());
@@ -191,21 +191,21 @@ impl Gui {
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
                 ui.collapsing("Properties", |ui| {
                     unimplemented!();
-                    
+
                     // if self.selection.len() == 1 {
                     //     let selected_node_index = self.selection[0];
                     //     let selected_node = &mut self.world.graph.graph[selected_node_index];
-                    // 
+                    //
                     //     selected_node.local_transform.show(ui);
-                    // 
+                    //
                     //     dbg!(&selected_node.local_transform);
-                    // 
+                    //
                     //     ui.label(format!("Node index: {:?}", selected_node_index));
-                    // 
+                    //
                     //     ui.separator();
-                    // 
+                    //
                     //     ui.label("Components");
-                    // 
+                    //
                     //     if self.world.player_spawn == Some(selected_node_index) {
                     //         ui.label("Player spawn");
                     //     }
@@ -217,7 +217,7 @@ impl Gui {
                     //             }
                     //         });
                     //     }
-                    // 
+                    //
                     //     if ui.button("+").clicked() {
                     //         self.world.player_spawn = Some(selected_node_index);
                     //     }
@@ -226,13 +226,13 @@ impl Gui {
 
                 ui.collapsing("Debug", |ui| {
                     unimplemented!();
-                    
+
                     // ui.add(
                     //     egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
                     // );
-                    // 
+                    //
                     // ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
-                    // 
+                    //
                     // ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
                     // if ui.button("Clear lines").clicked() {
                     //     // self.engine.renderer.lines.clear();
@@ -244,17 +244,17 @@ impl Gui {
 
                 ui.collapsing("Background", |ui| {
                     unimplemented!();
-                    
+
                     // ui.horizontal(|ui| {
                     //     // ui.selectable_value(
                     //     //     &mut self.scene.background,
                     //     //     Background::default(),
                     //     //     "Color",
                     //     // );
-                    // 
+                    //
                     //     if ui.selectable_label(false, "HDRI").clicked() {
                     //         let sender = self.sender.clone();
-                    // 
+                    //
                     //         std::thread::spawn(move || {
                     //             if let Some(path) = FileDialog::new()
                     //                 .set_can_create_directories(true)
@@ -270,7 +270,7 @@ impl Gui {
 
                 ui.collapsing("Lighting", |ui| {
                     unimplemented!();
-                    
+
                     // ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
                 });
             });

@@ -1,5 +1,5 @@
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use winit::dpi::LogicalPosition;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{CursorGrabMode, Window};
@@ -26,8 +26,8 @@ pub trait CommandExecutor {
     fn release_cursor(&mut self);
     fn center_cursor(&mut self);
     fn exit(&mut self);
-    fn display(&self) -> &Display<WindowSurface>;
-    fn window(&self) -> &Window;
+    fn display(&self) -> &Display<WindowSurface> { unimplemented!(); }
+    fn window(&self) -> &Window { unimplemented!(); }
 }
 
 impl<'a> CommandExecutor for RuntimeContext<'a> {
@@ -62,7 +62,7 @@ impl<'a> CommandExecutor for RuntimeContext<'a> {
     fn display(&self) -> &Display<WindowSurface> {
         self.display
     }
-    
+
     fn window(&self) -> &Window {
         self.window
     }

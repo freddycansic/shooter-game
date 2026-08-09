@@ -5,15 +5,15 @@ use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use glium::{Display, glutin::surface::WindowSurface};
 
+use crate::ecs::subsystem::Subsystem;
 use crate::engine::assets::handle::{CubemapHandle, GeometryHandle, TextureHandle};
 use crate::geometry::Geometry;
 use crate::material::{Cubemap, Texture2DResource};
-use common_macros::Resource;
-use itertools::Itertools;
 use common::engine::scheduler::Scheduler;
 use common::executor::RuntimeContext;
 use common::world::World;
-use crate::ecs::subsystem::Subsystem;
+use common_macros::Resource;
+use itertools::Itertools;
 
 #[derive(Resource)]
 pub struct Assets {
@@ -32,7 +32,7 @@ impl Subsystem for Assets {
     fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         let mut assets = Assets::new();
         assets.initialise_default_texture(context.unwrap().display).unwrap();
-        
+
         world.register_resource(assets);
     }
 
