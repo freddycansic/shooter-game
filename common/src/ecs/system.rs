@@ -57,6 +57,10 @@ impl Hash for System {
     }
 }
 
+pub trait IntoSystem<P> {
+    fn into_system(self) -> System;
+}
+
 impl<F> IntoSystem<()> for F
 where
     F: Fn() + 'static,
@@ -91,121 +95,47 @@ where
     }
 }
 
-impl<F, P1, P2> IntoSystem<(P1, P2)> for F
-where
-    F: Fn(P1, P2)
-        + for<'w, 's, 'e> Fn(<P1 as SystemParameter>::Item<'w, 's, 'e>, <P2 as SystemParameter>::Item<'w, 's, 'e>)
-        + 'static,
-    P1: SystemParameter,
-    P2: SystemParameter,
-{
-    fn into_system(self) -> System {
-        System::new(
-            move |world: &mut World, state: &mut SystemState, executor: &mut dyn CommandExecutor| {
-                let world_ptr = world as *mut World;
-                let state_ptr = state as *mut SystemState;
-                let executor_ptr = executor as *mut dyn CommandExecutor;
-                // TODO validate that P1 != P2, so that they are not accessing the same memory
-                let p1 = P1::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p2 = P2::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
+macro_rules! impl_into_system {
+    ($($P:ident),+) => {
+        impl<F, $($P),+> IntoSystem<($($P),+)> for F
+        where
+            F: Fn($($P),+)
+                + for<'w, 's, 'e> Fn(
+                    $($P::Item<'w, 's, 'e>),+
+                )
+                + 'static,
+            $($P: SystemParameter),+
+        {
+            fn into_system(self) -> System {
+                System::new(
+                    move |
+                        world: &mut World,
+                        state: &mut SystemState,
+                        executor: &mut dyn CommandExecutor
+                    | {
+                        let world_ptr = world as *mut World;
+                        let state_ptr = state as *mut SystemState;
+                        let executor_ptr = executor as *mut dyn CommandExecutor;
 
-                fn call_inner<A, B, FInner: Fn(A, B)>(f: &FInner, a: A, b: B) {
-                    f(a, b);
-                }
+                        $(
+                            let $P = $P::get(
+                                unsafe { &mut *world_ptr },
+                                unsafe { &mut *state_ptr },
+                                unsafe { &mut *executor_ptr },
+                            );
+                        )+
 
-                call_inner(&self, p1, p2);
-            },
-        )
-    }
+                        self($($P),+);
+                    },
+                )
+            }
+        }
+    };
 }
 
-impl<F, P1, P2, P3> IntoSystem<(P1, P2, P3)> for F
-where
-    F: Fn(P1, P2, P3)
-        + for<'w, 's, 'e> Fn(
-            <P1 as SystemParameter>::Item<'w, 's, 'e>,
-            <P2 as SystemParameter>::Item<'w, 's, 'e>,
-            <P3 as SystemParameter>::Item<'w, 's, 'e>,
-        ) + 'static,
-    P1: SystemParameter,
-    P2: SystemParameter,
-    P3: SystemParameter,
-{
-    fn into_system(self) -> System {
-        System::new(
-            move |world: &mut World, state: &mut SystemState, executor: &mut dyn CommandExecutor| {
-                let world_ptr = world as *mut World;
-                let state_ptr = state as *mut SystemState;
-                let executor_ptr = executor as *mut dyn CommandExecutor;
-                // TODO validate that P1 != P2 != P3, so that they are not accessing the same memory
-                let p1 = P1::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p2 = P2::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p3 = P3::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-
-                fn call_inner<A, B, C, FInner: Fn(A, B, C)>(f: &FInner, a: A, b: B, c: C) {
-                    f(a, b, c);
-                }
-
-                call_inner(&self, p1, p2, p3);
-            },
-        )
-    }
-}
-
-impl<F, P1, P2, P3, P4> IntoSystem<(P1, P2, P3, P4)> for F
-where
-    F: Fn(P1, P2, P3, P4)
-        + for<'w, 's, 'e> Fn(
-            <P1 as SystemParameter>::Item<'w, 's, 'e>,
-            <P2 as SystemParameter>::Item<'w, 's, 'e>,
-            <P3 as SystemParameter>::Item<'w, 's, 'e>,
-            <P4 as SystemParameter>::Item<'w, 's, 'e>,
-        ) + 'static,
-    P1: SystemParameter,
-    P2: SystemParameter,
-    P3: SystemParameter,
-    P4: SystemParameter,
-{
-    fn into_system(self) -> System {
-        System::new(
-            move |world: &mut World, state: &mut SystemState, executor: &mut dyn CommandExecutor| {
-                let world_ptr = world as *mut World;
-                let state_ptr = state as *mut SystemState;
-                let executor_ptr = executor as *mut dyn CommandExecutor;
-                // TODO validate that P1 != P2 != P3 != P4, so that they are not accessing the same memory
-                let p1 = P1::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p2 = P2::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p3 = P3::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-                let p4 = P4::get(unsafe { &mut *world_ptr }, unsafe { &mut *state_ptr }, unsafe {
-                    &mut *executor_ptr
-                });
-
-                fn call_inner<A, B, C, D, FInner: Fn(A, B, C, D)>(f: &FInner, a: A, b: B, c: C, d: D) {
-                    f(a, b, c, d);
-                }
-
-                call_inner(&self, p1, p2, p3, p4);
-            },
-        )
-    }
-}
-
-pub trait IntoSystem<P> {
-    fn into_system(self) -> System;
-}
+impl_into_system!(P1, P2);
+impl_into_system!(P1, P2, P3);
+impl_into_system!(P1, P2, P3, P4);
+impl_into_system!(P1, P2, P3, P4, P5);
+impl_into_system!(P1, P2, P3, P4, P5, P6);
+impl_into_system!(P1, P2, P3, P4, P5, P6, P7);
