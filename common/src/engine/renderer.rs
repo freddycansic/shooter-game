@@ -368,23 +368,23 @@ impl Renderer {
 
         // for (node_index, geometry_handle) in &world.geometries {
         //     let node = world.graph.graph.node_weight(*node_index).unwrap();
-        // 
+        //
         //     if !node.visible {
         //         continue;
         //     }
-        // 
+        //
         //     let texture_handle = world.textures.get(node_index).cloned();
-        // 
+        //
         //     let node_key = GeometryBatchKey {
         //         geometry_handle: *geometry_handle,
         //         texture_handle,
         //         selected: selection_set.contains(node_index),
         //     };
-        // 
+        //
         //     let batch = batches.entry(node_key).or_insert(vec![]);
-        // 
+        //
         //     let transform = node.world_transform().raw_matrix();
-        // 
+        //
         //     batch.push(Instance { transform });
         // }
 

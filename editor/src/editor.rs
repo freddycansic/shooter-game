@@ -154,7 +154,7 @@ impl Editor {
         selection: Res<Selection>,
         assets: Res<Assets>,
         camera: Res<OrbitalCamera>,
-        gui: Res<Gui>
+        gui: Res<Gui>,
     ) {
         if window_size.width == 0 || window_size.height == 0 {
             return;

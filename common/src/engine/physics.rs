@@ -7,7 +7,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::entity::Entity;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::maths::{Local, Ray, WorldTransform};
-use crate::world::{World};
+use crate::world::World;
 use common_macros::Component;
 use fxhash::FxHashMap;
 use nalgebra::Vector3;
