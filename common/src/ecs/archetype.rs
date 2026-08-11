@@ -4,6 +4,7 @@ use crate::ecs::stable_id::StableId;
 use common::ecs::owned_components::OwnedComponents;
 use std::any::Any;
 use std::cell::OnceCell;
+use crate::ecs::system_parameters::query::{ArgumentRequirement, QueryArgument};
 
 pub trait ComponentColumn {
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -74,14 +75,23 @@ impl Archetype {
         entity
     }
 
-    pub fn matching_columns(&mut self, query_ids: &[StableId]) -> Option<Vec<*mut Column>> {
-        let mut matching_columns = Vec::<*mut Column>::with_capacity(query_ids.len());
+    pub fn matching_columns(&mut self, query_arguments: &[QueryArgument]) -> Option<Vec<Option<*mut Column>>> {
+        let mut matching_columns = Vec::<Option<*mut Column>>::with_capacity(query_arguments.len());
 
-        for query_id in query_ids {
-            if let Ok(index) = self.columns.binary_search_by(|col| col.id.cmp(query_id)) {
-                matching_columns.push(&mut self.columns[index] as *mut Column);
-            } else {
-                return None;
+        for query_argument in query_arguments {
+            let column_index = self.columns.binary_search_by(|col| col.id.cmp(&query_argument.component_id));
+
+            match query_argument.requirement {
+                ArgumentRequirement::Required => if let Ok(column_index) = column_index {
+                    matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
+                } else {
+                    return None;
+                },
+                ArgumentRequirement::Optional => if let Ok(column_index) = column_index {
+                    matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
+                } else {
+                    matching_columns.push(None);
+                }
             }
         }
 

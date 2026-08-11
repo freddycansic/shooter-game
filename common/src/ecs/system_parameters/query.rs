@@ -1,5 +1,5 @@
 use crate::ecs::component::Component;
-use crate::executor::{CommandExecutor, RuntimeContext};
+use crate::executor::CommandExecutor;
 use common::ecs::archetype::Column;
 use common::ecs::component::StableId;
 use common::ecs::system::SystemState;
@@ -8,33 +8,59 @@ use common::world::World;
 use itertools::Itertools;
 use std::marker::PhantomData;
 
+pub enum ArgumentRequirement {
+    Required,
+    Optional,
+}
+
+pub struct QueryArgument {
+    pub requirement: ArgumentRequirement,
+    pub component_id: StableId,
+}
+
+impl QueryArgument {
+    pub fn required<T: Component>() -> Self {
+        Self {
+            requirement: ArgumentRequirement::Required,
+            component_id: T::ID,
+        }
+    }
+
+    pub fn optional<T: Component>() -> Self {
+        Self {
+            requirement: ArgumentRequirement::Optional,
+            component_id: T::ID,
+        }
+    }
+}
+
 /// The parameter of `Query`, a mixture of immutable and mutable references to `Component`s
-pub trait ComponentQuery<'w> {
+pub trait QueryParameter<'w> {
     /// Type of item from iterating the query.
     type Item;
 
     /// This is a tuple of pointers to columns which match the type of the query.
     type QueryPtr;
 
-    fn unsorted_ids() -> Vec<StableId>;
+    fn query_arguments() -> Vec<QueryArgument>;
 
-    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr;
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr;
 
     unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item>;
 }
 
-impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
+impl<'w, A: Component + 'static> QueryParameter<'w> for &A {
     type Item = &'w A;
     type QueryPtr = *const Column;
 
-    fn unsorted_ids() -> Vec<StableId> {
-        vec![A::ID]
+    fn query_arguments() -> Vec<QueryArgument> {
+        vec![QueryArgument::required::<A>()]
     }
 
-    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
-        ptr
+        ptr.unwrap()
     }
 
     unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
@@ -45,18 +71,18 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &A {
     }
 }
 
-impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
+impl<'w, A: Component + 'static> QueryParameter<'w> for &mut A {
     type Item = &'w mut A;
     type QueryPtr = *mut Column;
 
-    fn unsorted_ids() -> Vec<StableId> {
-        vec![A::ID]
+    fn query_arguments() -> Vec<QueryArgument> {
+        vec![QueryArgument::required::<A>()]
     }
 
-    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
-        ptr
+        ptr.unwrap()
     }
 
     unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
@@ -67,22 +93,21 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for &mut A {
     }
 }
 
-impl<'w, A: Component + 'static> ComponentQuery<'w> for Option<&A> {
+impl<'w, A: Component + 'static> QueryParameter<'w> for Option<&A> {
     type Item = Option<&'w A>;
     type QueryPtr = Option<*const Column>;
 
-    fn unsorted_ids() -> Vec<StableId> {
-        vec![A::ID]
+    fn query_arguments() -> Vec<QueryArgument> {
+        vec![QueryArgument::optional::<A>()]
     }
 
-    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
 
-        if ptr.is_null() {
-            None
-        } else {
-            Some(ptr as *const Column)
+        match ptr {
+            Some(ptr) => Some(ptr as *const Column),
+            None => None,
         }
     }
 
@@ -91,21 +116,21 @@ impl<'w, A: Component + 'static> ComponentQuery<'w> for Option<&A> {
     }
 }
 
-impl<'w, A, B> ComponentQuery<'w> for (A, B)
+impl<'w, A, B> QueryParameter<'w> for (A, B)
 where
-    A: ComponentQuery<'w>,
-    B: ComponentQuery<'w>,
+    A: QueryParameter<'w>,
+    B: QueryParameter<'w>,
 {
     type Item = (A::Item, B::Item);
     type QueryPtr = (A::QueryPtr, B::QueryPtr);
 
-    fn unsorted_ids() -> Vec<StableId> {
-        let mut ids = A::unsorted_ids();
-        ids.extend(B::unsorted_ids());
-        ids
+    fn query_arguments() -> Vec<QueryArgument> {
+        let mut args = A::query_arguments();
+        args.extend(B::query_arguments());
+        args
     }
 
-    fn build_query_ptr(columns: &[*mut Column], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let a = A::build_query_ptr(columns, cursor);
         let b = B::build_query_ptr(columns, cursor);
         (a, b)
@@ -119,14 +144,14 @@ where
     }
 }
 
-pub struct Query<'w, T: ComponentQuery<'w>> {
+pub struct Query<'w, T: QueryParameter<'w>> {
     pub world: &'w mut World,
     // Query depends on T, but doesn't actually contain a reference to it.
     // So this is here to keep the compiler happy.
     _marker: PhantomData<T>,
 }
 
-impl<'a, T: ComponentQuery<'a>> Query<'a, T> {
+impl<'a, T: QueryParameter<'a>> Query<'a, T> {
     fn new(world: &'a mut World) -> Self {
         Self {
             world,
@@ -135,25 +160,23 @@ impl<'a, T: ComponentQuery<'a>> Query<'a, T> {
     }
 }
 
-impl<T: for<'w> ComponentQuery<'w> + 'static> SystemParameter for Query<'_, T> {
+impl<T: for<'w> QueryParameter<'w> + 'static> SystemParameter for Query<'_, T> {
     type Item<'w, 's, 'e> = Query<'w, T>;
 
     fn get<'w, 's, 'e>(
         world: &'w mut World,
-        state: &'s mut SystemState,
-        executor: &'e mut dyn CommandExecutor,
+        _state: &'s mut SystemState,
+        _executor: &'e mut dyn CommandExecutor,
     ) -> Self::Item<'w, 's, 'e> {
         Query::new(world)
     }
 }
 
-impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
+impl<'w, T: QueryParameter<'w>> Query<'w, T> {
     pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
-        // TODO need to change this so it factors in optional arguments
+        let query_arguments = T::query_arguments();
 
-        let query_ids = T::unsorted_ids();
-
-        let archetype_columns = self.world.find_matching_archetype_columns(&query_ids);
+        let archetype_columns = self.world.find_matching_archetype_columns(&query_arguments);
 
         let matching_archetypes = archetype_columns
             .iter()
@@ -171,7 +194,7 @@ impl<'w, T: ComponentQuery<'w>> Query<'w, T> {
     }
 }
 
-pub struct QueryIterator<'w, T: ComponentQuery<'w>> {
+pub struct QueryIterator<'w, T: QueryParameter<'w>> {
     component_index: usize,
     matching_archetypes: Vec<T::QueryPtr>,
     archetype_index: usize,
@@ -179,7 +202,7 @@ pub struct QueryIterator<'w, T: ComponentQuery<'w>> {
 
 impl<'q, 'w, T> Iterator for QueryIterator<'w, T>
 where
-    T: ComponentQuery<'w>,
+    T: QueryParameter<'w>,
 {
     type Item = T::Item;
 
