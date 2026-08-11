@@ -1,10 +1,20 @@
 #[cfg(test)]
 mod tests {
-    use common::ecs::archetype::Column;
+    use common::ecs::archetype::{Archetype, Column};
     use common::ecs::component::Component;
+    use common::ecs::system_parameters::query::QueryArgument;
     use common::world::World;
     use common_macros::Component;
 
+    fn get_required_column<T: Component + 'static>(archetype: &mut Archetype) -> &mut Vec<T> {
+        unsafe {
+            archetype.matching_columns(&[QueryArgument::required::<T>()]).unwrap()[0]
+                .unwrap()
+                .as_mut().unwrap()
+        }
+            .as_type_mut_unchecked::<T>()
+    }
+    
     #[derive(Component)]
     struct TestComponent(u32);
 
@@ -56,21 +66,13 @@ mod tests {
         let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
         assert_eq!(archetype.columns.len(), 2);
 
-        let column_1 = unsafe {
-            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
-                .as_ref()
-                .unwrap()
-        }
-        .as_type_ref_unchecked::<TestComponent>();
+        let column_1 = get_required_column::<TestComponent>(archetype);
+        
         assert_eq!(column_1.len(), 1);
         assert_eq!(column_1[0].0, 1234);
 
-        let column_2 = unsafe {
-            archetype.matching_columns(&[TestComponent2::ID]).unwrap()[0]
-                .as_ref()
-                .unwrap()
-        }
-        .as_type_ref_unchecked::<TestComponent2>();
+        let column_2 = get_required_column::<TestComponent2>(archetype);
+
         assert_eq!(column_2.len(), 1);
         assert_eq!(column_2[0].0, "first");
     }
@@ -83,22 +85,14 @@ mod tests {
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID, TestComponent2::ID]);
 
-        let column_1 = unsafe {
-            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
-                .as_ref()
-                .unwrap()
-        }
-        .as_type_ref_unchecked::<TestComponent>();
+        let column_1 = get_required_column::<TestComponent>(archetype);
+
         assert_eq!(column_1.len(), 2);
         assert_eq!(column_1[0].0, 1234);
         assert_eq!(column_1[1].0, 5678);
 
-        let column_2 = unsafe {
-            archetype.matching_columns(&[TestComponent2::ID]).unwrap()[0]
-                .as_ref()
-                .unwrap()
-        }
-        .as_type_ref_unchecked::<TestComponent2>();
+        let column_2 = get_required_column::<TestComponent2>(archetype);
+
         assert_eq!(column_2.len(), 2);
         assert_eq!(column_2[0].0, "first");
         assert_eq!(column_2[1].0, "second");
@@ -112,12 +106,8 @@ mod tests {
         world.spawn(TestComponent(3));
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
-        let column = unsafe {
-            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
-                .as_ref()
-                .unwrap()
-        }
-        .as_type_ref_unchecked::<TestComponent>();
+        let column = get_required_column::<TestComponent>(archetype);
+
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);
@@ -132,12 +122,8 @@ mod tests {
         world.spawn(TestComponent(3));
 
         let archetype = world.find_exact_archetype(&[TestComponent::ID]);
-        let column = unsafe {
-            archetype.matching_columns(&[TestComponent::ID]).unwrap()[0]
-                .as_mut()
-                .unwrap()
-        }
-        .as_type_mut_unchecked::<TestComponent>();
+        let column = get_required_column::<TestComponent>(archetype);
+
         assert_eq!(column.len(), 3);
         assert_eq!(column[0].0, 1);
         assert_eq!(column[1].0, 2);
