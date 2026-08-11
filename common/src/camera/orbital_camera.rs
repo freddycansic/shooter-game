@@ -1,5 +1,4 @@
 use crate::ecs::system_parameters::commands::Commands;
-use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::Res;
 use crate::engine::input::{Input, InputReceived};
 use crate::engine::scheduler::Stage;

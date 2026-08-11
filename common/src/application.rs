@@ -19,10 +19,10 @@ pub trait Application {
 
     fn window_event(
         &mut self,
-        event: WindowEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
+        _event: WindowEvent,
+        _event_loop: &ActiveEventLoop,
+        _window: &Window,
+        _display: &Display<WindowSurface>,
     ) {
     }
 

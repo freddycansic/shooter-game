@@ -3,6 +3,7 @@ use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
 use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::resource::{Resource, ResourceStore};
+use crate::ecs::system_parameters::query::QueryArgument;
 use crate::engine::assets::Assets;
 use crate::light::Light;
 use crate::line::Line;
@@ -14,7 +15,6 @@ use fxhash::FxHashMap;
 use itertools::Itertools;
 use rfd::FileDialog;
 use std::collections::hash_map::Entry;
-use crate::ecs::system_parameters::query::QueryArgument;
 
 pub struct World {
     pub title: String,
@@ -46,7 +46,10 @@ impl World {
 
     /// Find all archetypes which contain the query ids, returned in the order the query specifies.
     /// `query_ids` is an unsorted slice of Component ids, usually in the order specified by a `Query`
-    pub fn find_matching_archetype_columns(&mut self, query_arguments: &[QueryArgument]) -> Vec<Vec<Option<*mut Column>>> {
+    pub fn find_matching_archetype_columns(
+        &mut self,
+        query_arguments: &[QueryArgument],
+    ) -> Vec<Vec<Option<*mut Column>>> {
         let mut matching_archetypes = Vec::new();
 
         for archetype in self.archetypes.values_mut() {

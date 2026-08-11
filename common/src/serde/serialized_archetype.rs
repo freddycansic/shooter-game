@@ -17,7 +17,7 @@ pub struct SerializedArchetype {
 impl SerializeWithContext for Archetype {
     type Serialized = SerializedArchetype;
 
-    fn serialize_with(&self, resources: &Assets) -> Self::Serialized {
+    fn serialize_with(&self, _resources: &Assets) -> Self::Serialized {
         unimplemented!();
 
         //Self::Serialized {
@@ -27,9 +27,9 @@ impl SerializeWithContext for Archetype {
     }
 
     fn deserialize_with(
-        serialized: Self::Serialized,
-        display: &Display<WindowSurface>,
-        resources: &mut Assets,
+        _serialized: Self::Serialized,
+        _display: &Display<WindowSurface>,
+        _resources: &mut Assets,
     ) -> Self {
         unimplemented!()
     }

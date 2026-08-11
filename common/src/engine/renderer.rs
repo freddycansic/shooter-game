@@ -176,7 +176,7 @@ impl Subsystem for Renderer {
         world.register_resource(Background::default());
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {}
+    fn register_systems(_scheduler: &mut Scheduler) {}
 }
 
 impl Renderer {
@@ -306,7 +306,7 @@ impl Renderer {
         world: &World,
         camera: &OrbitalCamera,
         assets: &Assets,
-        selection: &[Entity], // selection should really be application level
+        _selection: &[Entity], // selection should really be application level
         display: &Display<WindowSurface>,
         viewport: &Viewport,
         background: &Background,
@@ -351,7 +351,7 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(&mut self, world: &World, selection: &[NodeIndex]) -> RenderQueue {
+    fn build_render_queue(&mut self, _world: &World, selection: &[NodeIndex]) -> RenderQueue {
         let geometry_batches = self.batch_geometry(selection);
         // let quad_batches = self.quads.batch();
 
@@ -362,9 +362,9 @@ impl Renderer {
     }
 
     fn batch_geometry(&self, selection: &[NodeIndex]) -> GeometryBatches {
-        let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
+        let batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
-        let selection_set = FxHashSet::from_iter(selection.iter().cloned());
+        let _selection_set = FxHashSet::from_iter(selection.iter().cloned());
 
         // for (node_index, geometry_handle) in &world.geometries {
         //     let node = world.graph.graph.node_weight(*node_index).unwrap();

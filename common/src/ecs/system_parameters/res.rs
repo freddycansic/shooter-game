@@ -21,8 +21,8 @@ impl<T: Resource + 'static> SystemParameter for Res<'_, T> {
 
     fn get<'w, 's, 'e>(
         world: &'w mut World,
-        state: &'s mut SystemState,
-        executor: &'e mut dyn CommandExecutor,
+        _state: &'s mut SystemState,
+        _executor: &'e mut dyn CommandExecutor,
     ) -> Self::Item<'w, 's, 'e> {
         Res(world
             .resource::<T>()
@@ -51,8 +51,8 @@ impl<T: Resource + 'static> SystemParameter for ResMut<'_, T> {
 
     fn get<'w, 's, 'e>(
         world: &'w mut World,
-        state: &'s mut SystemState,
-        executor: &'e mut dyn CommandExecutor,
+        _state: &'s mut SystemState,
+        _executor: &'e mut dyn CommandExecutor,
     ) -> Self::Item<'w, 's, 'e> {
         ResMut(
             world
