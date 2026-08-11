@@ -7,14 +7,12 @@ use crate::engine::scheduler::Stage;
 use common::engine::renderer::{Viewport, ViewportChanged};
 use common::engine::scheduler::Scheduler;
 use common::executor::RuntimeContext;
-use common::serde::SerializedWorld;
 use common::world::World;
 use common_macros::Resource;
 use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
 use log::info;
-use rfd::FileDialog;
 
 // TODO move gui state into its own resource
 #[derive(Resource)]
@@ -172,7 +170,7 @@ impl Gui {
 
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
-                .show(ctx, |ui| {
+                .show(ctx, |_ui| {
                     unimplemented!();
 
                     // self.world.graph.show(ui);
@@ -189,7 +187,7 @@ impl Gui {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                ui.collapsing("Properties", |ui| {
+                ui.collapsing("Properties", |_ui| {
                     unimplemented!();
 
                     // if self.selection.len() == 1 {
@@ -224,7 +222,7 @@ impl Gui {
                     // }
                 });
 
-                ui.collapsing("Debug", |ui| {
+                ui.collapsing("Debug", |_ui| {
                     unimplemented!();
 
                     // ui.add(
@@ -242,7 +240,7 @@ impl Gui {
 
                 ui.separator();
 
-                ui.collapsing("Background", |ui| {
+                ui.collapsing("Background", |_ui| {
                     unimplemented!();
 
                     // ui.horizontal(|ui| {
@@ -268,7 +266,7 @@ impl Gui {
                     // });
                 });
 
-                ui.collapsing("Lighting", |ui| {
+                ui.collapsing("Lighting", |_ui| {
                     unimplemented!();
 
                     // ui.checkbox(&mut self.state.gui.render_lights, "Render lights");

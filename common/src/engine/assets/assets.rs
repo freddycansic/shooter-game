@@ -36,7 +36,7 @@ impl Subsystem for Assets {
         world.register_resource(assets);
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {}
+    fn register_systems(_scheduler: &mut Scheduler) {}
 }
 
 // TODO for possible performance

@@ -1,10 +1,10 @@
 use crate::ecs::component::Component;
 use crate::ecs::entity::Entity;
 use crate::ecs::stable_id::StableId;
+use crate::ecs::system_parameters::query::{ArgumentRequirement, QueryArgument};
 use common::ecs::owned_components::OwnedComponents;
 use std::any::Any;
 use std::cell::OnceCell;
-use crate::ecs::system_parameters::query::{ArgumentRequirement, QueryArgument};
 
 pub trait ComponentColumn {
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -79,18 +79,24 @@ impl Archetype {
         let mut matching_columns = Vec::<Option<*mut Column>>::with_capacity(query_arguments.len());
 
         for query_argument in query_arguments {
-            let column_index = self.columns.binary_search_by(|col| col.id.cmp(&query_argument.component_id));
+            let column_index = self
+                .columns
+                .binary_search_by(|col| col.id.cmp(&query_argument.component_id));
 
             match query_argument.requirement {
-                ArgumentRequirement::Required => if let Ok(column_index) = column_index {
-                    matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
-                } else {
-                    return None;
-                },
-                ArgumentRequirement::Optional => if let Ok(column_index) = column_index {
-                    matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
-                } else {
-                    matching_columns.push(None);
+                ArgumentRequirement::Required => {
+                    if let Ok(column_index) = column_index {
+                        matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
+                    } else {
+                        return None;
+                    }
+                }
+                ArgumentRequirement::Optional => {
+                    if let Ok(column_index) = column_index {
+                        matching_columns.push(Some(&mut self.columns[column_index] as *mut Column));
+                    } else {
+                        matching_columns.push(None);
+                    }
                 }
             }
         }

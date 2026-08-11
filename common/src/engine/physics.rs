@@ -1,5 +1,5 @@
 use crate::collision::collidable::{
-    BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitEntity, Sweep, SweepHit, SweepHitNode,
+    BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery, RayHit, RayHitEntity, Sweep, SweepHit,
 };
 use crate::collision::colliders::aabb::Aabb;
 use crate::collision::colliders::capsule::Capsule;
@@ -7,11 +7,7 @@ use crate::collision::colliders::sphere::Sphere;
 use crate::ecs::entity::Entity;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::maths::{Local, Ray, WorldTransform};
-use crate::world::World;
 use common_macros::Component;
-use fxhash::FxHashMap;
-use nalgebra::Vector3;
-use petgraph::prelude::NodeIndex;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

@@ -24,8 +24,8 @@ impl<'r> SystemParameter for Commands<'_> {
     type Item<'w, 's, 'e> = Commands<'e>;
 
     fn get<'w, 's, 'e>(
-        world: &'w mut World,
-        state: &'s mut SystemState,
+        _world: &'w mut World,
+        _state: &'s mut SystemState,
         executor: &'e mut dyn CommandExecutor,
     ) -> Self::Item<'w, 's, 'e> {
         Commands(executor)

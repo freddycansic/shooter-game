@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::collision::colliders::bvh::Bvh;
 use crate::geometry::GeometryVertex;
@@ -26,7 +26,7 @@ impl Geometry {
         log::info!("Loading gltf {:?}...", path);
 
         let (document, file_buffers, _images) =
-            gltf::import(&path).context(format!("The model \"{:?}\" does not exist", path.clone()))?;
+            gltf::import(&path).context(format!("The model \"{:?}\" does not exist", path))?;
 
         let models = document
             .meshes()

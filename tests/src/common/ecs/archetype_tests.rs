@@ -10,11 +10,12 @@ mod tests {
         unsafe {
             archetype.matching_columns(&[QueryArgument::required::<T>()]).unwrap()[0]
                 .unwrap()
-                .as_mut().unwrap()
+                .as_mut()
+                .unwrap()
         }
-            .as_type_mut_unchecked::<T>()
+        .as_type_mut_unchecked::<T>()
     }
-    
+
     #[derive(Component)]
     struct TestComponent(u32);
 
@@ -67,7 +68,7 @@ mod tests {
         assert_eq!(archetype.columns.len(), 2);
 
         let column_1 = get_required_column::<TestComponent>(archetype);
-        
+
         assert_eq!(column_1.len(), 1);
         assert_eq!(column_1[0].0, 1234);
 
