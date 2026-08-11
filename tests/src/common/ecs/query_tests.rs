@@ -279,4 +279,63 @@ mod tests {
         scheduler.register_continuous(optional_a, Stage::Main);
         scheduler.run(&mut world, &mut DummyExecutor::default());
     }
+
+    #[test]
+    fn required_component_exists_and_optional_doesnt() {
+        let mut world = World::default();
+
+        world.spawn(A(1));
+        world.spawn(A(2));
+        world.spawn(A(3));
+
+        fn optional_a(mut query: Query<(&A, Option<&B>)>) {
+            let mut iter = query.iter();
+            assert_eq!(iter.next().unwrap(), (&A(1), None));
+            assert_eq!(iter.next().unwrap(), (&A(2), None));
+            assert_eq!(iter.next().unwrap(), (&A(3), None));
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(optional_a, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
+    }
+
+    #[test]
+    fn optional_component_exists_and_required_doesnt() {
+        let mut world = World::default();
+
+        world.spawn(B(1));
+        world.spawn(B(2));
+        world.spawn(B(3));
+
+        fn optional_a(mut query: Query<(&A, Option<&B>)>) {
+            let mut iter = query.iter();
+            assert_eq!(iter.next(), None);
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(optional_a, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
+    }
+
+    #[test]
+    fn some_optional_components_exists() {
+        let mut world = World::default();
+
+        world.spawn(A(1));
+        world.spawn((A(2), B(4)));
+        world.spawn(A(3));
+
+        fn optional_a(mut query: Query<(&A, Option<&B>)>) {
+            // The order shouldn't matter
+            let mut iter = query.iter();
+            assert_eq!(iter.next().unwrap(), (&A(1), None));
+            assert_eq!(iter.next().unwrap(), (&A(3), None));
+            assert_eq!(iter.next().unwrap(), (&A(2), Some(&B(4))));
+        }
+
+        let mut scheduler = Scheduler::default();
+        scheduler.register_continuous(optional_a, Stage::Main);
+        scheduler.run(&mut world, &mut DummyExecutor::default());
+    }
 }
