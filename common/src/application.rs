@@ -11,6 +11,7 @@ use glium::glutin::surface::WindowSurface;
 use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
+use crate::engine::renderer::Renderer;
 
 pub trait Application {
     fn new(context: &RuntimeContext) -> Self;
@@ -56,6 +57,7 @@ pub trait Application {
     fn register_core_ecs_state(&mut self, context: &RuntimeContext) {
         self.register_subsystem_with_context::<Assets>(&context);
         self.register_subsystem_with_context::<WindowSize>(&context);
+        self.register_subsystem_with_context::<Renderer>(&context);
 
         self.register_subsystem::<Input>();
         self.register_subsystem::<FrameTiming>();

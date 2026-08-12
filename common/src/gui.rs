@@ -171,8 +171,6 @@ impl Gui {
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
                 .show(ctx, |_ui| {
-                    unimplemented!();
-
                     // self.world.graph.show(ui);
 
                     // ui.add(egui::Separator::default().horizontal());
@@ -188,8 +186,6 @@ impl Gui {
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
                 ui.collapsing("Properties", |_ui| {
-                    unimplemented!();
-
                     // if self.selection.len() == 1 {
                     //     let selected_node_index = self.selection[0];
                     //     let selected_node = &mut self.world.graph.graph[selected_node_index];
