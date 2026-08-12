@@ -48,7 +48,12 @@ impl<'a, A: Application> OpenGLContext<A> {
 
 impl<'a, A: Application> ApplicationHandler for OpenGLContext<A> {
     fn new_events(&mut self, _event_loop: &ActiveEventLoop, _cause: StartCause) {
-        self.runtime().new_events();
+        match &mut self.runtime {
+            Some(runtime) => {
+                runtime.new_events();
+            }
+            None => log::warn!("Received new_events before runtime initialisation."),
+        }
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {

@@ -6,7 +6,6 @@ use std::time::Instant;
 use common::debug::Cuboid;
 use common::maths::{Ray, Transform};
 use common::serde::SerializedWorld;
-use common::world::WorldNode;
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
@@ -26,14 +25,13 @@ use crate::ui::Show;
 use common::application::Application;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
-use common::context::WindowSize;
 use common::ecs::entity::Entity;
 use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::commands::Commands;
 use common::ecs::system_parameters::event::{EventReader, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
-use common::engine::assets::Assets;
+use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use common::engine::engine::Engine;
 use common::engine::input::Input;
 use common::engine::physics;
@@ -46,7 +44,7 @@ use common::light::Light;
 use common::line::Line;
 use common::maths::transform::WorldTransform;
 use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
-use common::window::{WindowResized, WinitWindowEvent};
+use common::subsystems::window_size::WindowSize;
 use common::world::World;
 use common::*;
 use common_macros::{Event, Resource};
@@ -97,7 +95,7 @@ impl Application for Editor {
             world,
         };
 
-        editor.register_subsystem::<OrbitalCamera>();
+        editor.register_subsystem_with_context::<OrbitalCamera>(context);
         editor.register_subsystem_with_context::<Gui>(context);
 
         editor
@@ -110,6 +108,9 @@ impl Application for Editor {
             .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
         editor.engine.scheduler.register_continuous(Self::render, Stage::Render);
 
+        // TODO temporary, should make selection subsystem
+        editor.world.register_resource(Selection(vec![]));
+        
         editor
     }
 
@@ -154,7 +155,8 @@ impl Editor {
         selection: Res<Selection>,
         assets: Res<Assets>,
         camera: Res<OrbitalCamera>,
-        gui: Res<Gui>,
+        mut gui: ResMut<Gui>,
+        mut geometry: Query<(&GeometryHandle, &WorldTransform, Option<&TextureHandle>)>,
     ) {
         if window_size.width == 0 || window_size.height == 0 {
             return;
@@ -163,7 +165,7 @@ impl Editor {
         let mut target = commands.display().draw();
         {
             renderer.render_world(
-                &self.world,
+                geometry.iter(),
                 &*camera,
                 &*assets,
                 &selection.0,
@@ -218,7 +220,7 @@ impl Editor {
         camera: Res<OrbitalCamera>,
         mut viewport_click: EventWriter<ViewportClick>,
     ) {
-        let mouse_in_viewport = Self::is_mouse_in_viewport(&input, viewport.0);
+        let mouse_in_viewport = Self::is_mouse_in_viewport(&input, &viewport);
         let left_just_released = input.mouse_button_just_released(MouseButton::Left);
 
         if left_just_released && mouse_in_viewport {
@@ -245,52 +247,52 @@ impl Editor {
         mut viewport_click: EventReader<ViewportClick>,
         assets: Res<Assets>,
         mut selection: ResMut<Selection>,
-        colliders: Query<(&ColliderSet, &WorldTransform)>,
+        mut colliders: Query<(&ColliderSet, &WorldTransform)>,
     ) {
-        let mouse_ray = viewport_click.read().next().unwrap().mouse_ray;
+        // let mouse_ray = viewport_click.read().next().unwrap().mouse_ray;
 
-        let intersection = physics::raycast(&mouse_ray, colliders, &assets);
-
-        if gui_state.render_debug_mouse_rays {
-            self.world.lines.push(Line::new(
-                ray.origin,
-                ray.origin + ray.direction() * 1000.0,
-                if intersection.is_some() {
-                    Srgb::new(0.0, 1.0, 0.0)
-                } else {
-                    Srgb::new(1.0, 0.0, 0.0)
-                },
-                2,
-            ));
-        }
-
-        selection = match intersection {
-            Some(hit) => vec![hit.node],
-            None => vec![],
-        };
+        // let intersection = physics::raycast(&mouse_ray, colliders.iter(), &assets);
+        //
+        // if gui_state.render_debug_mouse_rays {
+        //     self.world.lines.push(Line::new(
+        //         ray.origin,
+        //         ray.origin + ray.direction() * 1000.0,
+        //         if intersection.is_some() {
+        //             Srgb::new(0.0, 1.0, 0.0)
+        //         } else {
+        //             Srgb::new(1.0, 0.0, 0.0)
+        //         },
+        //         2,
+        //     ));
+        // }
+        //
+        // selection = match intersection {
+        //     Some(hit) => vec![hit.node],
+        //     None => vec![],
+        // };
     }
 
     /// Load a models and create an instance of it in the world
     fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
         unimplemented!();
 
-        let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
-
-        let group_node = self.world.graph.add_root_node(WorldNode::default());
-
-        for geometry_handle in handles {
-            let world_node = WorldNode::default();
-            let world_graph_node = self.world.graph.add_node(world_node);
-            self.world.graph.add_edge(group_node, world_graph_node);
-
-            self.world
-                .physics_context
-                .colliders
-                .insert(world_graph_node, ColliderSet::from(geometry_handle));
-            self.world.geometries.insert(world_graph_node, geometry_handle);
-        }
-
-        Ok(())
+        // let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
+        //
+        // let group_node = self.world.graph.add_root_node(WorldNode::default());
+        //
+        // for geometry_handle in handles {
+        //     let world_node = WorldNode::default();
+        //     let world_graph_node = self.world.graph.add_node(world_node);
+        //     self.world.graph.add_edge(group_node, world_graph_node);
+        //
+        //     self.world
+        //         .physics_context
+        //         .colliders
+        //         .insert(world_graph_node, ColliderSet::from(geometry_handle));
+        //     self.world.geometries.insert(world_graph_node, geometry_handle);
+        // }
+        //
+        // Ok(())
     }
 }
 

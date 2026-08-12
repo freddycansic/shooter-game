@@ -1,6 +1,6 @@
 mod local;
 pub mod ray;
-mod transform;
+pub mod transform;
 
 pub use local::Local;
 pub use ray::Ray;

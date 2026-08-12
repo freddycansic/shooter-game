@@ -14,7 +14,7 @@ use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
-use crate::maths::Matrix4Ext;
+use crate::maths::{Matrix4Ext, Transform, WorldTransform};
 use crate::quad::QuadVertex;
 use crate::world::{QuadBatches, World};
 use crate::{context, maths};
@@ -37,6 +37,7 @@ use glium::{
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
 use petgraph::graph::NodeIndex;
+use crate::engine::scheduler::Stage;
 
 struct Programs {
     outline: Program,
@@ -174,9 +175,12 @@ impl Subsystem for Renderer {
     fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
         world.register_resource(Renderer::new(context.unwrap().display).unwrap());
         world.register_resource(Background::default());
+        world.register_resource(Viewport(None));
     }
 
-    fn register_systems(_scheduler: &mut Scheduler) {}
+    fn register_systems(scheduler: &mut Scheduler) {
+        scheduler.register_triggered::<ViewportChanged, _, _>(Self::update_viewport, Stage::Main);
+    }
 }
 
 impl Renderer {
@@ -301,9 +305,9 @@ impl Renderer {
         })
     }
 
-    pub fn render_world(
+    pub fn render_world<'a>(
         &mut self,
-        world: &World,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
         camera: &OrbitalCamera,
         assets: &Assets,
         _selection: &[Entity], // selection should really be application level
@@ -312,7 +316,7 @@ impl Renderer {
         background: &Background,
         target: &mut Frame,
     ) {
-        let render_queue = self.build_render_queue(world, /*selection*/ &[]);
+        let render_queue = self.build_render_queue(geometry, /*selection*/ &[]);
 
         let glium_viewport = Self::glium_viewport(viewport.0.as_ref());
 
@@ -351,8 +355,12 @@ impl Renderer {
         }
     }
 
-    fn build_render_queue(&mut self, _world: &World, selection: &[NodeIndex]) -> RenderQueue {
-        let geometry_batches = self.batch_geometry(selection);
+    fn build_render_queue<'a>(
+        &mut self,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
+        selection: &[NodeIndex],
+    ) -> RenderQueue {
+        let geometry_batches = self.batch_geometry(geometry, selection);
         // let quad_batches = self.quads.batch();
 
         RenderQueue {
@@ -361,32 +369,34 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, selection: &[NodeIndex]) -> GeometryBatches {
-        let batches = GeometryBatches::with_hasher(FxBuildHasher::new());
+    fn batch_geometry<'a>(
+        &self,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
+        selection: &[NodeIndex],
+    ) -> GeometryBatches {
+        let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
         let _selection_set = FxHashSet::from_iter(selection.iter().cloned());
 
-        // for (node_index, geometry_handle) in &world.geometries {
-        //     let node = world.graph.graph.node_weight(*node_index).unwrap();
-        //
-        //     if !node.visible {
-        //         continue;
-        //     }
-        //
-        //     let texture_handle = world.textures.get(node_index).cloned();
-        //
-        //     let node_key = GeometryBatchKey {
-        //         geometry_handle: *geometry_handle,
-        //         texture_handle,
-        //         selected: selection_set.contains(node_index),
-        //     };
-        //
-        //     let batch = batches.entry(node_key).or_insert(vec![]);
-        //
-        //     let transform = node.world_transform().raw_matrix();
-        //
-        //     batch.push(Instance { transform });
-        // }
+        for (geometry_handle, world_transform, texture_handle) in geometry {
+            // TODO
+            // if !node.visible {
+            //     continue;
+            // }
+
+            let node_key = GeometryBatchKey {
+                geometry_handle: *geometry_handle,
+                texture_handle: texture_handle.map(|handle| *handle),
+                // selected: selection_set.contains(node_index),
+                selected: false, // TODO
+            };
+
+            let batch = batches.entry(node_key).or_insert(vec![]);
+
+            batch.push(Instance {
+                transform: maths::raw_matrix(world_transform.0.matrix()),
+            });
+        }
 
         batches
     }

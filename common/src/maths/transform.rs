@@ -15,10 +15,10 @@ pub struct Transform {
 }
 
 #[derive(Component)]
-pub struct LocalTransform(Transform);
+pub struct LocalTransform(pub Transform);
 
 #[derive(Component)]
-pub struct WorldTransform(pub(crate) Transform);
+pub struct WorldTransform(pub Transform);
 
 impl Transform {
     pub fn compute_transform_matrix(&mut self) {

@@ -144,6 +144,38 @@ where
     }
 }
 
+impl<'w, A, B, C> QueryParameter<'w> for (A, B, C)
+where
+    A: QueryParameter<'w>,
+    B: QueryParameter<'w>,
+    C: QueryParameter<'w>,
+{
+    type Item = (A::Item, B::Item, C::Item);
+    type QueryPtr = (A::QueryPtr, B::QueryPtr, C::QueryPtr);
+
+    fn query_arguments() -> Vec<QueryArgument> {
+        let mut args = A::query_arguments();
+        args.extend(B::query_arguments());
+        args.extend(C::query_arguments());
+        args
+    }
+
+    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+        let a = A::build_query_ptr(columns, cursor);
+        let b = B::build_query_ptr(columns, cursor);
+        let c = C::build_query_ptr(columns, cursor);
+        (a, b, c)
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        let a = unsafe { A::fetch(&query_ptr.0, index) };
+        let b = unsafe { B::fetch(&query_ptr.1, index) };
+        let c = unsafe { C::fetch(&query_ptr.2, index) };
+
+        a.and_then(|a| b.and_then(|b| c.map(|c| (a, b, c))))
+    }
+}
+
 pub struct Query<'w, T: QueryParameter<'w>> {
     pub world: &'w mut World,
     // Query depends on T, but doesn't actually contain a reference to it.
@@ -173,6 +205,7 @@ impl<T: for<'w> QueryParameter<'w> + 'static> SystemParameter for Query<'_, T> {
 }
 
 impl<'w, T: QueryParameter<'w>> Query<'w, T> {
+    // TODO make this unsafe so we dont have to make queries mutable
     pub fn iter(&mut self) -> impl Iterator<Item = T::Item> {
         let query_arguments = T::query_arguments();
 

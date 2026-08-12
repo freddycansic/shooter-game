@@ -61,7 +61,7 @@ impl Assets {
     }
 
     pub fn initialise_default_texture(&mut self, display: &Display<WindowSurface>) -> Result<()> {
-        let handle = self.get_texture_handle(&PathBuf::from("../../../../../assets/textures/uv-test.jpg"), display)?;
+        let handle = self.get_texture_handle(&PathBuf::from("assets/textures/uv-test.jpg"), display)?;
 
         self.default_texture = Some(handle);
 

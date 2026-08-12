@@ -1,10 +1,10 @@
 mod tests {
-    
-    
-    
-    
-    
+    use common::ecs::system_parameters::event::{EventReader, EventWriter};
+    use common::ecs::system_parameters::res::{Res, ResMut};
+    use common::engine::scheduler::{Scheduler, Stage};
+    use common::world::World;
     use common_macros::{Event, Resource};
+    use crate::util::DummyExecutor;
 
     #[derive(Event)]
     struct A(u32);
