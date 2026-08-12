@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::util::DummyExecutor;
+    use crate::util::DummyContext;
     use common::ecs::resource::Resource;
     use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::engine::Engine;
@@ -42,7 +42,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(read_resources, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -66,6 +66,6 @@ mod tests {
         scheduler.register_continuous(read_resource_before, Stage::Main);
         scheduler.register_continuous(write_resource, Stage::Main);
         scheduler.register_continuous(read_resource_after, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 }

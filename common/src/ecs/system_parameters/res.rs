@@ -1,7 +1,7 @@
 use crate::ecs::resource::Resource;
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
-use crate::executor::CommandExecutor;
 use common::ecs::system::SystemState;
+use common::runtime::ApplicationAccess;
 use common::world::World;
 use egui_glium::egui_winit::egui::TextBuffer;
 use std::ops::{Deref, DerefMut};
@@ -22,7 +22,7 @@ impl<T: Resource + 'static> SystemParameter for Res<'_, T> {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         _state: &'s mut SystemState,
-        _executor: &'e mut dyn CommandExecutor,
+        _access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e> {
         Res(world
             .resource::<T>()
@@ -52,7 +52,7 @@ impl<T: Resource + 'static> SystemParameter for ResMut<'_, T> {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         _state: &'s mut SystemState,
-        _executor: &'e mut dyn CommandExecutor,
+        _access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e> {
         ResMut(
             world

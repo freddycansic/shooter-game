@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::util::DummyExecutor;
+    use crate::util::DummyContext;
     use common::ecs::system_parameters::query::Query;
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
@@ -20,7 +20,7 @@ mod tests {
         fn system_one_parameter(q1: Query<&Position>) {}
         scheduler.register_continuous(system_one_parameter, Stage::Main);
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -31,7 +31,7 @@ mod tests {
         fn system_two_parameters(q1: Query<&Position>, q2: Query<&Velocity>) {}
         scheduler.register_continuous(system_two_parameters, Stage::Main);
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[derive(Component, PartialEq, Debug)]
@@ -57,7 +57,7 @@ mod tests {
         }
         scheduler.register_continuous(system_query_iterator, Stage::Main);
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -78,7 +78,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system_query_iterator_overlapping, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -92,7 +92,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[derive(Component)]
@@ -114,7 +114,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -135,7 +135,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -153,7 +153,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -174,7 +174,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(system_fetch_mismatch, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(set_to_five, Stage::Main);
         scheduler.register_continuous(check_are_five, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -237,7 +237,7 @@ mod tests {
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(read_and_modify, Stage::Main);
         scheduler.register_continuous(check_are_modified, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(optional_a, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(optional_a, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(optional_a, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -315,7 +315,7 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(optional_a, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -336,6 +336,6 @@ mod tests {
 
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(optional_a, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 }

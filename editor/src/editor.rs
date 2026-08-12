@@ -7,8 +7,8 @@ use common::debug::Cuboid;
 use common::maths::{Ray, Transform};
 use common::serde::SerializedWorld;
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
@@ -22,12 +22,11 @@ use winit::keyboard::KeyCode;
 use winit::window::Window;
 
 use crate::ui::Show;
-use common::application::Application;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::ecs::entity::Entity;
 use common::ecs::subsystem::Subsystem;
-use common::ecs::system_parameters::commands::Commands;
+use common::ecs::system_parameters::application_context::ApplicationContext;
 use common::ecs::system_parameters::event::{EventReader, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
@@ -38,11 +37,11 @@ use common::engine::physics;
 use common::engine::physics::ColliderSet;
 use common::engine::renderer::{Background, Renderer, Viewport, ViewportChanged};
 use common::engine::scheduler::{Scheduler, Stage};
-use common::executor::{CommandExecutor, RuntimeContext};
 use common::gui::{Gui, GuiState};
 use common::light::Light;
 use common::line::Line;
 use common::maths::transform::WorldTransform;
+use common::runtime::{Application, ApplicationAccess, RuntimeContext};
 use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common::subsystems::window_size::WindowSize;
 use common::world::World;
@@ -110,7 +109,7 @@ impl Application for Editor {
 
         // TODO temporary, should make selection subsystem
         editor.world.register_resource(Selection(vec![]));
-        
+
         editor
     }
 
@@ -150,7 +149,7 @@ impl Editor {
         window_size: Res<WindowSize>,
         mut renderer: ResMut<Renderer>,
         viewport: Res<Viewport>,
-        commands: Commands,
+        commands: ApplicationContext,
         background: Res<Background>,
         selection: Res<Selection>,
         assets: Res<Assets>,
@@ -184,7 +183,7 @@ impl Editor {
     fn update(&mut self, display: &Display<WindowSurface>) {
         // let events = self.receiver.try_iter().collect_vec();
         //
-        // // TODO turn these into executor events
+        // // TODO turn these into access events
         // for engine_event in events.into_iter() {
         //     match engine_event {
         //         EngineEvent::LoadProject(serialized_project) => {

@@ -5,15 +5,12 @@
 // This means that proc-macro code which uses "common::" is valid in this crate as well as consumers
 extern crate self as common;
 
-pub mod application;
 pub mod camera;
 pub mod collision;
 pub mod colors;
-pub mod context;
 pub mod debug;
 pub mod ecs;
 pub mod engine;
-pub mod executor;
 pub mod geometry;
 pub mod gui;
 pub mod import;
@@ -22,7 +19,7 @@ pub mod line;
 pub mod material;
 pub mod maths;
 pub mod quad;
-pub mod run;
+pub mod runtime;
 pub mod serde;
 pub mod subsystems;
 pub mod terrain;

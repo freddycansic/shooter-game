@@ -1,10 +1,10 @@
 mod tests {
+    use crate::util::DummyContext;
     use common::ecs::system_parameters::event::{EventReader, EventWriter};
     use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
     use common_macros::{Event, Resource};
-    use crate::util::DummyExecutor;
 
     #[derive(Event)]
     struct A(u32);
@@ -21,7 +21,7 @@ mod tests {
         let mut world = World::default();
         let mut scheduler = Scheduler::default();
         scheduler.register_continuous(read_nothing, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[test]
@@ -45,7 +45,7 @@ mod tests {
         scheduler.register_continuous(send, Stage::Main);
         scheduler.register_continuous(read, Stage::Main);
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[derive(Resource)]
@@ -73,7 +73,7 @@ mod tests {
         scheduler.register_continuous(read, Stage::Main);
 
         for _ in 0..3 {
-            scheduler.run(&mut world, &mut DummyExecutor::default());
+            scheduler.run(&mut world, &mut DummyContext::default());
         }
     }
 }
