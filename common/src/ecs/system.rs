@@ -1,6 +1,6 @@
 use crate::ecs::component::StableId;
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
-use crate::executor::CommandExecutor;
+use crate::runtime::ApplicationAccess;
 use crate::world::World;
 use derive_more::Debug;
 use fxhash::FxHashMap;
@@ -10,7 +10,7 @@ use std::hash::{Hash, Hasher};
 pub struct System {
     pub id: StableId,
     #[debug("traitname")] // trait objects don't implement std::fmt::Debug by default
-    pub function: Box<dyn FnMut(&mut World, &mut SystemState, &mut dyn CommandExecutor)>,
+    pub function: Box<dyn FnMut(&mut World, &mut SystemState, &mut dyn ApplicationAccess)>,
     pub state: SystemState,
 }
 
@@ -30,7 +30,7 @@ impl Default for SystemState {
 }
 
 impl System {
-    fn new<T: FnMut(&mut World, &mut SystemState, &mut dyn CommandExecutor) + 'static>(function: T) -> Self {
+    fn new<T: FnMut(&mut World, &mut SystemState, &mut dyn ApplicationAccess) + 'static>(function: T) -> Self {
         Self {
             id: StableId::from_str(std::any::type_name::<T>()),
             function: Box::new(function),
@@ -38,8 +38,8 @@ impl System {
         }
     }
 
-    pub fn run(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
-        (self.function)(world, &mut self.state, executor);
+    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
+        (self.function)(world, &mut self.state, access);
     }
 }
 
@@ -66,9 +66,11 @@ where
     F: Fn() + 'static,
 {
     fn into_system(self) -> System {
-        System::new(move |_: &mut World, _: &mut SystemState, _: &mut dyn CommandExecutor| {
-            self();
-        })
+        System::new(
+            move |_: &mut World, _: &mut SystemState, _: &mut dyn ApplicationAccess| {
+                self();
+            },
+        )
     }
 }
 
@@ -82,8 +84,8 @@ where
 {
     fn into_system(self) -> System {
         System::new(
-            move |world: &mut World, state: &mut SystemState, executor: &mut dyn CommandExecutor| {
-                let p1 = P1::get(world, state, executor);
+            move |world: &mut World, state: &mut SystemState, access: &mut dyn ApplicationAccess| {
+                let p1 = P1::get(world, state, access);
 
                 fn call_inner<A, FInner: Fn(A)>(f: &FInner, a: A) {
                     f(a);
@@ -111,17 +113,17 @@ macro_rules! impl_into_system {
                     move |
                         world: &mut World,
                         state: &mut SystemState,
-                        executor: &mut dyn CommandExecutor
+                        access: &mut dyn ApplicationAccess
                     | {
                         let world_ptr = world as *mut World;
                         let state_ptr = state as *mut SystemState;
-                        let executor_ptr = executor as *mut dyn CommandExecutor;
+                        let access_ptr = access as *mut dyn ApplicationAccess;
 
                         $(
                             let $P = $P::get(
                                 unsafe { &mut *world_ptr },
                                 unsafe { &mut *state_ptr },
-                                unsafe { &mut *executor_ptr },
+                                unsafe { &mut *access_ptr },
                             );
                         )+
 

@@ -20,8 +20,7 @@ impl<'a> RuntimeContext<'a> {
     }
 }
 
-// TODO rename
-pub trait CommandExecutor {
+pub trait ApplicationAccess {
     fn capture_cursor(&mut self);
     fn release_cursor(&mut self);
     fn center_cursor(&mut self);
@@ -34,7 +33,7 @@ pub trait CommandExecutor {
     }
 }
 
-impl<'a> CommandExecutor for RuntimeContext<'a> {
+impl<'a> ApplicationAccess for RuntimeContext<'a> {
     fn capture_cursor(&mut self) {
         self.window
             .set_cursor_grab(CursorGrabMode::Locked)

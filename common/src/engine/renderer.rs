@@ -1,4 +1,5 @@
 use std::collections::hash_map::Entry;
+use std::fs;
 use std::hash::{Hash, Hasher};
 
 use crate::camera::OrbitalCamera;
@@ -10,17 +11,17 @@ use crate::ecs::system_parameters::event::EventReader;
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::assets::{Assets, GeometryHandle};
 use crate::engine::assets::{CubemapHandle, TextureHandle};
+use crate::engine::scheduler::Stage;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
-use crate::maths::{Matrix4Ext, Transform, WorldTransform};
+use crate::maths;
+use crate::maths::{Matrix4Ext, WorldTransform};
 use crate::quad::QuadVertex;
 use crate::world::{QuadBatches, World};
-use crate::{context, maths};
 use color_eyre::Result;
 use common::engine::scheduler::Scheduler;
-use common::executor::RuntimeContext;
 use common_macros::{Event, Resource};
 use egui_glium::egui_winit::egui::{self};
 use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
@@ -31,13 +32,13 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
-    Vertex, VertexBuffer, implement_vertex, uniform,
+    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
+    Program, Surface, Vertex, VertexBuffer,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
 use petgraph::graph::NodeIndex;
-use crate::engine::scheduler::Stage;
+use crate::runtime::RuntimeContext;
 
 struct Programs {
     outline: Program,
@@ -94,7 +95,7 @@ impl RendererBuffers {
                 let x = (data.len() as f64).log2().ceil() as u32;
                 let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE as u32) as usize;
 
-                let buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, min_size, data).unwrap();
+                let buffer = new_sized_dynamic_vertex_buffer_with_data(display, min_size, data).unwrap();
                 entry.insert(buffer)
             }
         }
@@ -107,7 +108,7 @@ impl RendererBuffers {
         if buffer.len() < data.len() {
             // double the size of existing buffer or fit data
             let new_size = (buffer.len() * 2).max(data.len());
-            *buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data).unwrap();
+            *buffer = new_sized_dynamic_vertex_buffer_with_data(display, new_size, data).unwrap();
         } else {
             buffer.slice_mut(..data.len()).unwrap().write(data);
         }
@@ -185,70 +186,70 @@ impl Subsystem for Renderer {
 
 impl Renderer {
     pub fn new(display: &Display<WindowSurface>) -> Result<Self> {
-        let default_program = context::new_program(
+        let default_program = new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
             None,
             display,
         )?;
 
-        let lines_program = context::new_program(
+        let lines_program = new_program(
             "assets/shaders/line/line.vert",
             "assets/shaders/line/line.frag",
             None,
             display,
         )?;
 
-        let skybox_program = context::new_program(
+        let skybox_program = new_program(
             "assets/shaders/skybox/skybox.vert",
             "assets/shaders/skybox/skybox.frag",
             None,
             display,
         )?;
 
-        let light_program = context::new_program(
+        let light_program = new_program(
             "assets/shaders/light/light.vert",
             "assets/shaders/light/light.frag",
             None,
             display,
         )?;
 
-        let terrain_program = context::new_program(
+        let terrain_program = new_program(
             "assets/shaders/terrain/terrain.vert",
             "assets/shaders/terrain/terrain.frag",
             None,
             display,
         )?;
 
-        let quad_program = context::new_program(
+        let quad_program = new_program(
             "assets/shaders/quad/quad.vert",
             "assets/shaders/quad/quad.frag",
             Some("assets/shaders/quad/quad.geom"),
             display,
         )?;
 
-        let outline_program = context::new_program(
+        let outline_program = new_program(
             "assets/shaders/outline/outline.vert",
             "assets/shaders/outline/outline.frag",
             None,
             display,
         )?;
 
-        let fullscreen_quad_program = context::new_program(
+        let fullscreen_quad_program = new_program(
             "assets/shaders/fullscreen_quad/fullscreen_quad.vert",
             "assets/shaders/fullscreen_quad/fullscreen_quad.frag",
             None,
             display,
         )?;
 
-        let solid_color_program = context::new_program(
+        let solid_color_program = new_program(
             "assets/shaders/solid_color/solid_color.vert",
             "assets/shaders/solid_color/solid_color.frag",
             None,
             display,
         )?;
 
-        let white_program = context::new_program(
+        let white_program = new_program(
             "assets/shaders/white/white.vert",
             "assets/shaders/white/white.frag",
             None,
@@ -980,6 +981,38 @@ impl Renderer {
 
         outline_texture
     }
+}
+
+pub fn new_program(
+    vertex_source_path: &str,
+    fragment_source_path: &str,
+    geometry_source_path: Option<&str>,
+    display: &Display<WindowSurface>,
+) -> Result<Program> {
+    let vertex_source = fs::read_to_string(vertex_source_path)?;
+    let fragment_source = fs::read_to_string(fragment_source_path)?;
+    let geometry_source = geometry_source_path.map(|path| fs::read_to_string(path).unwrap());
+
+    Ok(Program::from_source(
+        display,
+        vertex_source.as_str(),
+        fragment_source.as_str(),
+        geometry_source.as_deref(),
+    )?)
+}
+
+pub fn new_sized_dynamic_vertex_buffer_with_data<T: Copy + Vertex>(
+    display: &Display<WindowSurface>,
+    size: usize,
+    data: &[T],
+) -> Result<VertexBuffer<T>> {
+    assert!(size >= data.len());
+
+    let mut vertex_buffer = VertexBuffer::<T>::empty_dynamic(display, size)?;
+
+    vertex_buffer.slice_mut(..data.len()).unwrap().write(data);
+
+    Ok(vertex_buffer)
 }
 
 #[derive(Copy, Clone, Debug)]

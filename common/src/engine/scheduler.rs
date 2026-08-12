@@ -1,5 +1,5 @@
 use crate::ecs::system::{IntoSystem, System};
-use crate::executor::CommandExecutor;
+use crate::runtime::ApplicationAccess;
 use crate::world::World;
 use common::ecs::component::StableId;
 use common::ecs::event::Event;
@@ -59,7 +59,7 @@ impl SchedulerStage {
         self.triggerable_systems.push(new_system);
     }
 
-    pub fn run(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
+    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
         let mut triggered_systems_to_run = FxHashSet::<StableId>::default();
 
         for (event_id, system_ids) in self.triggers.iter_mut() {
@@ -89,11 +89,11 @@ impl SchedulerStage {
                 .find(|system| system.id == system_id_to_trigger)
                 .unwrap();
 
-            system.run(world, executor);
+            system.run(world, access);
         }
 
         for system in self.continuous_systems.iter_mut() {
-            system.run(world, executor);
+            system.run(world, access);
         }
     }
 }
@@ -128,9 +128,9 @@ impl Scheduler {
         self.stages[stage as usize].register_triggered::<E, S, P>(system);
     }
 
-    pub fn run(&mut self, world: &mut World, executor: &mut dyn CommandExecutor) {
+    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
         for stage in self.stages.iter_mut() {
-            stage.run(world, executor);
+            stage.run(world, access);
         }
     }
 }

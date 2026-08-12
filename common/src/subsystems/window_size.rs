@@ -2,7 +2,7 @@ use crate::ecs::subsystem::Subsystem;
 use crate::ecs::system_parameters::event::EventReader;
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::scheduler::Stage;
-use crate::executor::RuntimeContext;
+use crate::runtime::RuntimeContext;
 use common::engine::scheduler::Scheduler;
 use common::world::World;
 use common_macros::{Event, Resource};

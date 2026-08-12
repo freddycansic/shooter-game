@@ -1,7 +1,7 @@
 use crate::ecs::event::{Event, EventQueue};
 use crate::ecs::system_parameters::system_parameter::SystemParameter;
-use crate::executor::CommandExecutor;
 use common::ecs::system::SystemState;
+use common::runtime::ApplicationAccess;
 use common::world::World;
 use std::marker::PhantomData;
 
@@ -38,7 +38,7 @@ impl<T: Event + 'static> SystemParameter for EventReader<'_, '_, T> {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         state: &'s mut SystemState,
-        _executor: &'e mut dyn CommandExecutor,
+        _access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e> {
         EventReader::new(
             world.event_queue::<T>(),
@@ -71,7 +71,7 @@ impl<T: Event + 'static> SystemParameter for EventWriter<'_, T> {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         _state: &'s mut SystemState,
-        _executor: &'e mut dyn CommandExecutor,
+        _access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e> {
         EventWriter::new(world.event_queue::<T>())
     }

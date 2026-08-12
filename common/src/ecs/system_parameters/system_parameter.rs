@@ -1,4 +1,4 @@
-use crate::executor::CommandExecutor;
+use crate::runtime::ApplicationAccess;
 use common::ecs::system::SystemState;
 use common::world::World;
 
@@ -7,6 +7,6 @@ pub trait SystemParameter: Sized {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         state: &'s mut SystemState,
-        executor: &'e mut dyn CommandExecutor,
+        access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e>;
 }

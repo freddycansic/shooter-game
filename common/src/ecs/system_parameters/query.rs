@@ -1,5 +1,5 @@
 use crate::ecs::component::Component;
-use crate::executor::CommandExecutor;
+use crate::runtime::ApplicationAccess;
 use common::ecs::archetype::Column;
 use common::ecs::component::StableId;
 use common::ecs::system::SystemState;
@@ -198,7 +198,7 @@ impl<T: for<'w> QueryParameter<'w> + 'static> SystemParameter for Query<'_, T> {
     fn get<'w, 's, 'e>(
         world: &'w mut World,
         _state: &'s mut SystemState,
-        _executor: &'e mut dyn CommandExecutor,
+        _access: &'e mut dyn ApplicationAccess,
     ) -> Self::Item<'w, 's, 'e> {
         Query::new(world)
     }

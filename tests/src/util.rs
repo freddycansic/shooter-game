@@ -1,7 +1,7 @@
 use common::engine::assets::{Assets, GeometryHandle};
-use common::executor::CommandExecutor;
 use common::geometry::Geometry;
 use std::path::Path;
+use common::runtime::ApplicationAccess;
 
 pub fn load_test_geometry_handle(path: &Path, resources: &mut Assets) -> GeometryHandle {
     resources.get_geometry_handles(path, None).unwrap()[0]
@@ -11,17 +11,17 @@ pub fn load_test_geometry(path: &Path) -> Geometry {
     Geometry::load(path, None).unwrap().into_iter().next().unwrap()
 }
 
-pub struct DummyExecutor {
+pub struct DummyContext {
     pub commands_executed: u32,
 }
 
-impl Default for DummyExecutor {
+impl Default for DummyContext {
     fn default() -> Self {
         Self { commands_executed: 0 }
     }
 }
 
-impl CommandExecutor for DummyExecutor {
+impl ApplicationAccess for DummyContext {
     fn capture_cursor(&mut self) {
         self.commands_executed += 1;
     }

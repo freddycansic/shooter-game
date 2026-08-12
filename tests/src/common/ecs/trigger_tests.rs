@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::util::DummyExecutor;
+    use crate::util::DummyContext;
     use common::ecs::system_parameters::event::{EventReader, EventWriter};
     use common::ecs::system_parameters::res::ResMut;
     use common::engine::scheduler::{Scheduler, Stage};
@@ -23,7 +23,7 @@ mod tests {
         let mut scheduler = Scheduler::default();
 
         scheduler.register_triggered::<TriggerEvent, _, _>(dont_run_me, Stage::Main);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 
     #[derive(Resource)]
@@ -47,7 +47,7 @@ mod tests {
         scheduler.register_triggered::<TriggerEvent, _, _>(run_me, Stage::Main);
 
         world.write_event(TriggerEvent);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
 
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
     }
@@ -70,7 +70,7 @@ mod tests {
             world.write_event(TriggerEvent);
         }
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
 
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
     }
@@ -98,7 +98,7 @@ mod tests {
         scheduler.register_triggered::<TriggerEvent, _, _>(run_me_2, Stage::Main);
 
         world.write_event(TriggerEvent);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
 
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
         assert_eq!(world.resource::<TimesRan2>().unwrap().0, 1);
@@ -130,7 +130,7 @@ mod tests {
             world.write_event(TriggerEvent);
         }
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
 
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
         assert_eq!(world.resource::<TimesRan2>().unwrap().0, 1);
@@ -150,10 +150,10 @@ mod tests {
         scheduler.register_triggered::<TriggerEvent, _, _>(trigger_self, Stage::Main);
 
         world.write_event(TriggerEvent);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
 
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 2);
     }
 
@@ -171,16 +171,16 @@ mod tests {
         scheduler.register_triggered::<TriggerEvent2, _, _>(system, Stage::Main);
 
         world.write_event(TriggerEvent);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 1);
 
         world.write_event(TriggerEvent2);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 2);
 
         world.write_event(TriggerEvent);
         world.write_event(TriggerEvent2);
-        scheduler.run(&mut world, &mut DummyExecutor::default());
+        scheduler.run(&mut world, &mut DummyContext::default());
         assert_eq!(world.resource::<TimesRan1>().unwrap().0, 3);
     }
 }

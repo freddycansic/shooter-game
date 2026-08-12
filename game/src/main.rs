@@ -1,6 +1,6 @@
 use winit::window::WindowAttributes;
 
-use common::run;
+use common::runtime::run;
 use game::Game;
 
 mod controllers;

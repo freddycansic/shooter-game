@@ -1,6 +1,6 @@
 use clap::Parser;
-use glium::Display;
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -10,13 +10,13 @@ use winit::keyboard::KeyCode;
 use winit::window::Window;
 
 use crate::controllers::player::PlayerController;
-use common::application::Application;
 use common::camera::{Camera, OrbitalCamera};
 use common::collision::collidable::Sweep;
 use common::collision::colliders::sphere::Sphere;
 use common::debug;
 use common::engine::engine::Engine;
 use common::quad::Quad;
+use common::runtime::application::Application;
 use common::serde::SerializedWorld;
 use common::world::World;
 

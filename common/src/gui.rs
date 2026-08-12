@@ -1,18 +1,17 @@
-use crate::context::WinitWindowEvent;
 use crate::ecs::subsystem::Subsystem;
-use crate::ecs::system_parameters::commands::Commands;
+use crate::ecs::system_parameters::application_context::ApplicationContext;
 use crate::ecs::system_parameters::event::{EventReader, EventWriter};
 use crate::ecs::system_parameters::res::ResMut;
 use crate::engine::scheduler::Stage;
 use common::engine::renderer::{Viewport, ViewportChanged};
 use common::engine::scheduler::Scheduler;
-use common::executor::RuntimeContext;
 use common::world::World;
 use common_macros::Resource;
-use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
+use egui_glium::EguiGlium;
 use log::info;
+use crate::runtime::{RuntimeContext, WinitWindowEvent};
 
 // TODO move gui state into its own resource
 #[derive(Resource)]
@@ -58,7 +57,7 @@ impl Subsystem for Gui {
 impl Gui {
     fn winit_window_event(
         mut gui: ResMut<Gui>,
-        commands: Commands,
+        commands: ApplicationContext,
         mut winit_window_event: EventReader<WinitWindowEvent>,
     ) {
         for event in winit_window_event.read() {
@@ -70,7 +69,7 @@ impl Gui {
         }
     }
 
-    fn show(mut gui: ResMut<Gui>, commands: Commands, mut viewport_changed: EventWriter<ViewportChanged>) {
+    fn show(mut gui: ResMut<Gui>, commands: ApplicationContext, mut viewport_changed: EventWriter<ViewportChanged>) {
         gui.0.run(commands.window(), |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
