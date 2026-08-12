@@ -31,7 +31,6 @@ use common::ecs::system_parameters::event::{EventReader, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
 use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
-use common::engine::engine::Engine;
 use common::engine::input::Input;
 use common::engine::physics;
 use common::engine::physics::ColliderSet;
@@ -63,7 +62,7 @@ struct ViewportClick {
 struct Selection(Vec<Entity>);
 
 pub struct Editor {
-    engine: Engine,
+    scheduler: Scheduler,
     sender: Sender<EngineEvent>,
     receiver: Receiver<EngineEvent>,
     world: World,
@@ -78,8 +77,6 @@ impl Application for Editor {
 
         let mut world = World::default();
 
-        let engine = Engine::new();
-
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
@@ -88,7 +85,7 @@ impl Application for Editor {
         let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
 
         let mut editor = Self {
-            engine,
+            scheduler: Scheduler::default(),
             sender,
             receiver,
             world,
@@ -98,14 +95,12 @@ impl Application for Editor {
         editor.register_subsystem_with_context::<Gui>(context);
 
         editor
-            .engine
             .scheduler
             .register_continuous(Self::detect_viewport_click, Stage::Pre);
         editor
-            .engine
             .scheduler
             .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
-        editor.engine.scheduler.register_continuous(Self::render, Stage::Render);
+        editor.scheduler.register_continuous(Self::render, Stage::Render);
 
         // TODO temporary, should make selection subsystem
         editor.world.register_resource(Selection(vec![]));
@@ -123,7 +118,7 @@ impl Application for Editor {
         // TODO turn this into ECS systems
         self.update(context.display);
 
-        self.engine.scheduler.run(&mut self.world, &mut context);
+        self.scheduler.run(&mut self.world, &mut context);
     }
 
     fn window_event(
@@ -140,7 +135,7 @@ impl Application for Editor {
     }
 
     fn scheduler(&mut self) -> &mut Scheduler {
-        &mut self.engine.scheduler
+        &mut self.scheduler
     }
 }
 
