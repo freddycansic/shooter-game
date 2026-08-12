@@ -3,7 +3,6 @@ mod tests {
     use crate::util::DummyContext;
     use common::ecs::resource::Resource;
     use common::ecs::system_parameters::res::{Res, ResMut};
-    use common::engine::engine::Engine;
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
     use common_macros::Resource;
