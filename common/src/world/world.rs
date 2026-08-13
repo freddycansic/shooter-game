@@ -16,6 +16,11 @@ use itertools::Itertools;
 use rfd::FileDialog;
 use std::collections::hash_map::Entry;
 
+pub enum Command {
+    Spawn(Box<dyn OwnedComponents>),
+    Destroy(Entity),
+}
+
 pub struct World {
     pub title: String,
     pub lines: Vec<Line>,
@@ -26,11 +31,29 @@ pub struct World {
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
     pub events: FxHashMap<StableId, EventQueue>,
+    pub command_queue: Vec<Command>,
 }
 
 impl World {
-    pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
-        self.find_exact_archetype(&T::sorted_ids()).spawn(components)
+    pub fn do_command_queue(&mut self) {
+        // move the commands out of the command queue and construct an empty vec in its place.
+        // avoids double mut borrow on World.
+        let commands = std::mem::take(&mut self.command_queue);
+
+        for command in commands {
+            match command {
+                Command::Spawn(components) => {
+                    components.spawn(self);
+                }
+                Command::Destroy(entity) => {
+                    self.destroy(entity);
+                }
+            }
+        }
+    }
+
+    pub fn destroy(&mut self, entity: Entity) {
+        unimplemented!()
     }
 
     /// Finds the single archetype matching T exactly, creates it if it does not exist.
@@ -158,6 +181,7 @@ impl Default for World {
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
             events: FxHashMap::default(),
+            command_queue: vec![],
         }
     }
 }

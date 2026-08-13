@@ -2,7 +2,6 @@ use crate::ecs::component::Component;
 use crate::ecs::entity::Entity;
 use crate::ecs::stable_id::StableId;
 use crate::ecs::system_parameters::query::{ArgumentRequirement, QueryArgument};
-use common::ecs::owned_components::OwnedComponents;
 use std::any::Any;
 use std::cell::OnceCell;
 
@@ -62,19 +61,6 @@ pub struct Archetype {
 }
 
 impl Archetype {
-    pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
-        let entity = Entity {
-            archetype_id: self.id,
-            row: self.entities.len() as u32,
-        };
-
-        components.spawn(self);
-
-        self.entities.push(entity.clone());
-
-        entity
-    }
-
     pub fn matching_columns(&mut self, query_arguments: &[QueryArgument]) -> Option<Vec<Option<*mut Column>>> {
         let mut matching_columns = Vec::<Option<*mut Column>>::with_capacity(query_arguments.len());
 
