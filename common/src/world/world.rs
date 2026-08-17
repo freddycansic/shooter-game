@@ -8,7 +8,7 @@ use crate::engine::assets::Assets;
 use crate::light::Light;
 use crate::line::Line;
 use crate::serde::SerializedWorld;
-use crate::world::QuadTree;
+use crate::world::{QuadTree};
 use common::ecs::component;
 use common::ecs::owned_components::OwnedComponents;
 use fxhash::FxHashMap;
@@ -35,21 +35,8 @@ pub struct World {
 }
 
 impl World {
-    pub fn do_command_queue(&mut self) {
-        // move the commands out of the command queue and construct an empty vec in its place.
-        // avoids double mut borrow on World.
-        let commands = std::mem::take(&mut self.command_queue);
-
-        for command in commands {
-            match command {
-                Command::Spawn(components) => {
-                    components.spawn(self);
-                }
-                Command::Destroy(entity) => {
-                    self.destroy(entity);
-                }
-            }
-        }
+    pub fn spawn<T: OwnedComponents>(&mut self, components: T) -> Entity {
+        Box::new(components).spawn(self)
     }
 
     pub fn destroy(&mut self, entity: Entity) {
@@ -144,6 +131,23 @@ impl World {
 
     pub fn event_queue_from_id(&mut self, id: StableId) -> &mut EventQueue {
         self.events.entry(id).or_insert(EventQueue::default())
+    }
+
+    pub fn execute_command_queue(&mut self) {
+        // move the commands out of the command queue and construct an empty vec in its place.
+        // avoids double mut borrow on World.
+        let commands = std::mem::take(&mut self.command_queue);
+
+        for command in commands {
+            match command {
+                Command::Spawn(components) => {
+                    components.spawn(self);
+                }
+                Command::Destroy(entity) => {
+                    self.destroy(entity);
+                }
+            }
+        }
     }
 
     // // TODO TEST
