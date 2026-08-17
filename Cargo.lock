@@ -577,6 +577,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "sorted-vec",
  "winit",
 ]
 
@@ -2902,6 +2903,12 @@ checksum = "dd538fb6910ac1099850255cf94a94df6551fbdd602454387d0adb2d1ca6dead"
 dependencies = [
  "serde",
 ]
+
+[[package]]
+name = "sorted-vec"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238653bedf881fede50103cb7838b029e2b73d3d3d8e70d36f0a96be32a65c7b"
 
 [[package]]
 name = "stable_deref_trait"

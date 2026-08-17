@@ -8,6 +8,8 @@ use std::cell::OnceCell;
 pub trait ComponentColumn {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn as_any_ref(&self) -> &dyn Any;
+
+    fn remove(&mut self, index: usize);
 }
 
 impl<T: 'static> ComponentColumn for Vec<T> {
@@ -17,6 +19,10 @@ impl<T: 'static> ComponentColumn for Vec<T> {
 
     fn as_any_ref(&self) -> &dyn Any {
         self
+    }
+
+    fn remove(&mut self, index: usize) {
+        Vec::remove(self, index);
     }
 }
 
