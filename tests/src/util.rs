@@ -1,10 +1,10 @@
-use common::engine::assets::{Assets, GeometryHandle};
-use common::geometry::Geometry;
-use std::path::Path;
 use common::ecs::system::IntoSystem;
+use common::engine::assets::{Assets, GeometryHandle};
 use common::engine::scheduler::Scheduler;
+use common::geometry::Geometry;
 use common::runtime::ApplicationAccess;
 use common::world::World;
+use std::path::Path;
 
 pub fn load_test_geometry_handle(path: &Path, resources: &mut Assets) -> GeometryHandle {
     resources.get_geometry_handles(path, None).unwrap()[0]
@@ -48,7 +48,7 @@ pub trait RunNow {
 impl RunNow for Scheduler {
     fn run_now<S, P>(&self, system: S, world: &mut World)
     where
-        S: IntoSystem<P>
+        S: IntoSystem<P>,
     {
         system.into_system().run(world, &mut DummyContext::default());
     }

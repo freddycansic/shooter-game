@@ -1,17 +1,10 @@
-use std::fs;
-
-use crate::runtime::application::Application;
 use crate::runtime::Runtime;
-use crate::subsystems::window_size::{WindowResized, WindowSize};
-use color_eyre::Result;
-use common_macros::Event;
+use crate::runtime::application::Application;
 use glium::backend::glutin::SimpleWindowBuilder;
-use glium::glutin::surface::WindowSurface;
-use glium::{Display, Program, Vertex, VertexBuffer};
 use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
-use winit::window::{Window, WindowAttributes, WindowId};
+use winit::window::{WindowAttributes, WindowId};
 
 #[derive(Debug)]
 pub struct Runner<A: Application> {

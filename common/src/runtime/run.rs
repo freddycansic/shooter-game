@@ -1,8 +1,8 @@
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowAttributes;
 
-use crate::runtime::application::Application;
 use crate::runtime::Runner;
+use crate::runtime::application::Application;
 
 pub fn run<A: Application>(window_attributes: WindowAttributes) {
     let event_loop = EventLoop::new().expect("Failed to create event loop");

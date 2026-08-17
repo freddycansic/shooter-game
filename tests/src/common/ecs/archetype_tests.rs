@@ -2,7 +2,7 @@
 mod tests {
     use common::ecs::component::Component;
     use common_macros::Component;
-    
+
     #[derive(Component)]
     struct TestComponent(u32);
 

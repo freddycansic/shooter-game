@@ -1,13 +1,13 @@
+use crate::runtime::RuntimeContext;
 use crate::runtime::application::Application;
+use crate::subsystems::frame_timing::WinitNewEvents;
+use crate::subsystems::window_size::{WindowResized, WindowSize};
 use common_macros::Event;
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use winit::event::{DeviceEvent, DeviceId, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
-use crate::runtime::RuntimeContext;
-use crate::subsystems::frame_timing::WinitNewEvents;
-use crate::subsystems::window_size::{WindowResized, WindowSize};
 
 #[derive(Event)]
 pub struct WinitWindowEvent(pub winit::event::WindowEvent);

@@ -1,47 +1,34 @@
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::Instant;
 
-use common::debug::Cuboid;
-use common::maths::{Ray, Transform};
-use common::serde::SerializedWorld;
-use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
-use glium::glutin::surface::WindowSurface;
+use common::maths::Ray;
+use egui_glium::egui_winit::egui::{self, Pos2};
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
-use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
-use palette::Srgb;
-use petgraph::prelude::NodeIndex;
-use rfd::FileDialog;
-use uuid::Uuid;
-use winit::event::{DeviceEvent, MouseButton, WindowEvent};
+use winit::event::{MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
-use crate::ui::Show;
 use common::camera::OrbitalCamera;
 use common::colors::{Color, ColorExt};
 use common::ecs::entity::Entity;
-use common::ecs::subsystem::Subsystem;
 use common::ecs::system_parameters::application_context::ApplicationContext;
 use common::ecs::system_parameters::event::{EventReader, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
 use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use common::engine::input::Input;
-use common::engine::physics;
 use common::engine::physics::ColliderSet;
-use common::engine::renderer::{Background, Renderer, Viewport, ViewportChanged};
+use common::engine::renderer::{Background, Renderer, Viewport};
 use common::engine::scheduler::{Scheduler, Stage};
 use common::gui::{Gui, GuiState};
 use common::light::Light;
-use common::line::Line;
 use common::maths::transform::WorldTransform;
 use common::runtime::{Application, ApplicationAccess, RuntimeContext};
-use common::subsystems::frame_timing::{FrameTiming, WinitNewEvents};
 use common::subsystems::window_size::WindowSize;
 use common::world::World;
 use common::*;
@@ -125,9 +112,9 @@ impl Application for Editor {
 
     fn window_event(
         &mut self,
-        event: WindowEvent,
+        _event: WindowEvent,
         _event_loop: &ActiveEventLoop,
-        window: &Window,
+        _window: &Window,
         _display: &Display<WindowSurface>,
     ) {
     }
@@ -177,7 +164,7 @@ impl Editor {
     }
 
     // TODO turn all this into ECS event stuff
-    fn update(&mut self, display: &Display<WindowSurface>) {
+    fn update(&mut self, _display: &Display<WindowSurface>) {
         // let events = self.receiver.try_iter().collect_vec();
         //
         // // TODO turn these into access events
@@ -239,11 +226,11 @@ impl Editor {
     }
 
     fn selection_stuff(
-        gui_state: Res<GuiState>,
-        mut viewport_click: EventReader<ViewportClick>,
-        assets: Res<Assets>,
-        mut selection: ResMut<Selection>,
-        mut colliders: Query<(&ColliderSet, &WorldTransform)>,
+        _gui_state: Res<GuiState>,
+        _viewport_click: EventReader<ViewportClick>,
+        _assets: Res<Assets>,
+        _selection: ResMut<Selection>,
+        _colliders: Query<(&ColliderSet, &WorldTransform)>,
     ) {
         // let mouse_ray = viewport_click.read().next().unwrap().mouse_ray;
 
@@ -269,7 +256,7 @@ impl Editor {
     }
 
     /// Load a models and create an instance of it in the world
-    fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
+    fn import_model(&mut self, _path: &Path, _display: &Display<WindowSurface>) -> color_eyre::Result<()> {
         unimplemented!();
 
         // let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
