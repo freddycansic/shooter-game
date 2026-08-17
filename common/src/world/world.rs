@@ -8,14 +8,14 @@ use crate::engine::assets::Assets;
 use crate::light::Light;
 use crate::line::Line;
 use crate::serde::SerializedWorld;
-use crate::world::{QuadTree};
+use crate::world::QuadTree;
+use crate::world::command_queue::CommandQueue;
 use common::ecs::component;
 use common::ecs::owned_components::OwnedComponents;
 use fxhash::FxHashMap;
 use itertools::Itertools;
 use rfd::FileDialog;
 use std::collections::hash_map::Entry;
-use crate::world::command_queue::CommandQueue;
 
 pub struct World {
     pub title: String,

@@ -8,8 +8,8 @@ use fxhash::{FxHashMap, FxHashSet};
 #[repr(u8)]
 pub enum Stage {
     Execute = 0, // On next frame, do stuff
-    Pre = 1, // 
-    Main = 2, // Main game logic
+    Pre = 1,     //
+    Main = 2,    // Main game logic
     Post = 3,
     Render = 4, // After all processing is done, render
     Count,

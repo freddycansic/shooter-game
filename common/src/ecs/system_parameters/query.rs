@@ -1,4 +1,6 @@
+use crate::ecs::archetype::Archetype;
 use crate::ecs::component::Component;
+use crate::ecs::entity::Entity;
 use crate::runtime::ApplicationAccess;
 use common::ecs::archetype::Column;
 use common::ecs::component::StableId;
@@ -7,9 +9,6 @@ use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
 use itertools::Itertools;
 use std::marker::PhantomData;
-use palette::white_point::A;
-use crate::ecs::archetype::Archetype;
-use crate::ecs::entity::Entity;
 
 pub enum ArgumentRequirement {
     Required,
@@ -123,9 +122,11 @@ impl<'w> QueryParameter<'w> for Entity {
     type Item = Entity;
     type QueryPtr = *const Vec<Entity>;
 
-    fn query_arguments() -> Vec<QueryArgument> { vec![] }
+    fn query_arguments() -> Vec<QueryArgument> {
+        vec![]
+    }
 
-    fn build_query_ptr(archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(archetype: &Archetype, _columns: &[Option<*mut Column>], _cursor: &mut usize) -> Self::QueryPtr {
         &archetype.entities
     }
 

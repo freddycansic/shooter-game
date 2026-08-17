@@ -1,5 +1,5 @@
 mod tests {
-    use crate::util::{DummyContext};
+    use crate::util::DummyContext;
     use common::ecs::system_parameters::application_context::ApplicationContext;
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;

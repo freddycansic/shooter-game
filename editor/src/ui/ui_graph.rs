@@ -1,10 +1,3 @@
-use egui_glium::egui_winit::egui::Ui;
-use egui_ltreeview::{Action, TreeView, TreeViewBuilder};
-use itertools::Itertools;
-use petgraph::{Direction, graph::NodeIndex};
-
-use crate::ui::Show;
-
 // impl Show for WorldGraph {
 //     fn show(&mut self, ui: &mut Ui) {
 //         let id = ui.make_persistent_id("World graph tree view");

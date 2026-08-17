@@ -1,7 +1,7 @@
-use fxhash::FxHashMap;
-use sorted_vec::ReverseSortedVec;
 use common::ecs::entity::Entity;
 use common::ecs::owned_components::OwnedComponents;
+use fxhash::FxHashMap;
+use sorted_vec::ReverseSortedVec;
 
 pub struct CommandQueue {
     pub spawn_queue: Vec<Box<dyn OwnedComponents>>,
@@ -22,8 +22,11 @@ impl CommandQueue {
     pub fn queue_spawn<T: OwnedComponents + 'static>(&mut self, components: T) {
         self.spawn_queue.push(Box::new(components));
     }
-    
+
     pub fn queue_destroy(&mut self, entity: Entity) {
-        self.destroy_queue.entry(entity.archetype_id).or_default().insert(std::cmp::Reverse(entity.row));
+        self.destroy_queue
+            .entry(entity.archetype_id)
+            .or_default()
+            .insert(std::cmp::Reverse(entity.row));
     }
 }

@@ -1,11 +1,11 @@
 mod tests {
+    use crate::util::{DummyContext, RunNow};
     use common::ecs::entity::Entity;
     use common::ecs::system_parameters::commands::Commands;
     use common::ecs::system_parameters::query::Query;
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
     use common_macros::Component;
-    use crate::util::{DummyContext, RunNow};
 
     #[derive(Component, Debug, PartialEq)]
     struct A(i32);

@@ -19,6 +19,7 @@ use crate::line::{Line, LinePoint};
 use crate::maths;
 use crate::maths::{Matrix4Ext, WorldTransform};
 use crate::quad::QuadVertex;
+use crate::runtime::RuntimeContext;
 use crate::world::{QuadBatches, World};
 use color_eyre::Result;
 use common::engine::scheduler::Scheduler;
@@ -32,13 +33,12 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
-    Program, Surface, Vertex, VertexBuffer,
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
 use petgraph::graph::NodeIndex;
-use crate::runtime::RuntimeContext;
 
 struct Programs {
     outline: Program,
