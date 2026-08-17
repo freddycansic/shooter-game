@@ -118,6 +118,8 @@ impl Application for Editor {
         // TODO turn this into ECS systems
         self.update(context.display);
 
+        // TODO maybe make "Execute" stage which runs before Pre
+        self.world.execute_command_queue();
         self.scheduler.run(&mut self.world, &mut context);
     }
 

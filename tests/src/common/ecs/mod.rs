@@ -4,3 +4,4 @@ pub mod event_tests;
 pub mod query_tests;
 pub mod resource_tests;
 pub mod trigger_tests;
+mod command_tests;
