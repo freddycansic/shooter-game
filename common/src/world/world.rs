@@ -15,11 +15,7 @@ use fxhash::FxHashMap;
 use itertools::Itertools;
 use rfd::FileDialog;
 use std::collections::hash_map::Entry;
-
-pub enum Command {
-    Spawn(Box<dyn OwnedComponents>),
-    Destroy(Entity),
-}
+use crate::world::command_queue::CommandQueue;
 
 pub struct World {
     pub title: String,
@@ -31,7 +27,8 @@ pub struct World {
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
     pub events: FxHashMap<StableId, EventQueue>,
-    pub command_queue: Vec<Command>,
+
+    pub command_queue: CommandQueue,
 }
 
 impl World {
@@ -40,7 +37,13 @@ impl World {
     }
 
     pub fn destroy(&mut self, entity: Entity) {
-        unimplemented!()
+        let archetype = self.archetypes.get_mut(&entity.archetype_id).unwrap();
+
+        for column in archetype.columns.iter_mut() {
+            column.components.get_mut().unwrap().remove(entity.row as usize);
+        }
+
+        archetype.entities.remove(entity.row as usize);
     }
 
     /// Finds the single archetype matching T exactly, creates it if it does not exist.
@@ -59,12 +62,12 @@ impl World {
     pub fn find_matching_archetype_columns(
         &mut self,
         query_arguments: &[QueryArgument],
-    ) -> Vec<Vec<Option<*mut Column>>> {
+    ) -> Vec<(&Archetype, Vec<Option<*mut Column>>)> {
         let mut matching_archetypes = Vec::new();
 
         for archetype in self.archetypes.values_mut() {
             if let Some(columns) = archetype.matching_columns(query_arguments) {
-                matching_archetypes.push(columns);
+                matching_archetypes.push((&*archetype, columns));
             }
         }
 
@@ -134,19 +137,31 @@ impl World {
     }
 
     pub fn execute_command_queue(&mut self) {
+        self.execute_destroy_command_queue();
+        self.execute_spawn_command_queue();
+    }
+
+    fn execute_destroy_command_queue(&mut self) {
+        for (archetype_id, rows_to_destroy) in self.command_queue.destroy_queue.iter_mut() {
+            let archetype = self.archetypes.get_mut(archetype_id).unwrap();
+
+            for row in rows_to_destroy.drain(..) {
+                for column in archetype.columns.iter_mut() {
+                    column.components.get_mut().unwrap().remove(row.0 as usize);
+                }
+
+                archetype.entities.remove(row.0 as usize);
+            }
+        }
+    }
+
+    fn execute_spawn_command_queue(&mut self) {
         // move the commands out of the command queue and construct an empty vec in its place.
         // avoids double mut borrow on World.
-        let commands = std::mem::take(&mut self.command_queue);
+        let spawn_queue = std::mem::take(&mut self.command_queue.spawn_queue);
 
-        for command in commands {
-            match command {
-                Command::Spawn(components) => {
-                    components.spawn(self);
-                }
-                Command::Destroy(entity) => {
-                    self.destroy(entity);
-                }
-            }
+        for components in spawn_queue {
+            components.spawn(self);
         }
     }
 
@@ -185,7 +200,7 @@ impl Default for World {
             archetypes: FxHashMap::default(),
             resources: FxHashMap::default(),
             events: FxHashMap::default(),
-            command_queue: vec![],
+            command_queue: CommandQueue::default(),
         }
     }
 }

@@ -7,6 +7,9 @@ use common::ecs::system_parameters::system_parameter::SystemParameter;
 use common::world::World;
 use itertools::Itertools;
 use std::marker::PhantomData;
+use palette::white_point::A;
+use crate::ecs::archetype::Archetype;
+use crate::ecs::entity::Entity;
 
 pub enum ArgumentRequirement {
     Required,
@@ -44,7 +47,7 @@ pub trait QueryParameter<'w> {
 
     fn query_arguments() -> Vec<QueryArgument>;
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr;
+    fn build_query_ptr(archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr;
 
     unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item>;
 }
@@ -57,7 +60,7 @@ impl<'w, A: Component + 'static> QueryParameter<'w> for &A {
         vec![QueryArgument::required::<A>()]
     }
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(_archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
         ptr.unwrap()
@@ -79,7 +82,7 @@ impl<'w, A: Component + 'static> QueryParameter<'w> for &mut A {
         vec![QueryArgument::required::<A>()]
     }
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(_archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
         ptr.unwrap()
@@ -101,7 +104,7 @@ impl<'w, A: Component + 'static> QueryParameter<'w> for Option<&A> {
         vec![QueryArgument::optional::<A>()]
     }
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+    fn build_query_ptr(_archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
         let ptr = columns[*cursor];
         *cursor += 1;
 
@@ -113,6 +116,21 @@ impl<'w, A: Component + 'static> QueryParameter<'w> for Option<&A> {
 
     unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
         Some(query_ptr.and_then(|ptr| unsafe { ptr.as_ref().unwrap().as_type_ref_unchecked::<A>().get(index) }))
+    }
+}
+
+impl<'w> QueryParameter<'w> for Entity {
+    type Item = Entity;
+    type QueryPtr = *const Vec<Entity>;
+
+    fn query_arguments() -> Vec<QueryArgument> { vec![] }
+
+    fn build_query_ptr(archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+        &archetype.entities
+    }
+
+    unsafe fn fetch(query_ptr: &Self::QueryPtr, index: usize) -> Option<Self::Item> {
+        unsafe { query_ptr.as_ref() }.unwrap().get(index).copied()
     }
 }
 
@@ -130,9 +148,9 @@ where
         args
     }
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
-        let a = A::build_query_ptr(columns, cursor);
-        let b = B::build_query_ptr(columns, cursor);
+    fn build_query_ptr(archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+        let a = A::build_query_ptr(archetype, columns, cursor);
+        let b = B::build_query_ptr(archetype, columns, cursor);
         (a, b)
     }
 
@@ -160,10 +178,10 @@ where
         args
     }
 
-    fn build_query_ptr(columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
-        let a = A::build_query_ptr(columns, cursor);
-        let b = B::build_query_ptr(columns, cursor);
-        let c = C::build_query_ptr(columns, cursor);
+    fn build_query_ptr(archetype: &Archetype, columns: &[Option<*mut Column>], cursor: &mut usize) -> Self::QueryPtr {
+        let a = A::build_query_ptr(archetype, columns, cursor);
+        let b = B::build_query_ptr(archetype, columns, cursor);
+        let c = C::build_query_ptr(archetype, columns, cursor);
         (a, b, c)
     }
 
@@ -213,9 +231,9 @@ impl<'w, T: QueryParameter<'w>> Query<'w, T> {
 
         let matching_archetypes = archetype_columns
             .iter()
-            .map(|columns| {
+            .map(|(archetype, columns)| {
                 let mut cursor = 0;
-                T::build_query_ptr(&columns, &mut cursor)
+                T::build_query_ptr(archetype, &columns, &mut cursor)
             })
             .collect_vec();
 
