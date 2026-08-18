@@ -50,8 +50,6 @@ struct Selection(Vec<Entity>);
 
 pub struct Editor {
     scheduler: Scheduler,
-    sender: Sender<EngineEvent>,
-    receiver: Receiver<EngineEvent>,
     world: World,
 }
 
@@ -69,12 +67,8 @@ impl Application for Editor {
             color: Color::from_named(palette::named::WHITE),
         }];
 
-        let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
-
         let mut editor = Self {
             scheduler: Scheduler::default(),
-            sender,
-            receiver,
             world,
         };
 
