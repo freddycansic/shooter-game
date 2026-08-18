@@ -1,15 +1,14 @@
 use crate::ecs::archetype::{Archetype, Column};
 use crate::ecs::component::StableId;
 use crate::ecs::entity::Entity;
-use crate::ecs::event::{Event, EventQueue};
+use crate::ecs::events::{Event, Events};
 use crate::ecs::resource::{Resource, ResourceStore};
 use crate::ecs::system_parameters::query::QueryArgument;
 use crate::engine::assets::Assets;
 use crate::light::Light;
 use crate::line::Line;
 use crate::serde::SerializedWorld;
-use crate::world::QuadTree;
-use crate::world::command_queue::CommandQueue;
+use crate::world::{CommandQueue, QuadTree};
 use common::ecs::component;
 use common::ecs::owned_components::OwnedComponents;
 use fxhash::FxHashMap;
@@ -26,7 +25,7 @@ pub struct World {
     // ECS
     pub archetypes: FxHashMap<u64, Archetype>,
     pub resources: FxHashMap<StableId, ResourceStore>,
-    pub events: FxHashMap<StableId, EventQueue>,
+    pub events: FxHashMap<StableId, Events>,
 
     pub command_queue: CommandQueue,
 }
@@ -125,17 +124,23 @@ impl World {
     }
 
     pub fn write_event<E: Event + 'static>(&mut self, event: E) {
-        self.event_queue::<E>().write(Box::new(event));
+        self.events::<E>().write(Box::new(event));
     }
 
-    pub fn event_queue<T: Event + 'static>(&mut self) -> &mut EventQueue {
-        self.event_queue_from_id(T::ID)
+    pub fn events<T: Event + 'static>(&mut self) -> &mut Events {
+        self.events_from_id(T::ID)
     }
 
-    pub fn event_queue_from_id(&mut self, id: StableId) -> &mut EventQueue {
-        self.events.entry(id).or_insert(EventQueue::default())
+    pub fn events_from_id(&mut self, id: StableId) -> &mut Events {
+        self.events.entry(id).or_insert(Events::default())
     }
 
+    pub fn consume_external_events(&mut self) {
+        for events in self.events.values_mut() {
+            events.consume_external();
+        }
+    }
+    
     pub fn execute_command_queue(&mut self) {
         self.execute_destroy_command_queue();
         self.execute_spawn_command_queue();

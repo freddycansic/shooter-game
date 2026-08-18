@@ -1,12 +1,12 @@
 mod tests {
-    use crate::util::DummyContext;
-    use common::ecs::system_parameters::event::{EventReader, EventWriter};
+    use crate::util::{DummyContext, RunNow};
+    use common::ecs::system_parameters::event::{EventReader, EventSender, EventWriter};
     use common::ecs::system_parameters::res::{Res, ResMut};
     use common::engine::scheduler::{Scheduler, Stage};
     use common::world::World;
     use common_macros::{Event, Resource};
 
-    #[derive(Event)]
+    #[derive(Event, PartialEq, Debug)]
     struct A(u32);
 
     #[derive(Event)]
@@ -75,5 +75,28 @@ mod tests {
         for _ in 0..3 {
             scheduler.run(&mut world, &mut DummyContext::default());
         }
+    }
+
+    #[test]
+    fn can_send_events_from_other_thread() {
+        fn send(sender: EventSender<A>) {
+            let handle = std::thread::spawn(move || {
+                sender.send(A(1));
+            });
+
+            handle.join().unwrap();
+        }
+
+        fn read(mut reader: EventReader<A>) {
+            assert_eq!(reader.read().next(), Some(&A(1)));
+        }
+
+        let mut world = World::default();
+        let mut scheduler = Scheduler::default();
+
+        scheduler.run_now(send, &mut world);
+
+        scheduler.register_continuous(read, Stage::Main);
+        scheduler.run(&mut world, &mut DummyContext::default());
     }
 }

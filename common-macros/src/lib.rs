@@ -15,5 +15,5 @@ pub fn derive_resource(input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(Event)]
 pub fn derive_event(input: TokenStream) -> TokenStream {
-    derive_stable_id(input, "common::ecs::event::Event")
+    derive_stable_id(input, "common::ecs::events::Event")
 }

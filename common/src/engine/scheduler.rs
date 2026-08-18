@@ -2,7 +2,7 @@ use crate::ecs::system::{IntoSystem, System};
 use crate::runtime::ApplicationAccess;
 use crate::world::World;
 use common::ecs::component::StableId;
-use common::ecs::event::Event;
+use common::ecs::events::Event;
 use fxhash::{FxHashMap, FxHashSet};
 
 #[repr(u8)]
@@ -60,11 +60,11 @@ impl SchedulerStage {
         self.triggerable_systems.push(new_system);
     }
 
-    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
-        let mut triggered_systems_to_run = FxHashSet::<StableId>::default();
+    fn find_triggered_systems(&mut self, world: &mut World) -> FxHashSet<StableId> {
+        let mut triggered_systems = FxHashSet::<StableId>::default();
 
         for (event_id, system_ids) in self.triggers.iter_mut() {
-            let event_queue_len = world.event_queue_from_id(event_id.clone()).0.len();
+            let event_queue_len = world.events_from_id(event_id.clone()).queue.len();
 
             for system_id in system_ids {
                 let system = self
@@ -77,13 +77,19 @@ impl SchedulerStage {
                     *system.state.trigger_cursors.entry(event_id.clone()).or_insert(0) < event_queue_len;
 
                 if should_trigger {
-                    triggered_systems_to_run.insert(system_id.clone());
+                    triggered_systems.insert(system_id.clone());
                     *system.state.trigger_cursors.get_mut(event_id).unwrap() = event_queue_len;
                 }
             }
         }
 
-        for system_id_to_trigger in triggered_systems_to_run.into_iter() {
+        triggered_systems
+    }
+
+    fn run_triggered_systems(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
+        let triggered_systems = self.find_triggered_systems(world);
+
+        for system_id_to_trigger in triggered_systems.into_iter() {
             let system = self
                 .triggerable_systems
                 .iter_mut()
@@ -92,10 +98,17 @@ impl SchedulerStage {
 
             system.run(world, access);
         }
+    }
 
+    fn run_continuous_systems(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
         for system in self.continuous_systems.iter_mut() {
             system.run(world, access);
         }
+    }
+
+    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
+        self.run_triggered_systems(world, access);
+        self.run_continuous_systems(world, access);
     }
 }
 
@@ -130,6 +143,8 @@ impl Scheduler {
     }
 
     pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
+        world.consume_external_events();
+        
         for stage in self.stages.iter_mut() {
             stage.run(world, access);
         }
