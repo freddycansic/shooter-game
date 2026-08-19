@@ -28,15 +28,17 @@ pub struct Assets {
     cubemaps: FxHashMap<CubemapHandle, Cubemap>,
 }
 
-impl Subsystem for Assets {
-    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
+pub struct AssetsSubsystem;
+
+impl Subsystem for AssetsSubsystem {
+    fn register_resources(&self, world: &mut World, context: Option<&RuntimeContext>) {
         let mut assets = Assets::new();
         assets.initialise_default_texture(context.unwrap().display).unwrap();
 
         world.register_resource(assets);
     }
 
-    fn register_systems(_scheduler: &mut Scheduler) {}
+    fn register_systems(&self, _scheduler: &mut Scheduler) {}
 }
 
 // TODO for possible performance

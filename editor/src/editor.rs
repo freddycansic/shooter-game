@@ -3,17 +3,18 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
 use common::maths::Ray;
-use egui_glium::egui_winit::egui::{self, Pos2};
-use glium::Display;
+use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
 use glium::glutin::surface::WindowSurface;
+use glium::Display;
 use itertools::Itertools;
+use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
 use winit::event::{MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
-use common::camera::OrbitalCamera;
+use common::camera::{OrbitalCamera, OrbitalCameraSubsystem};
 use common::colors::{Color, ColorExt};
 use common::ecs::entity::Entity;
 use common::ecs::system_parameters::application_context::ApplicationContext;
@@ -23,9 +24,9 @@ use common::ecs::system_parameters::res::{Res, ResMut};
 use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use common::engine::input::Input;
 use common::engine::physics::ColliderSet;
-use common::engine::renderer::{Background, Renderer, Viewport};
-use common::engine::scheduler::{Scheduler, Stage};
-use common::gui::{Gui, GuiState};
+use common::engine::renderer::{Background, Renderer, Viewport, ViewportChanged};
+use common::engine::scheduler::{Scheduler, Stage, SystemOrder};
+use common::gui::{Gui, GuiState, GuiSubsystem};
 use common::light::Light;
 use common::maths::transform::WorldTransform;
 use common::runtime::{Application, ApplicationAccess, RuntimeContext};
@@ -72,8 +73,8 @@ impl Application for Editor {
             world,
         };
 
-        editor.register_subsystem_with_context::<OrbitalCamera>(context);
-        editor.register_subsystem_with_context::<Gui>(context);
+        editor.register_subsystem_with_context(OrbitalCameraSubsystem, context);
+        editor.register_subsystem_with_context(GuiSubsystem, context);
 
         editor
             .scheduler
@@ -81,7 +82,10 @@ impl Application for Editor {
         editor
             .scheduler
             .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
-        editor.scheduler.register_continuous(Self::render, Stage::Render);
+
+        editor
+            .scheduler
+            .register_continuous_order(SystemOrder::first(Self::render_gui).then(Self::render), Stage::Render);
 
         // TODO temporary, should make selection subsystem
         editor.world.register_resource(Selection(vec![]));
@@ -270,6 +274,214 @@ impl Editor {
         // }
         //
         // Ok(())
+    }
+
+    fn render_gui(
+        mut gui: ResMut<Gui>,
+        context: ApplicationContext,
+        mut viewport_changed: EventWriter<ViewportChanged>,
+    ) {
+        gui.0.run(context.window(), |ctx| {
+            egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+                egui::MenuBar::new().ui(ui, |ui| {
+                    ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+                        ui.menu_button("File", |ui| {
+                            if ui.add(Button::new("New")).clicked() {
+                                // self.world = World::default();
+                                unimplemented!();
+                                ui.close();
+                            }
+
+                            if ui.add(Button::new("Open project")).clicked() {
+                                unimplemented!();
+
+                                // let sender = self.sender.clone();
+                                //
+                                // std::thread::spawn(move || {
+                                //     if let Some(file) = FileDialog::new()
+                                //         .add_filter("json", &["json"])
+                                //         .set_can_create_directories(true)
+                                //         .set_directory("/")
+                                //         .pick_file()
+                                //     {
+                                //         log::info!("Loading project {:?}", file);
+                                //
+                                //         let project_string = std::fs::read_to_string(file).unwrap();
+                                //
+                                //         sender.send(EngineEvent::LoadProject(project_string)).unwrap();
+                                //     }
+                                // });
+
+                                ui.close();
+                            }
+
+                            if ui.add(Button::new("Save as")).clicked() {
+                                info!("Saving project...");
+                                unimplemented!();
+
+                                // self.world.save_as(&self.engine.assets);
+                            }
+                        });
+
+                        ui.menu_button("Project", |ui| {
+                            if ui.add(Button::new("Import models")).clicked() {
+                                unimplemented!();
+
+                                // let sender = self.sender.clone();
+                                //
+                                // std::thread::spawn(move || {
+                                //     if let Some(paths) = FileDialog::new()
+                                //         .add_filter("gltf", &["gltf", "glb"])
+                                //         .set_can_create_directories(true)
+                                //         .set_directory("/")
+                                //         .pick_files()
+                                //     {
+                                //         for path in paths {
+                                //             sender.send(EngineEvent::ImportModel(path)).unwrap();
+                                //         }
+                                //     }
+                                // });
+                                //
+                                // ui.close();
+                            }
+                        });
+
+                        ui.menu_button("Run", |ui| {
+                            if ui.add(Button::new("Run game")).clicked() {
+                                unimplemented!();
+
+                                // let uuid = Uuid::new_v4().to_string();
+                                // let mut temp_path = std::env::temp_dir();
+                                // temp_path.push(uuid.clone());
+                                //
+                                // let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.assets);
+                                // let serialized_string = serde_json::to_string(&serialized_world).unwrap();
+                                //
+                                // std::fs::write(&temp_path, serialized_string).unwrap();
+                                //
+                                // std::process::Command::new("cargo")
+                                //     .arg("run")
+                                //     .arg("--package")
+                                //     .arg("game")
+                                //     .arg("--")
+                                //     .arg("--project")
+                                //     .arg(uuid)
+                                //     .spawn()
+                                //     .unwrap()
+                                //     .wait()
+                                //     .unwrap();
+                                //
+                                // ui.close();
+                            }
+                        });
+                    });
+                });
+            });
+
+            egui::SidePanel::left("left_panel")
+                .default_width(100.0)
+                .show(ctx, |_ui| {
+                    // self.world.graph.show(ui);
+
+                    // ui.add(egui::Separator::default().horizontal());
+
+                    // ui.collapsing("Quads", |ui| {
+                    //     if self.scene.quads.node_count() == 0 {
+                    //         ui.label("There are no quads in the scene.");
+                    //     } else {
+                    //         ui::collapsing_graph(ui, &mut self.scene.quads);
+                    //     }
+                    // });
+                });
+
+            egui::SidePanel::right("right_panel").show(ctx, |ui| {
+                ui.collapsing("Properties", |_ui| {
+                    // if self.selection.len() == 1 {
+                    //     let selected_node_index = self.selection[0];
+                    //     let selected_node = &mut self.world.graph.graph[selected_node_index];
+                    //
+                    //     selected_node.local_transform.show(ui);
+                    //
+                    //     dbg!(&selected_node.local_transform);
+                    //
+                    //     ui.label(format!("Node index: {:?}", selected_node_index));
+                    //
+                    //     ui.separator();
+                    //
+                    //     ui.label("Components");
+                    //
+                    //     if self.world.player_spawn == Some(selected_node_index) {
+                    //         ui.label("Player spawn");
+                    //     }
+                    //     if self.world.physics_context.colliders.contains_key(&selected_node_index) {
+                    //         ui.horizontal(|ui| {
+                    //             ui.label("Collider");
+                    //             if ui.button("-").clicked() {
+                    //                 self.world.physics_context.colliders.remove(&selected_node_index);
+                    //             }
+                    //         });
+                    //     }
+                    //
+                    //     if ui.button("+").clicked() {
+                    //         self.world.player_spawn = Some(selected_node_index);
+                    //     }
+                    // }
+                });
+
+                ui.collapsing("Debug", |_ui| {
+                    unimplemented!();
+
+                    // ui.add(
+                    //     egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
+                    // );
+                    //
+                    // ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
+                    //
+                    // ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
+                    // if ui.button("Clear lines").clicked() {
+                    //     // self.engine.renderer.lines.clear();
+                    //     unimplemented!();
+                    // }
+                });
+
+                ui.separator();
+
+                ui.collapsing("Background", |_ui| {
+                    unimplemented!();
+
+                    // ui.horizontal(|ui| {
+                    //     // ui.selectable_value(
+                    //     //     &mut self.scene.background,
+                    //     //     Background::default(),
+                    //     //     "Color",
+                    //     // );
+                    //
+                    //     if ui.selectable_label(false, "HDRI").clicked() {
+                    //         let sender = self.sender.clone();
+                    //
+                    //         std::thread::spawn(move || {
+                    //             if let Some(path) = FileDialog::new()
+                    //                 .set_can_create_directories(true)
+                    //                 .set_directory("/")
+                    //                 .pick_folder()
+                    //             {
+                    //                 sender.send(EngineEvent::ImportHDRIBackground(path)).unwrap();
+                    //             }
+                    //         });
+                    //     }
+                    // });
+                });
+
+                ui.collapsing("Lighting", |_ui| {
+                    unimplemented!();
+
+                    // ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
+                });
+            });
+
+            // Update the viewport size with the amount of space after then panels have been added
+            viewport_changed.write(ViewportChanged(Viewport(Some(ctx.available_rect()))));
+        });
     }
 }
 
