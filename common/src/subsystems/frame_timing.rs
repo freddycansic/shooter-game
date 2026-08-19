@@ -26,8 +26,10 @@ pub fn update_statistics(mut frame_state: ResMut<FrameTiming>) {
     frame_state.last_frame_end = Instant::now();
 }
 
-impl Subsystem for FrameTiming {
-    fn register_resources(world: &mut World, _context: Option<&RuntimeContext>) {
+pub struct FrameTimingSubsystem;
+
+impl Subsystem for FrameTimingSubsystem {
+    fn register_resources(&self, world: &mut World, _context: Option<&RuntimeContext>) {
         let state = FrameTiming {
             last_frame_end: Instant::now(),
             frame_count: 0,
@@ -38,7 +40,7 @@ impl Subsystem for FrameTiming {
         world.register_resource(state);
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {
+    fn register_systems(&self, scheduler: &mut Scheduler) {
         scheduler.register_triggered::<WinitNewEvents, _, _>(update_statistics, Stage::Pre);
     }
 }

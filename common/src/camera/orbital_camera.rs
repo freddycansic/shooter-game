@@ -111,49 +111,53 @@ impl OrbitalCamera {
     }
 }
 
-fn update_zoom(mut camera: ResMut<OrbitalCamera>, input: Res<Input>) {
-    let mouse_wheel_offset = input.mouse_wheel_offset();
+pub struct OrbitalCameraSubsystem;
 
-    let zoom_step = 0.4;
-    camera.radius -= mouse_wheel_offset * zoom_step;
+impl OrbitalCameraSubsystem {
+    fn update_zoom(mut camera: ResMut<OrbitalCamera>, input: Res<Input>) {
+        let mouse_wheel_offset = input.mouse_wheel_offset();
 
-    camera.update_position();
-}
-
-fn update_angles(
-    mut camera: ResMut<OrbitalCamera>,
-    frame_state: Res<FrameTiming>,
-    input: Res<Input>,
-    mut engine_commands: ApplicationContext,
-) {
-    let can_move_camera = input.mouse_button_down(MouseButton::Middle) || input.key_down(KeyCode::Space);
-
-    if can_move_camera {
-        let sensitivity = 200.0;
-
-        let offset = input.device_offset() * frame_state.deltatime as f32 * sensitivity;
-
-        camera.yaw += offset.x;
-        camera.yaw %= 2.0 * std::f32::consts::PI;
-
-        camera.pitch -= offset.y;
-        camera.pitch = camera.pitch.clamp(f32::EPSILON, std::f32::consts::PI - f32::EPSILON);
+        let zoom_step = 0.4;
+        camera.radius -= mouse_wheel_offset * zoom_step;
 
         camera.update_position();
-
-        engine_commands.capture_cursor();
-        engine_commands.center_cursor();
-    } else {
-        engine_commands.release_cursor();
     }
+
+    fn update_angles(
+        mut camera: ResMut<OrbitalCamera>,
+        frame_state: Res<FrameTiming>,
+        input: Res<Input>,
+        mut engine_commands: ApplicationContext,
+    ) {
+        let can_move_camera = input.mouse_button_down(MouseButton::Middle) || input.key_down(KeyCode::Space);
+
+        if can_move_camera {
+            let sensitivity = 200.0;
+
+            let offset = input.device_offset() * frame_state.deltatime as f32 * sensitivity;
+
+            camera.yaw += offset.x;
+            camera.yaw %= 2.0 * std::f32::consts::PI;
+
+            camera.pitch -= offset.y;
+            camera.pitch = camera.pitch.clamp(f32::EPSILON, std::f32::consts::PI - f32::EPSILON);
+
+            camera.update_position();
+
+            engine_commands.capture_cursor();
+            engine_commands.center_cursor();
+        } else {
+            engine_commands.release_cursor();
+        }
+    }
+
+    fn window_resized(mut camera: ResMut<OrbitalCamera>, window_size: Res<WindowSize>) {
+        camera.update_projection_matrices(window_size.width as f32, window_size.height as f32);
+    }   
 }
 
-fn window_resized(mut camera: ResMut<OrbitalCamera>, window_size: Res<WindowSize>) {
-    camera.update_projection_matrices(window_size.width as f32, window_size.height as f32);
-}
-
-impl Subsystem for OrbitalCamera {
-    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
+impl Subsystem for OrbitalCameraSubsystem {
+    fn register_resources(&self, world: &mut World, context: Option<&RuntimeContext>) {
         let camera_radius = 5.0;
         let window_size = context.unwrap().window.inner_size();
 
@@ -165,9 +169,9 @@ impl Subsystem for OrbitalCamera {
         ));
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {
-        scheduler.register_triggered::<InputReceived, _, _>(update_zoom, Stage::Main);
-        scheduler.register_triggered::<InputReceived, _, _>(update_angles, Stage::Main);
-        scheduler.register_triggered::<WindowResized, _, _>(window_resized, Stage::Main);
+    fn register_systems(&self, scheduler: &mut Scheduler) {
+        scheduler.register_triggered::<InputReceived, _, _>(Self::update_zoom, Stage::Main);
+        scheduler.register_triggered::<InputReceived, _, _>(Self::update_angles, Stage::Main);
+        scheduler.register_triggered::<WindowResized, _, _>(Self::window_resized, Stage::Main);
     }
 }

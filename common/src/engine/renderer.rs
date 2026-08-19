@@ -172,14 +172,29 @@ pub struct Renderer {
     programs: Programs,
 }
 
-impl Subsystem for Renderer {
-    fn register_resources(world: &mut World, context: Option<&RuntimeContext>) {
+pub struct RendererSubsystem;
+
+impl RendererSubsystem {
+    pub fn update_viewport(
+        // TODO make systems which run on resource change
+        mut viewport_changed: EventReader<ViewportChanged>,
+        mut viewport: ResMut<Viewport>,
+        mut camera: ResMut<OrbitalCamera>,
+    ) {
+        *viewport = viewport_changed.read().next().unwrap().0.clone();
+
+        camera.update_projection_matrices(viewport.0.unwrap().width(), viewport.0.unwrap().height());
+    }
+}
+
+impl Subsystem for RendererSubsystem {
+    fn register_resources(&self, world: &mut World, context: Option<&RuntimeContext>) {
         world.register_resource(Renderer::new(context.unwrap().display).unwrap());
         world.register_resource(Background::default());
         world.register_resource(Viewport(None));
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {
+    fn register_systems(&self, scheduler: &mut Scheduler) {
         scheduler.register_triggered::<ViewportChanged, _, _>(Self::update_viewport, Stage::Main);
     }
 }
@@ -283,17 +298,6 @@ impl Renderer {
                 white: white_program,
             },
         })
-    }
-
-    pub fn update_viewport(
-        // TODO make systems which run on resource change
-        mut viewport_changed: EventReader<ViewportChanged>,
-        mut viewport: ResMut<Viewport>,
-        mut camera: ResMut<OrbitalCamera>,
-    ) {
-        *viewport = viewport_changed.read().next().unwrap().0.clone();
-
-        camera.update_projection_matrices(viewport.0.unwrap().width(), viewport.0.unwrap().height());
     }
 
     fn glium_viewport(egui_viewport: Option<&egui::Rect>) -> Option<glium::Rect> {

@@ -111,81 +111,7 @@ impl Input {
         self.mouse_on_window
     }
 
-    fn reset_internal_state(mut input: ResMut<Input>) {
-        for key_state in input.key_states.iter_mut() {
-            if *key_state == KeyState::JustReleased {
-                *key_state = KeyState::Released;
-            }
-        }
-
-        for mouse_button_state in input.mouse_button_states.iter_mut() {
-            if *mouse_button_state == KeyState::JustReleased {
-                *mouse_button_state = KeyState::Released;
-            }
-        }
-
-        input.window_offset = Vector2::zeros();
-        input.device_offset = Vector2::zeros();
-        input.mouse_wheel_offset = 0.0;
-    }
-
-    fn process_window_event(
-        mut input: ResMut<Input>,
-        mut window_events: EventReader<WinitWindowEvent>,
-        mut input_received: EventWriter<InputReceived>,
-    ) {
-        for window_event in window_events.read() {
-            let mut input_device_event = false;
-
-            match window_event.0 {
-                WindowEvent::KeyboardInput { ref event, .. } => {
-                    input.process_key_event(event.clone());
-                    input_device_event = true;
-                }
-                WindowEvent::CursorMoved { position, .. } => {
-                    input.process_mouse_moved_window_event(position);
-                    input_device_event = true;
-                }
-                WindowEvent::MouseInput { state, button, .. } => {
-                    input.process_mouse_button_event(button, state);
-                    input_device_event = true;
-                }
-                WindowEvent::MouseWheel {
-                    delta: MouseScrollDelta::LineDelta(_, y_offset),
-                    ..
-                } => {
-                    input.process_mouse_wheel_event(y_offset);
-                    input_device_event = true;
-                }
-                WindowEvent::CursorEntered { .. } => {
-                    input.mouse_on_window = true;
-                }
-                WindowEvent::CursorLeft { .. } => {
-                    input.mouse_on_window = false;
-                }
-                _ => (),
-            };
-
-            if input_device_event {
-                input_received.write(InputReceived);
-            }
-        }
-    }
-
-    pub fn process_device_event(
-        mut input: ResMut<Input>,
-        mut device_events: EventReader<WinitDeviceEvent>,
-        mut input_received: EventWriter<InputReceived>,
-    ) {
-        for device_event in device_events.read() {
-            if let DeviceEvent::MouseMotion { delta, .. } = device_event.0 {
-                input.process_mouse_moved_device_event(delta);
-                input_received.write(InputReceived);
-            }
-        }
-    }
-
-    fn process_key_event(&mut self, key_event: KeyEvent) {
+    pub fn process_key_event(&mut self, key_event: KeyEvent) {
         match key_event.physical_key {
             PhysicalKey::Code(key_code) => {
                 Self::update_key_state(&mut self.key_states, key_code as usize, key_event.state);
@@ -203,7 +129,7 @@ impl Input {
             }
         }
     }
-
+    
     fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
         match button {
             MouseButton::Other(code) => warn!("Unidentified mouse button event received with code {}", code),
@@ -281,12 +207,90 @@ impl Input {
     }
 }
 
-impl Subsystem for Input {
-    fn register_resources(world: &mut World, _context: Option<&RuntimeContext>) {
+pub struct InputSubsystem;
+
+impl InputSubsystem {
+    fn reset_internal_state(mut input: ResMut<Input>) {
+        for key_state in input.key_states.iter_mut() {
+            if *key_state == KeyState::JustReleased {
+                *key_state = KeyState::Released;
+            }
+        }
+
+        for mouse_button_state in input.mouse_button_states.iter_mut() {
+            if *mouse_button_state == KeyState::JustReleased {
+                *mouse_button_state = KeyState::Released;
+            }
+        }
+
+        input.window_offset = Vector2::zeros();
+        input.device_offset = Vector2::zeros();
+        input.mouse_wheel_offset = 0.0;
+    }
+
+    fn process_window_event(
+        mut input: ResMut<Input>,
+        mut window_events: EventReader<WinitWindowEvent>,
+        mut input_received: EventWriter<InputReceived>,
+    ) {
+        for window_event in window_events.read() {
+            let mut input_device_event = false;
+
+            match window_event.0 {
+                WindowEvent::KeyboardInput { ref event, .. } => {
+                    input.process_key_event(event.clone());
+                    input_device_event = true;
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    input.process_mouse_moved_window_event(position);
+                    input_device_event = true;
+                }
+                WindowEvent::MouseInput { state, button, .. } => {
+                    input.process_mouse_button_event(button, state);
+                    input_device_event = true;
+                }
+                WindowEvent::MouseWheel {
+                    delta: MouseScrollDelta::LineDelta(_, y_offset),
+                    ..
+                } => {
+                    input.process_mouse_wheel_event(y_offset);
+                    input_device_event = true;
+                }
+                WindowEvent::CursorEntered { .. } => {
+                    input.mouse_on_window = true;
+                }
+                WindowEvent::CursorLeft { .. } => {
+                    input.mouse_on_window = false;
+                }
+                _ => (),
+            };
+
+            if input_device_event {
+                input_received.write(InputReceived);
+            }
+        }
+    }
+
+    pub fn process_device_event(
+        mut input: ResMut<Input>,
+        mut device_events: EventReader<WinitDeviceEvent>,
+        mut input_received: EventWriter<InputReceived>,
+    ) {
+        for device_event in device_events.read() {
+            if let DeviceEvent::MouseMotion { delta, .. } = device_event.0 {
+                input.process_mouse_moved_device_event(delta);
+                input_received.write(InputReceived);
+            }
+        }
+    }
+}
+
+impl Subsystem for InputSubsystem {
+    fn register_resources(&self, world: &mut World, _context: Option<&RuntimeContext>) {
         world.register_resource(Input::default());
     }
 
-    fn register_systems(scheduler: &mut Scheduler) {
+    fn register_systems(&self, scheduler: &mut Scheduler) {
         scheduler.register_triggered::<WinitWindowEvent, _, _>(Self::process_window_event, Stage::Pre);
         scheduler.register_triggered::<WinitDeviceEvent, _, _>(Self::process_device_event, Stage::Pre);
 
