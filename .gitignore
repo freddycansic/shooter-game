@@ -7,10 +7,6 @@ perf.data.old
 */**.blend1
 assets/models/sponza.glb
 
-# direnv
-.direnv
-.nix
-
 # pre-commit
 .pre-commit-config.yaml
 
