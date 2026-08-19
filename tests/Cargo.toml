@@ -3,7 +3,7 @@ name = "tests"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
+[lib]
 name = "tests"
 path = "src/lib.rs"
 
@@ -14,3 +14,4 @@ nalgebra = "0.34.1"
 petgraph = { version = "0.8.1", default-features = false, features = [
     "stable_graph",
 ] }
+common-macros = { path = "../common-macros" }

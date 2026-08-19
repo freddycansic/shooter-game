@@ -1,6 +1,6 @@
 use crate::collision::collidable::{NarrowPhaseCollisionQuery, RayHit};
 use crate::collision::colliders::cylinder;
-use crate::engine::resources::Resources;
+use crate::engine::assets::Assets;
 use crate::maths::{Local, Ray};
 use nalgebra::Point3;
 use serde::{Deserialize, Serialize};
@@ -21,7 +21,7 @@ impl Capsule {
 impl NarrowPhaseCollisionQuery<Local<Ray>> for Capsule {
     type Hit = Option<RayHit>;
 
-    fn narrow_intersect(&self, ray: &Local<Ray>, _resources: &Resources) -> Option<RayHit> {
+    fn narrow_intersect(&self, ray: &Local<Ray>, _resources: &Assets) -> Option<RayHit> {
         let length_squared = (self.p1 - self.p2).magnitude_squared();
 
         // it's just a sphere

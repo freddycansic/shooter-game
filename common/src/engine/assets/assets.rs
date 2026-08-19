@@ -3,15 +3,20 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::eyre::Result;
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use glium::{glutin::surface::WindowSurface, Display};
+use glium::{Display, glutin::surface::WindowSurface};
 
-use itertools::Itertools;
-
-use crate::engine::resources::handle::{CubemapHandle, GeometryHandle, TextureHandle};
+use crate::ecs::subsystem::Subsystem;
+use crate::engine::assets::handle::{CubemapHandle, GeometryHandle, TextureHandle};
 use crate::geometry::Geometry;
 use crate::material::{Cubemap, Texture2DResource};
+use crate::runtime::RuntimeContext;
+use common::engine::scheduler::Scheduler;
+use common::world::World;
+use common_macros::Resource;
+use itertools::Itertools;
 
-pub struct Resources {
+#[derive(Resource)]
+pub struct Assets {
     textures_handles: FxHashMap<PathBuf, TextureHandle>,
     textures: FxHashMap<TextureHandle, Texture2DResource>,
     default_texture: Option<TextureHandle>,
@@ -23,11 +28,24 @@ pub struct Resources {
     cubemaps: FxHashMap<CubemapHandle, Cubemap>,
 }
 
+pub struct AssetsSubsystem;
+
+impl Subsystem for AssetsSubsystem {
+    fn register_resources(&self, world: &mut World, context: Option<&RuntimeContext>) {
+        let mut assets = Assets::new();
+        assets.initialise_default_texture(context.unwrap().display).unwrap();
+
+        world.register_resource(assets);
+    }
+
+    fn register_systems(&self, _scheduler: &mut Scheduler) {}
+}
+
 // TODO for possible performance
 // 2 tiered handles
 // 1 is stable and derived from the path etc
 // 2 is unstable, and derived at runtime
-impl Resources {
+impl Assets {
     pub fn new() -> Self {
         let hasher = FxBuildHasher::default();
 

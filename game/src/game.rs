@@ -1,8 +1,6 @@
 use clap::Parser;
-use egui_glium::egui_winit::egui::ViewportId;
-use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use nalgebra::{Point2, Point3, Translation3, Vector2, Vector3};
 use std::path::PathBuf;
 use std::time::Instant;
@@ -12,19 +10,15 @@ use winit::keyboard::KeyCode;
 use winit::window::Window;
 
 use crate::controllers::player::PlayerController;
-use common::application::Application;
 use common::camera::{Camera, OrbitalCamera};
 use common::collision::collidable::Sweep;
 use common::collision::colliders::sphere::Sphere;
 use common::debug;
 use common::engine::engine::Engine;
-use common::engine::input::Input;
-use common::engine::renderer::Renderer;
-use common::engine::resources::Resources;
 use common::quad::Quad;
+use common::runtime::application::Application;
 use common::serde::SerializedWorld;
-use common::world::physics_context::ColliderSet;
-use common::world::{Collider, World};
+use common::world::World;
 
 struct FrameState {
     pub last_frame_end: Instant,
@@ -75,7 +69,7 @@ impl Application for Game {
 
         let mut engine = Engine::new(None /* full size */, display, window, event_loop);
 
-        engine.resources.initialise_default_texture(display).unwrap();
+        engine.assets.initialise_default_texture(display).unwrap();
 
         let mut world = {
             let args = Args::parse();
@@ -93,7 +87,7 @@ impl Application for Game {
 
             serde_json::from_str::<SerializedWorld>(&serialized_world_string)
                 .unwrap()
-                .into_world(display, &mut engine.resources)
+                .into_world(display, &mut engine.assets)
                 .unwrap()
         };
 
@@ -107,7 +101,7 @@ impl Application for Game {
         );*/
 
         let crosshair_texture = engine
-            .resources
+            .assets
             .get_texture_handle(&PathBuf::from("assets/textures/crosshair.png"), display)
             .unwrap();
 
@@ -119,7 +113,7 @@ impl Application for Game {
 
         let state = FrameState::default();
 
-        let player = PlayerController::initialise(&mut world, &mut engine.resources, display);
+        let player = PlayerController::initialise(&mut world, &mut engine.assets, display);
 
         let inner_size = window.inner_size();
         let camera = OrbitalCamera::new(
@@ -227,7 +221,7 @@ impl Game {
 
             let hit = self
                 .world
-                .spherecast(&Sweep::new(world_sphere, player_displacement), &self.engine.resources);
+                .spherecast(&Sweep::new(world_sphere, player_displacement), &self.engine.assets);
 
             log::debug!("hit {:?}", &hit);
 
@@ -271,7 +265,7 @@ impl Game {
             self.engine.renderer.render_world(
                 &self.world,
                 &self.camera,
-                &self.engine.resources,
+                &self.engine.assets,
                 &[],
                 display,
                 &mut target,

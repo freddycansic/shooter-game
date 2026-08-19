@@ -1,8 +1,8 @@
+use common::engine::assets::Assets;
 use common::engine::input::Input;
-use common::engine::resources::Resources;
 use common::world::{World, WorldNode};
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use nalgebra::{Point3, Vector3};
 use petgraph::prelude::NodeIndex;
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ pub struct PlayerController {
 }
 
 impl PlayerController {
-    pub fn initialise(world: &mut World, resources: &mut Resources, display: &Display<WindowSurface>) -> Self {
+    pub fn initialise(world: &mut World, resources: &mut Assets, display: &Display<WindowSurface>) -> Self {
         let player_node = world.player_spawn.unwrap();
 
         let player_position = world

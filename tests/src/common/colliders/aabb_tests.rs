@@ -4,7 +4,7 @@ mod tests {
     use common::collision::collidable::{BroadPhaseCollisionQuery, NarrowPhaseCollisionQuery};
     use common::collision::colliders::aabb::Aabb;
     use common::collision::colliders::capsule::Capsule;
-    use common::engine::resources::Resources;
+    use common::engine::assets::Assets;
     use common::maths::{Local, Ray};
     use nalgebra::{Point3, Vector3};
 
@@ -20,7 +20,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = aabb.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 3_f32.sqrt());
     }
 
@@ -33,7 +33,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = aabb.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 
@@ -46,7 +46,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = aabb.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 
@@ -59,7 +59,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = aabb.narrow_intersect(&ray, &Assets::new()).unwrap();
 
         assert_relative_eq!(result.tmin, 0.0);
         assert_relative_eq!(result.tmax, 0.5);
@@ -74,7 +74,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        assert!(aabb.narrow_intersect(&ray, &Resources::new()).is_none());
+        assert!(aabb.narrow_intersect(&ray, &Assets::new()).is_none());
     }
 
     #[test]
@@ -86,7 +86,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        assert!(aabb.narrow_intersect(&ray, &Resources::new()).is_none());
+        assert!(aabb.narrow_intersect(&ray, &Assets::new()).is_none());
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
             max: Point3::new(2.0, 2.0, 2.0),
         };
 
-        let result = aabb.narrow_intersect(&ray, &Resources::new()).unwrap();
+        let result = aabb.narrow_intersect(&ray, &Assets::new()).unwrap();
         assert_relative_eq!(result.tmin, 1.0);
     }
 
@@ -117,7 +117,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -133,7 +133,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -149,7 +149,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), false);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), false);
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -181,7 +181,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), false);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), false);
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -213,7 +213,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -229,7 +229,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), false);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), false);
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -261,7 +261,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), false);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), false);
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -309,7 +309,7 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 
     #[test]
@@ -325,6 +325,6 @@ mod tests {
             max: Point3::new(1.0, 1.0, 1.0),
         };
 
-        assert_eq!(aabb.broad_intersect(&capsule, &Resources::new()), true);
+        assert_eq!(aabb.broad_intersect(&capsule, &Assets::new()), true);
     }
 }

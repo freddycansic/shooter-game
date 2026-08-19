@@ -1,18 +1,18 @@
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::collision::colliders::bvh::Bvh;
 use crate::geometry::GeometryVertex;
-use color_eyre::eyre::Context;
 use color_eyre::Result;
+use color_eyre::eyre::Context;
 use glium::glutin::surface::WindowSurface;
 use glium::index::PrimitiveType;
 use glium::{Display, IndexBuffer, VertexBuffer};
 use gltf::buffer::Data;
 use itertools::Itertools;
 
-use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 use crate::geometry::Primitive;
+use crate::geometry::primitive::{PrimitiveCpu, PrimitiveGpu};
 
 #[derive(Debug)]
 pub struct Geometry {
@@ -26,7 +26,7 @@ impl Geometry {
         log::info!("Loading gltf {:?}...", path);
 
         let (document, file_buffers, _images) =
-            gltf::import(&path).context(format!("The model \"{:?}\" does not exist", path.clone()))?;
+            gltf::import(&path).context(format!("The model \"{:?}\" does not exist", path))?;
 
         let models = document
             .meshes()

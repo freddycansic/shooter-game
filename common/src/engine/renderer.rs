@@ -1,22 +1,30 @@
 use std::collections::hash_map::Entry;
+use std::fs;
 use std::hash::{Hash, Hasher};
 
-use crate::camera::{Camera, OrbitalCamera};
+use crate::camera::OrbitalCamera;
 use crate::colors::{self, Color, ColorExt};
 use crate::debug::Cuboid;
-use crate::engine::input::Input;
-use crate::engine::resources::{CubemapHandle, TextureHandle};
-use crate::engine::resources::{GeometryHandle, Resources};
+use crate::ecs::entity::Entity;
+use crate::ecs::subsystem::Subsystem;
+use crate::ecs::system_parameters::event::EventReader;
+use crate::ecs::system_parameters::res::ResMut;
+use crate::engine::assets::{Assets, GeometryHandle};
+use crate::engine::assets::{CubemapHandle, TextureHandle};
+use crate::engine::scheduler::Stage;
 use crate::geometry::primitives;
 use crate::geometry::primitives::SimplePoint;
 use crate::light::Light;
 use crate::line::{Line, LinePoint};
-use crate::maths::Matrix4Ext;
+use crate::maths;
+use crate::maths::{Matrix4Ext, WorldTransform};
 use crate::quad::QuadVertex;
-use crate::world::{QuadBatches, World, WorldGraph};
-use crate::{context, maths};
+use crate::runtime::RuntimeContext;
+use crate::world::{QuadBatches, World};
 use color_eyre::Result;
-use egui_glium::egui_winit::egui::{self, Pos2};
+use common::engine::scheduler::Scheduler;
+use common_macros::{Event, Resource};
+use egui_glium::egui_winit::egui::{self};
 use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
 use glium::framebuffer::SimpleFrameBuffer;
 use glium::glutin::surface::WindowSurface;
@@ -25,8 +33,8 @@ use glium::texture::{MipmapsOption, Texture2d, UncompressedFloatFormat};
 use glium::uniforms::{MagnifySamplerFilter, MinifySamplerFilter, Sampler, SamplerBehavior};
 use glium::vertex::EmptyVertexAttributes;
 use glium::{
-    implement_vertex, uniform, Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor,
-    Program, Surface, Vertex, VertexBuffer,
+    Blend, BlendingFunction, Depth, DepthTest, Display, DrawParameters, Frame, LinearBlendingFactor, Program, Surface,
+    Vertex, VertexBuffer, implement_vertex, uniform,
 };
 use itertools::Itertools;
 use nalgebra::{Matrix4, Point3, Translation3};
@@ -87,7 +95,7 @@ impl RendererBuffers {
                 let x = (data.len() as f64).log2().ceil() as u32;
                 let min_size = 2_u32.pow(x).max(INITIAL_VERTEX_BUFFER_SIZE as u32) as usize;
 
-                let buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, min_size, data).unwrap();
+                let buffer = new_sized_dynamic_vertex_buffer_with_data(display, min_size, data).unwrap();
                 entry.insert(buffer)
             }
         }
@@ -100,7 +108,7 @@ impl RendererBuffers {
         if buffer.len() < data.len() {
             // double the size of existing buffer or fit data
             let new_size = (buffer.len() * 2).max(data.len());
-            *buffer = context::new_sized_dynamic_vertex_buffer_with_data(display, new_size, data).unwrap();
+            *buffer = new_sized_dynamic_vertex_buffer_with_data(display, new_size, data).unwrap();
         } else {
             buffer.slice_mut(..data.len()).unwrap().write(data);
         }
@@ -140,7 +148,7 @@ pub struct RenderQueue {
     pub quad_batches: QuadBatches,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Resource, PartialEq, Clone)]
 pub enum Background {
     Color(Color),
     HDRI(CubemapHandle),
@@ -152,79 +160,111 @@ impl Default for Background {
     }
 }
 
+#[derive(Resource, Clone)]
+pub struct Viewport(pub Option<egui::Rect>);
+
+#[derive(Event)]
+pub struct ViewportChanged(pub Viewport);
+
+#[derive(Resource)]
 pub struct Renderer {
     buffers: RendererBuffers,
     programs: Programs,
+}
 
-    pub viewport: Option<egui::Rect>,
+pub struct RendererSubsystem;
+
+impl RendererSubsystem {
+    pub fn update_viewport(
+        // TODO make systems which run on resource change
+        mut viewport_changed: EventReader<ViewportChanged>,
+        mut viewport: ResMut<Viewport>,
+        mut camera: ResMut<OrbitalCamera>,
+    ) {
+        *viewport = viewport_changed.read().next().unwrap().0.clone();
+
+        camera.update_projection_matrices(viewport.0.unwrap().width(), viewport.0.unwrap().height());
+    }
+}
+
+impl Subsystem for RendererSubsystem {
+    fn register_resources(&self, world: &mut World, context: Option<&RuntimeContext>) {
+        world.register_resource(Renderer::new(context.unwrap().display).unwrap());
+        world.register_resource(Background::default());
+        world.register_resource(Viewport(None));
+    }
+
+    fn register_systems(&self, scheduler: &mut Scheduler) {
+        scheduler.register_triggered::<ViewportChanged, _, _>(Self::update_viewport, Stage::Main);
+    }
 }
 
 impl Renderer {
-    pub fn new(viewport: Option<egui::Rect>, display: &Display<WindowSurface>) -> Result<Self> {
-        let default_program = context::new_program(
+    pub fn new(display: &Display<WindowSurface>) -> Result<Self> {
+        let default_program = new_program(
             "assets/shaders/default/default.vert",
             "assets/shaders/default/default.frag",
             None,
             display,
         )?;
 
-        let lines_program = context::new_program(
+        let lines_program = new_program(
             "assets/shaders/line/line.vert",
             "assets/shaders/line/line.frag",
             None,
             display,
         )?;
 
-        let skybox_program = context::new_program(
+        let skybox_program = new_program(
             "assets/shaders/skybox/skybox.vert",
             "assets/shaders/skybox/skybox.frag",
             None,
             display,
         )?;
 
-        let light_program = context::new_program(
+        let light_program = new_program(
             "assets/shaders/light/light.vert",
             "assets/shaders/light/light.frag",
             None,
             display,
         )?;
 
-        let terrain_program = context::new_program(
+        let terrain_program = new_program(
             "assets/shaders/terrain/terrain.vert",
             "assets/shaders/terrain/terrain.frag",
             None,
             display,
         )?;
 
-        let quad_program = context::new_program(
+        let quad_program = new_program(
             "assets/shaders/quad/quad.vert",
             "assets/shaders/quad/quad.frag",
             Some("assets/shaders/quad/quad.geom"),
             display,
         )?;
 
-        let outline_program = context::new_program(
+        let outline_program = new_program(
             "assets/shaders/outline/outline.vert",
             "assets/shaders/outline/outline.frag",
             None,
             display,
         )?;
 
-        let fullscreen_quad_program = context::new_program(
+        let fullscreen_quad_program = new_program(
             "assets/shaders/fullscreen_quad/fullscreen_quad.vert",
             "assets/shaders/fullscreen_quad/fullscreen_quad.frag",
             None,
             display,
         )?;
 
-        let solid_color_program = context::new_program(
+        let solid_color_program = new_program(
             "assets/shaders/solid_color/solid_color.vert",
             "assets/shaders/solid_color/solid_color.frag",
             None,
             display,
         )?;
 
-        let white_program = context::new_program(
+        let white_program = new_program(
             "assets/shaders/white/white.vert",
             "assets/shaders/white/white.frag",
             None,
@@ -257,29 +297,12 @@ impl Renderer {
                 solid_color: solid_color_program,
                 white: white_program,
             },
-            viewport,
         })
     }
 
-    pub fn update_viewport(&mut self, viewport: egui::Rect, camera: &mut OrbitalCamera) {
-        camera.update_projection_matrices(viewport.width(), viewport.height());
-        self.viewport = Some(viewport);
-    }
-
-    pub fn is_mouse_in_viewport(&self, input: &Input) -> bool {
-        if !input.mouse_on_window() {
-            return false;
-        }
-
-        input.mouse_position().is_some_and(|position| {
-            self.viewport
-                .is_some_and(|viewport| viewport.contains(Pos2::new(position.x as f32, position.y as f32)))
-        })
-    }
-
-    fn glium_viewport(&self) -> Option<glium::Rect> {
+    fn glium_viewport(egui_viewport: Option<&egui::Rect>) -> Option<glium::Rect> {
         // Convert to bottom left rect from top right
-        self.viewport.map(|viewport| glium::Rect {
+        egui_viewport.map(|viewport| glium::Rect {
             left: viewport.min.x as u32,
             bottom: (viewport.height() - viewport.max.y) as u32,
             width: viewport.width() as u32,
@@ -287,27 +310,41 @@ impl Renderer {
         })
     }
 
-    pub fn render_world(
+    pub fn render_world<'a>(
         &mut self,
-        world: &World,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
         camera: &OrbitalCamera,
-        resources: &Resources,
-        selection: &[NodeIndex],
+        assets: &Assets,
+        _selection: &[Entity], // selection should really be application level
         display: &Display<WindowSurface>,
+        viewport: &Viewport,
+        background: &Background,
         target: &mut Frame,
     ) {
-        let render_queue = self.build_render_queue(world, selection);
+        let render_queue = self.build_render_queue(geometry, /*selection*/ &[]);
 
-        self.render_background(&world.background, camera, resources, target);
-        self.render_queue(render_queue, camera, resources, &world.lights, display, target);
-        self.render_lines(&world.lines, camera, display, target);
+        let glium_viewport = Self::glium_viewport(viewport.0.as_ref());
+
+        self.render_background(background, camera, assets, glium_viewport, target);
+        self.render_queue(
+            render_queue,
+            camera,
+            assets,
+            // &world.lights,
+            &[],
+            display,
+            glium_viewport,
+            target,
+        );
+        // self.render_lines(&world.lines, camera, display, glium_viewport, target);
     }
 
     fn render_background(
         &mut self,
         background: &Background,
         camera: &OrbitalCamera,
-        resources: &Resources,
+        resources: &Assets,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         match background {
@@ -318,13 +355,17 @@ impl Renderer {
                     1.0,
                     0,
                 );
-                self.render_skybox(camera, *cubemap_handle, resources, target);
+                self.render_skybox(camera, *cubemap_handle, resources, glium_viewport, target);
             }
         }
     }
 
-    fn build_render_queue(&mut self, world: &World, selection: &[NodeIndex]) -> RenderQueue {
-        let geometry_batches = self.batch_geometry(world, selection);
+    fn build_render_queue<'a>(
+        &mut self,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
+        selection: &[NodeIndex],
+    ) -> RenderQueue {
+        let geometry_batches = self.batch_geometry(geometry, selection);
         // let quad_batches = self.quads.batch();
 
         RenderQueue {
@@ -333,31 +374,33 @@ impl Renderer {
         }
     }
 
-    fn batch_geometry(&self, world: &World, selection: &[NodeIndex]) -> GeometryBatches {
+    fn batch_geometry<'a>(
+        &self,
+        geometry: impl Iterator<Item = (&'a GeometryHandle, &'a WorldTransform, Option<&'a TextureHandle>)>,
+        selection: &[NodeIndex],
+    ) -> GeometryBatches {
         let mut batches = GeometryBatches::with_hasher(FxBuildHasher::new());
 
-        let selection_set = FxHashSet::from_iter(selection.iter().cloned());
-        
-        for (node_index, geometry_handle) in &world.geometries {
-            let node = world.graph.graph.node_weight(*node_index).unwrap();
+        let _selection_set = FxHashSet::from_iter(selection.iter().cloned());
 
-            if !node.visible {
-                continue;
-            }
-
-            let texture_handle = world.textures.get(node_index).cloned();
+        for (geometry_handle, world_transform, texture_handle) in geometry {
+            // TODO
+            // if !node.visible {
+            //     continue;
+            // }
 
             let node_key = GeometryBatchKey {
                 geometry_handle: *geometry_handle,
-                texture_handle,
-                selected: selection_set.contains(node_index),
+                texture_handle: texture_handle.map(|handle| *handle),
+                // selected: selection_set.contains(node_index),
+                selected: false, // TODO
             };
 
             let batch = batches.entry(node_key).or_insert(vec![]);
 
-            let transform = node.world_transform().raw_matrix();
-
-            batch.push(Instance { transform });
+            batch.push(Instance {
+                transform: maths::raw_matrix(world_transform.0.matrix()),
+            });
         }
 
         batches
@@ -367,19 +410,27 @@ impl Renderer {
         &mut self,
         queue: RenderQueue,
         camera: &OrbitalCamera,
-        resources: &Resources,
+        resources: &Assets,
         lights: &[Light],
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         // dbg!(&queue);
         // panic!();
 
-        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
+        let vp = maths::raw_matrix(camera.vp());
 
         let dimensions = target.get_dimensions();
 
-        let mask_texture = self.render_mask_texture(&queue.geometry_batches, resources, dimensions, &vp, display);
+        let mask_texture = self.render_mask_texture(
+            &queue.geometry_batches,
+            resources,
+            dimensions,
+            &vp,
+            glium_viewport,
+            display,
+        );
 
         self.render_model_instances_color(
             &queue.geometry_batches,
@@ -388,6 +439,7 @@ impl Renderer {
             lights,
             camera.position(),
             display,
+            glium_viewport,
             target,
         );
 
@@ -395,7 +447,7 @@ impl Renderer {
         self.render_outline(outline_texture, target);
 
         // Render quads last so they stay on top
-        self.render_quads(camera, &queue.quad_batches, resources, display, target);
+        self.render_quads(camera, &queue.quad_batches, resources, display, glium_viewport, target);
     }
 
     // pub fn render_terrain(
@@ -441,6 +493,7 @@ impl Renderer {
         camera: &OrbitalCamera,
         opacity: f32,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         assert!(opacity > 0.0 && opacity <= 1.0);
@@ -473,7 +526,7 @@ impl Renderer {
             display,
         );
 
-        let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
+        let vp = maths::raw_matrix(camera.vp());
 
         let premultiplied_alpha = Blend {
             color: BlendingFunction::Addition {
@@ -511,7 +564,7 @@ impl Renderer {
                         ..Default::default()
                     },
                     blend: premultiplied_alpha,
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -543,7 +596,7 @@ impl Renderer {
                     blend: premultiplied_alpha,
                     polygon_mode: glium::PolygonMode::Line,
                     line_width: Some(2.0),
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -554,8 +607,9 @@ impl Renderer {
         &mut self,
         camera: &OrbitalCamera,
         quad_batches: &QuadBatches,
-        resources: &Resources,
+        resources: &Assets,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         let sample_behaviour = SamplerBehavior {
@@ -563,8 +617,6 @@ impl Renderer {
             magnify_filter: MagnifySamplerFilter::Nearest,
             ..SamplerBehavior::default()
         };
-
-        let viewport = self.glium_viewport();
 
         for (texture_handle, quad_vertices) in quad_batches.iter() {
             let quad_buffer = RendererBuffers::get_vertex_buffer(
@@ -590,7 +642,7 @@ impl Renderer {
                     &DrawParameters {
                         // Depth buffer is disabled so that they appear on top
                         blend: Blend::alpha_blending(),
-                        viewport,
+                        viewport: glium_viewport,
                         ..Default::default()
                     },
                 )
@@ -602,7 +654,8 @@ impl Renderer {
         &mut self,
         camera: &OrbitalCamera,
         cubemap_handle: CubemapHandle,
-        resources: &Resources,
+        resources: &Assets,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         // Strip translation from view matrix = skybox is always in the same place
@@ -629,7 +682,7 @@ impl Renderer {
                 &self.programs.skybox,
                 &uniforms,
                 &DrawParameters {
-                    viewport: self.glium_viewport(),
+                    viewport: glium_viewport,
                     ..DrawParameters::default()
                 },
             )
@@ -641,6 +694,7 @@ impl Renderer {
         lines: &[Line],
         camera: &OrbitalCamera,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         if lines.is_empty() {
@@ -663,7 +717,6 @@ impl Renderer {
         }
 
         let vp = maths::raw_matrix(camera.perspective_projection() * camera.view());
-        let viewport = self.glium_viewport();
 
         for (width, points) in batched {
             let buffer =
@@ -677,7 +730,7 @@ impl Renderer {
                     &uniform! { vp: vp },
                     &DrawParameters {
                         line_width: Some(width as f32),
-                        viewport,
+                        viewport: glium_viewport,
                         ..DrawParameters::default()
                     },
                 )
@@ -732,11 +785,12 @@ impl Renderer {
     fn render_model_instances_color(
         &mut self,
         geometry_batches: &GeometryBatches,
-        resources: &Resources,
+        resources: &Assets,
         vp: &[[f32; 4]; 4],
         lights: &[Light],
         camera_position: Point3<f32>,
         display: &Display<WindowSurface>,
+        glium_viewport: Option<glium::Rect>,
         target: &mut Frame,
     ) {
         let camera_position = <[f32; 3]>::from(camera_position);
@@ -746,8 +800,6 @@ impl Renderer {
             magnify_filter: MagnifySamplerFilter::Nearest,
             ..SamplerBehavior::default()
         };
-
-        let viewport = self.glium_viewport();
 
         // Draw regular color buffer
         for (key, instances) in geometry_batches.iter() {
@@ -795,7 +847,7 @@ impl Renderer {
                                 write: true,
                                 ..Default::default()
                             },
-                            viewport,
+                            viewport: glium_viewport,
                             // backface_culling: BackfaceCullingMode::CullClockwise,
                             ..DrawParameters::default()
                         },
@@ -808,9 +860,10 @@ impl Renderer {
     fn render_mask_texture(
         &mut self,
         geometry_batches: &GeometryBatches,
-        resources: &Resources,
+        resources: &Assets,
         dimensions: (u32, u32),
         vp: &[[f32; 4]; 4],
+        glium_viewport: Option<glium::Rect>,
         display: &Display<WindowSurface>,
     ) -> glium::texture::Texture2d {
         let mask_texture = Texture2d::empty_with_format(
@@ -826,8 +879,6 @@ impl Renderer {
         let uniform = uniform! {
             vp: *vp,
         };
-
-        let viewport = self.glium_viewport();
 
         // Only draw selected models into mask
         for (key, instances) in geometry_batches.iter().filter(|(key, _)| key.selected) {
@@ -859,7 +910,7 @@ impl Renderer {
                         &self.programs.white,
                         &uniform,
                         &DrawParameters {
-                            viewport,
+                            viewport: glium_viewport,
                             ..DrawParameters::default()
                         },
                     )
@@ -934,6 +985,38 @@ impl Renderer {
 
         outline_texture
     }
+}
+
+pub fn new_program(
+    vertex_source_path: &str,
+    fragment_source_path: &str,
+    geometry_source_path: Option<&str>,
+    display: &Display<WindowSurface>,
+) -> Result<Program> {
+    let vertex_source = fs::read_to_string(vertex_source_path)?;
+    let fragment_source = fs::read_to_string(fragment_source_path)?;
+    let geometry_source = geometry_source_path.map(|path| fs::read_to_string(path).unwrap());
+
+    Ok(Program::from_source(
+        display,
+        vertex_source.as_str(),
+        fragment_source.as_str(),
+        geometry_source.as_deref(),
+    )?)
+}
+
+pub fn new_sized_dynamic_vertex_buffer_with_data<T: Copy + Vertex>(
+    display: &Display<WindowSurface>,
+    size: usize,
+    data: &[T],
+) -> Result<VertexBuffer<T>> {
+    assert!(size >= data.len());
+
+    let mut vertex_buffer = VertexBuffer::<T>::empty_dynamic(display, size)?;
+
+    vertex_buffer.slice_mut(..data.len()).unwrap().write(data);
+
+    Ok(vertex_buffer)
 }
 
 #[derive(Copy, Clone, Debug)]

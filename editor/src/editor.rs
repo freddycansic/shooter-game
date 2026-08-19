@@ -1,69 +1,41 @@
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::Instant;
 
-use common::debug::Cuboid;
-use common::maths::Ray;
-use common::serde::SerializedWorld;
-use common::world::WorldNode;
-use egui_glium::egui_winit::egui::{self, Align, Button, ViewportId};
-use egui_glium::EguiGlium;
-use glium::glutin::surface::WindowSurface;
+use common::maths::{Ray, Transform};
+use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
-use nalgebra::{Point3, Vector4};
-use palette::Srgb;
-use petgraph::prelude::NodeIndex;
-use rfd::FileDialog;
-use uuid::Uuid;
-use winit::event::{DeviceEvent, MouseButton, WindowEvent};
+use nalgebra::{Matrix4, Point3, Vector2, Vector4};
+use rfd::{AsyncFileDialog, FileDialog};
+use winit::event::{MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
 use winit::window::Window;
 
-use crate::ui::Show;
-use common::application::Application;
-use common::camera::Camera;
-use common::camera::OrbitalCamera;
+use common::camera::{OrbitalCamera, OrbitalCameraSubsystem};
 use common::colors::{Color, ColorExt};
-use common::engine::engine::Engine;
+use common::ecs::entity::Entity;
+use common::ecs::system_parameters::application_context::ApplicationContext;
+use common::ecs::system_parameters::commands::Commands;
+use common::ecs::system_parameters::event::{EventReader, EventSender, EventWriter};
+use common::ecs::system_parameters::query::Query;
+use common::ecs::system_parameters::res::{Res, ResMut};
+use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
 use common::engine::input::Input;
-use common::engine::renderer::{Background, Renderer};
-use common::engine::resources::Resources;
+use common::engine::physics::ColliderSet;
+use common::engine::renderer::{Background, Renderer, Viewport, ViewportChanged};
+use common::engine::scheduler::{Scheduler, Stage, SystemOrder};
+use common::gui::{Gui, GuiState, GuiSubsystem};
 use common::light::Light;
-use common::line::Line;
-use common::world::physics_context::ColliderSet;
+use common::maths::transform::WorldTransform;
+use common::runtime::{Application, ApplicationAccess, RuntimeContext};
+use common::subsystems::window_size::WindowSize;
 use common::world::World;
 use common::*;
-
-struct FrameState {
-    pub last_frame_end: Instant,
-    pub frame_count: u128,
-    pub deltatime: f64,
-    pub fps: f32,
-    pub is_moving_camera: bool,
-    pub gui: GuiState,
-}
-
-struct GuiState {
-    pub render_lights: bool,
-    pub debug_cube_index: usize,
-    pub debug_cube_opacity: f32,
-    pub render_debug_mouse_rays: bool,
-}
-
-impl FrameState {
-    pub fn update_statistics(&mut self) {
-        self.frame_count = (self.frame_count + 1) % u128::MAX;
-
-        self.deltatime = self.last_frame_end.elapsed().as_secs_f64();
-        self.fps = (1.0 / self.deltatime) as f32;
-
-        self.last_frame_end = Instant::now();
-    }
-}
+use common_macros::{Event, Resource};
 
 enum EngineEvent {
     ImportHDRIBackground(PathBuf),
@@ -71,179 +43,157 @@ enum EngineEvent {
     ImportModel(PathBuf),
 }
 
+#[derive(Event, Clone)]
+struct ImportModel(pub PathBuf);
+
+#[derive(Event)]
+struct ViewportClick {
+    mouse_ray: Ray,
+}
+
+#[derive(Resource)]
+struct Selection(Vec<Entity>);
+
 pub struct Editor {
-    engine: Engine,
-    camera: OrbitalCamera,
-    state: FrameState,
-    sender: Sender<EngineEvent>,
-    receiver: Receiver<EngineEvent>,
-    debug_cuboids: Vec<Cuboid>,
-    selection: Vec<NodeIndex>,
+    scheduler: Scheduler,
     world: World,
 }
 
 impl Application for Editor {
-    fn new(window: &Window, display: &Display<WindowSurface>, event_loop: &ActiveEventLoop) -> Self {
+    fn new(context: &RuntimeContext) -> Self {
         color_eyre::install().unwrap();
         debug::set_up_logging();
 
         // TODO deferred rendering https://learnopengl.com/Advanced-Lighting/Deferred-Shading
 
-        let camera = OrbitalCamera::new(Point3::origin(), 5.0, 1920.0, 1080.0);
-
-        let engine = Engine::new(None /* full size*/, display, window, event_loop);
-
-        let state = FrameState {
-            last_frame_end: Instant::now(),
-            frame_count: 0,
-            deltatime: 0.0,
-            fps: 0.0,
-            is_moving_camera: false,
-            gui: GuiState {
-                render_lights: true,
-                debug_cube_index: 0,
-                debug_cube_opacity: 0.5,
-                render_debug_mouse_rays: false,
-            },
-        };
-
-        let (sender, receiver): (Sender<EngineEvent>, Receiver<EngineEvent>) = mpsc::channel();
-
         let mut world = World::default();
+
         world.lights = vec![Light {
             position: Point3::new(3.0, 2.0, 1.0),
             color: Color::from_named(palette::named::WHITE),
         }];
 
-        Self {
-            engine,
-            state,
-            sender,
-            receiver,
-            camera,
+        let mut editor = Self {
+            scheduler: Scheduler::default(),
             world,
-            debug_cuboids: vec![],
-            selection: vec![],
+        };
+
+        editor.register_subsystem_with_context(OrbitalCameraSubsystem, context);
+        editor.register_subsystem_with_context(GuiSubsystem, context);
+
+        editor
+            .scheduler
+            .register_continuous(Self::detect_viewport_click, Stage::Pre);
+        editor
+            .scheduler
+            .register_triggered::<ViewportClick, _, _>(Self::selection_stuff, Stage::Main);
+
+        editor
+            .scheduler
+            .register_triggered::<ImportModel, _, _>(Self::import_model, Stage::Main);
+
+        editor
+            .scheduler
+            .register_continuous_order(SystemOrder::first(Self::render_gui).then(Self::render), Stage::Render);
+
+        // TODO temporary, should make selection subsystem
+        editor.world.register_resource(Selection(vec![]));
+
+        editor
+    }
+
+    fn run(&mut self, mut context: RuntimeContext) {
+        let input = self.world.resource::<Input>().unwrap();
+
+        if input.key_pressed(KeyCode::Escape) {
+            context.exit();
         }
+
+        // TODO turn this into ECS systems
+        self.update(context.display);
+
+        // TODO maybe make "Execute" stage which runs before Pre
+        self.world.execute_command_queue();
+        self.scheduler.run(&mut self.world, &mut context);
     }
 
     fn window_event(
         &mut self,
-        event: WindowEvent,
-        event_loop: &ActiveEventLoop,
-        window: &Window,
-        display: &Display<WindowSurface>,
-    ) {
-        self.engine.input.process_window_event(&event);
-
-        match event {
-            WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(new_size) => {
-                display.resize((new_size.width, new_size.height));
-
-                self.camera
-                    .update_projection_matrices(new_size.width as f32, new_size.height as f32);
-            }
-            WindowEvent::RedrawRequested => {
-                if self.engine.input.key_pressed(KeyCode::Escape) {
-                    event_loop.exit();
-                }
-
-                self.update(window, display);
-                self.render(window, display);
-
-                self.state.update_statistics();
-            }
-            _ => (),
-        };
-
-        let gui_event_response = self.engine.gui.on_event(window, &event);
-
-        if gui_event_response.repaint {
-            window.request_redraw();
-        }
-    }
-
-    fn device_event(
-        &mut self,
-        device_event: DeviceEvent,
+        _event: WindowEvent,
         _event_loop: &ActiveEventLoop,
         _window: &Window,
         _display: &Display<WindowSurface>,
-    ) {
-        self.engine.input.process_device_event(device_event);
+    ) {}
+
+    fn world(&mut self) -> &mut World {
+        &mut self.world
+    }
+
+    fn scheduler(&mut self) -> &mut Scheduler {
+        &mut self.scheduler
     }
 }
 
 impl Editor {
-    fn update(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        let events = self.receiver.try_iter().collect_vec();
-
-        for engine_event in events.into_iter() {
-            match engine_event {
-                EngineEvent::LoadProject(serialized_project) => {
-                    // At the moment this just loads a world
-                    // In the future it might be necessary to have multiple worlds in one project.
-                    let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
-
-                    self.world = serialized_world
-                        .into_world(display, &mut self.engine.resources)
-                        .unwrap();
-                }
-                EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
-                EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
-                    self.world.background = Background::HDRI(
-                        self.engine
-                            .resources
-                            .get_cubemap_handle(&hdri_directory_path, display)
-                            .unwrap(),
-                    )
-                }
-            }
+    fn render(
+        window_size: Res<WindowSize>,
+        mut renderer: ResMut<Renderer>,
+        viewport: Res<Viewport>,
+        commands: ApplicationContext,
+        background: Res<Background>,
+        selection: Res<Selection>,
+        assets: Res<Assets>,
+        camera: Res<OrbitalCamera>,
+        mut gui: ResMut<Gui>,
+        mut geometry: Query<(&GeometryHandle, &WorldTransform, Option<&TextureHandle>)>,
+    ) {
+        if window_size.width == 0 || window_size.height == 0 {
+            return;
         }
 
-        self.camera.update_zoom(&self.engine.input);
-
-        self.state.is_moving_camera =
-            self.engine.input.mouse_button_down(MouseButton::Middle) || self.engine.input.key_down(KeyCode::Space);
-
-        if self.engine.input.mouse_button_just_released(MouseButton::Left)
-            && self.engine.renderer.is_mouse_in_viewport(&self.engine.input)
+        let mut target = commands.display().draw();
         {
-            let ray = self.mouse_ray();
+            renderer.render_world(
+                geometry.iter(),
+                &*camera,
+                &*assets,
+                &selection.0,
+                commands.display(),
+                &*viewport,
+                &*background,
+                &mut target,
+            );
 
-            let intersection = self.world.raycast(&ray, &self.engine.resources);
-
-            if self.state.gui.render_debug_mouse_rays {
-                self.world.lines.push(Line::new(
-                    ray.origin,
-                    ray.origin + ray.direction() * 1000.0,
-                    if intersection.is_some() {
-                        Srgb::new(0.0, 1.0, 0.0)
-                    } else {
-                        Srgb::new(1.0, 0.0, 0.0)
-                    },
-                    2,
-                ));
-            }
-
-            self.selection = match intersection {
-                Some(hit) => vec![hit.node],
-                None => vec![],
-            };
+            gui.0.paint(commands.display(), &mut target);
         }
+        target.finish().unwrap();
+    }
 
-        if self.state.is_moving_camera {
-            self.camera.update(&self.engine.input, self.state.deltatime as f32);
-            self.capture_cursor(window);
-            window.set_cursor_visible(false);
-            self.center_cursor(window);
-        } else {
-            self.release_cursor(window);
-            window.set_cursor_visible(true);
-        }
-
-        self.engine.input.reset_internal_state();
+    // TODO turn all this into ECS event stuff
+    fn update(&mut self, _display: &Display<WindowSurface>) {
+        // let events = self.receiver.try_iter().collect_vec();
+        //
+        // // TODO turn these into access events
+        // for engine_event in events.into_iter() {
+        //     match engine_event {
+        //         EngineEvent::LoadProject(serialized_project) => {
+        //             // At the moment this just loads a world
+        //             // In the future it might be necessary to have multiple worlds in one project.
+        //             let serialized_world = serde_json::from_str::<SerializedWorld>(&serialized_project).unwrap();
+        //
+        //             self.world = serialized_world.into_world(display, &mut self.engine.assets).unwrap();
+        //         }
+        //         EngineEvent::ImportModel(model_path) => self.import_model(model_path.as_path(), display).unwrap(),
+        //         EngineEvent::ImportHDRIBackground(hdri_directory_path) => {
+        //             self.world.background = Background::HDRI(
+        //                 self.engine
+        //                     .assets
+        //                     .get_cubemap_handle(&hdri_directory_path, display)
+        //                     .unwrap(),
+        //             )
+        //         }
+        //     }
+        // }
 
         // if self.state.frame_count % 5 == 0 {
         //     info!("{} FPS", self.state.fps);
@@ -253,91 +203,151 @@ impl Editor {
         // }
     }
 
-    fn render(&mut self, window: &Window, display: &Display<WindowSurface>) {
-        let window_size = window.inner_size();
-        if window_size.width == 0 || window_size.height == 0 {
-            return;
+    fn detect_viewport_click(
+        input: Res<Input>,
+        viewport: Res<Viewport>,
+        camera: Res<OrbitalCamera>,
+        mut viewport_click: EventWriter<ViewportClick>,
+    ) {
+        let mouse_in_viewport = Self::is_mouse_in_viewport(&input, &viewport);
+        let left_just_released = input.mouse_button_just_released(MouseButton::Left);
+
+        if left_just_released && mouse_in_viewport {
+            let mouse_ray = mouse_ray(input.mouse_position(), &camera.inv_vp(), viewport.0.unwrap());
+
+            viewport_click.write(ViewportClick { mouse_ray });
         }
-
-        // for node in self.scene.graph.graph.node_weights_mut() {
-        //     node.local_transform
-        //         .set_rotation(UnitQuaternion::from_axis_angle(
-        //             &Vector3::y_axis(),
-        //             (self.state.frame_count as f32 * 0.001) % 360.0,
-        //         ));
-        // }
-
-        let mut target = display.draw();
-        {
-            self.world.graph.calculate_world_matrices();
-            self.engine.renderer.render_world(
-                &self.world,
-                &self.camera,
-                &self.engine.resources,
-                &self.selection,
-                display,
-                &mut target,
-            );
-
-            self.render_gui(window);
-            self.engine.gui.paint(display, &mut target);
-        }
-        target.finish().unwrap();
     }
 
-    fn render_gui(&mut self, window: &Window) {
-        self.engine.gui.run(window, |ctx| {
+    pub fn is_mouse_in_viewport(input: &Input, viewport: &Viewport) -> bool {
+        if !input.mouse_on_window() {
+            return false;
+        }
+
+        let mouse_position = input.mouse_position();
+
+        viewport
+            .0
+            .is_some_and(|viewport| viewport.contains(Pos2::new(mouse_position.x as f32, mouse_position.y as f32)))
+    }
+
+    fn selection_stuff(
+        _gui_state: Res<GuiState>,
+        _viewport_click: EventReader<ViewportClick>,
+        _assets: Res<Assets>,
+        _selection: ResMut<Selection>,
+        _colliders: Query<(&ColliderSet, &WorldTransform)>,
+    ) {
+        // let mouse_ray = viewport_click.read().next().unwrap().mouse_ray;
+
+        // let intersection = physics::raycast(&mouse_ray, colliders.iter(), &assets);
+        //
+        // if gui_state.render_debug_mouse_rays {
+        //     self.world.lines.push(Line::new(
+        //         ray.origin,
+        //         ray.origin + ray.direction() * 1000.0,
+        //         if intersection.is_some() {
+        //             Srgb::new(0.0, 1.0, 0.0)
+        //         } else {
+        //             Srgb::new(1.0, 0.0, 0.0)
+        //         },
+        //         2,
+        //     ));
+        // }
+        //
+        // selection = match intersection {
+        //     Some(hit) => vec![hit.node],
+        //     None => vec![],
+        // };
+    }
+
+    /// Load a models and create an instance of it in the world
+    fn import_model(
+        mut import_model: EventReader<ImportModel>,
+        mut commands: Commands,
+        mut assets: ResMut<Assets>,
+        context: ApplicationContext,
+    ) {
+        for path in import_model.read() {
+            let handles = assets.get_geometry_handles(&path.0, Some(context.display())).unwrap();
+
+            for geometry_handle in handles {
+                commands.spawn((geometry_handle, WorldTransform(Transform::identity())));
+                //
+                // let world_node = WorldNode::default();
+                // let world_graph_node = self.world.graph.add_node(world_node);
+                // self.world.graph.add_edge(group_node, world_graph_node);
+                //
+                // self.world
+                //     .physics_context
+                //     .colliders
+                //     .insert(world_graph_node, ColliderSet::from(geometry_handle));
+                // self.world.geometries.insert(world_graph_node, geometry_handle);
+            }
+        }
+    }
+
+    fn render_gui(
+        mut gui: ResMut<Gui>,
+        context: ApplicationContext,
+        mut viewport_changed: EventWriter<ViewportChanged>,
+        import_model: EventSender<ImportModel>,
+    ) {
+        gui.0.run(context.window(), |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.menu_button("File", |ui| {
                             if ui.add(Button::new("New")).clicked() {
-                                self.world = World::default();
-
+                                // self.world = World::default();
+                                unimplemented!();
                                 ui.close();
                             }
 
                             if ui.add(Button::new("Open project")).clicked() {
-                                let sender = self.sender.clone();
+                                unimplemented!();
 
-                                std::thread::spawn(move || {
-                                    if let Some(file) = FileDialog::new()
-                                        .add_filter("json", &["json"])
-                                        .set_can_create_directories(true)
-                                        .set_directory("/")
-                                        .pick_file()
-                                    {
-                                        log::info!("Loading project {:?}", file);
-
-                                        let project_string = std::fs::read_to_string(file).unwrap();
-
-                                        sender.send(EngineEvent::LoadProject(project_string)).unwrap();
-                                    }
-                                });
+                                // let sender = self.sender.clone();
+                                //
+                                // std::thread::spawn(move || {
+                                //     if let Some(file) = FileDialog::new()
+                                //         .add_filter("json", &["json"])
+                                //         .set_can_create_directories(true)
+                                //         .set_directory("/")
+                                //         .pick_file()
+                                //     {
+                                //         log::info!("Loading project {:?}", file);
+                                //
+                                //         let project_string = std::fs::read_to_string(file).unwrap();
+                                //
+                                //         sender.send(EngineEvent::LoadProject(project_string)).unwrap();
+                                //     }
+                                // });
 
                                 ui.close();
                             }
 
                             if ui.add(Button::new("Save as")).clicked() {
                                 info!("Saving project...");
-                                self.world.save_as(&self.engine.resources);
+                                unimplemented!();
+
+                                // self.world.save_as(&self.engine.assets);
                             }
                         });
 
                         ui.menu_button("Project", |ui| {
                             if ui.add(Button::new("Import models")).clicked() {
-                                let sender = self.sender.clone();
+                                let sender = import_model.clone();
 
                                 std::thread::spawn(move || {
-                                    if let Some(paths) = FileDialog::new()
-                                        .add_filter("gltf", &["gltf", "glb"])
-                                        .set_can_create_directories(true)
-                                        .set_directory("/")
-                                        .pick_files()
-                                    {
-                                        for path in paths {
-                                            sender.send(EngineEvent::ImportModel(path)).unwrap();
+                                    let files = FileDialog::new().add_filter("gltf", &["gltf", "glb"]).pick_files();
+
+                                    if let Some(files) = files {
+                                        for file in files {
+                                            sender.send(ImportModel(file));
                                         }
+                                    } else {
+                                        log::warn!("No glTF files found");
                                     }
                                 });
 
@@ -347,28 +357,30 @@ impl Editor {
 
                         ui.menu_button("Run", |ui| {
                             if ui.add(Button::new("Run game")).clicked() {
-                                let uuid = Uuid::new_v4().to_string();
-                                let mut temp_path = std::env::temp_dir();
-                                temp_path.push(uuid.clone());
+                                unimplemented!();
 
-                                let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.resources);
-                                let serialized_string = serde_json::to_string(&serialized_world).unwrap();
-
-                                std::fs::write(&temp_path, serialized_string).unwrap();
-
-                                std::process::Command::new("cargo")
-                                    .arg("run")
-                                    .arg("--package")
-                                    .arg("game")
-                                    .arg("--")
-                                    .arg("--project")
-                                    .arg(uuid)
-                                    .spawn()
-                                    .unwrap()
-                                    .wait()
-                                    .unwrap();
-
-                                ui.close();
+                                // let uuid = Uuid::new_v4().to_string();
+                                // let mut temp_path = std::env::temp_dir();
+                                // temp_path.push(uuid.clone());
+                                //
+                                // let serialized_world = SerializedWorld::from_world(&self.world, &self.engine.assets);
+                                // let serialized_string = serde_json::to_string(&serialized_world).unwrap();
+                                //
+                                // std::fs::write(&temp_path, serialized_string).unwrap();
+                                //
+                                // std::process::Command::new("cargo")
+                                //     .arg("run")
+                                //     .arg("--package")
+                                //     .arg("game")
+                                //     .arg("--")
+                                //     .arg("--project")
+                                //     .arg(uuid)
+                                //     .spawn()
+                                //     .unwrap()
+                                //     .wait()
+                                //     .unwrap();
+                                //
+                                // ui.close();
                             }
                         });
                     });
@@ -377,10 +389,10 @@ impl Editor {
 
             egui::SidePanel::left("left_panel")
                 .default_width(100.0)
-                .show(ctx, |ui| {
-                    self.world.graph.show(ui);
+                .show(ctx, |_ui| {
+                    // self.world.graph.show(ui);
 
-                    ui.add(egui::Separator::default().horizontal());
+                    // ui.add(egui::Separator::default().horizontal());
 
                     // ui.collapsing("Quads", |ui| {
                     //     if self.scene.quads.node_count() == 0 {
@@ -392,145 +404,124 @@ impl Editor {
                 });
 
             egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                ui.collapsing("Properties", |ui| {
-                    if self.selection.len() == 1 {
-                        let selected_node_index = self.selection[0];
-                        let selected_node = &mut self.world.graph.graph[selected_node_index];
-
-                        selected_node.local_transform.show(ui);
-
-                        dbg!(&selected_node.local_transform);
-
-                        ui.label(format!("Node index: {:?}", selected_node_index));
-
-                        ui.separator();
-
-                        ui.label("Components");
-
-                        if self.world.player_spawn == Some(selected_node_index) {
-                            ui.label("Player spawn");
-                        }
-                        if self.world.physics_context.colliders.contains_key(&selected_node_index) {
-                            ui.horizontal(|ui| {
-                                ui.label("Collider");
-                                if ui.button("-").clicked() {
-                                    self.world.physics_context.colliders.remove(&selected_node_index);
-                                }
-                            });
-                        }
-
-                        if ui.button("+").clicked() {
-                            self.world.player_spawn = Some(selected_node_index);
-                        }
-                    }
+                ui.collapsing("Properties", |_ui| {
+                    // if self.selection.len() == 1 {
+                    //     let selected_node_index = self.selection[0];
+                    //     let selected_node = &mut self.world.graph.graph[selected_node_index];
+                    //
+                    //     selected_node.local_transform.show(ui);
+                    //
+                    //     dbg!(&selected_node.local_transform);
+                    //
+                    //     ui.label(format!("Node index: {:?}", selected_node_index));
+                    //
+                    //     ui.separator();
+                    //
+                    //     ui.label("Components");
+                    //
+                    //     if self.world.player_spawn == Some(selected_node_index) {
+                    //         ui.label("Player spawn");
+                    //     }
+                    //     if self.world.physics_context.colliders.contains_key(&selected_node_index) {
+                    //         ui.horizontal(|ui| {
+                    //             ui.label("Collider");
+                    //             if ui.button("-").clicked() {
+                    //                 self.world.physics_context.colliders.remove(&selected_node_index);
+                    //             }
+                    //         });
+                    //     }
+                    //
+                    //     if ui.button("+").clicked() {
+                    //         self.world.player_spawn = Some(selected_node_index);
+                    //     }
+                    // }
                 });
 
-                ui.collapsing("Debug", |ui| {
-                    ui.add(
-                        egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
-                    );
+                ui.collapsing("Debug", |_ui| {
+                    unimplemented!();
 
-                    ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
-
-                    ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
-                    if ui.button("Clear lines").clicked() {
-                        // self.engine.renderer.lines.clear();
-                        unimplemented!();
-                    }
+                    // ui.add(
+                    //     egui::Slider::new(&mut self.state.gui.debug_cube_index, 0..=self.debug_cuboids.len()).integer(),
+                    // );
+                    //
+                    // ui.add(egui::Slider::new(&mut self.state.gui.debug_cube_opacity, 0.0..=1.0));
+                    //
+                    // ui.checkbox(&mut self.state.gui.render_debug_mouse_rays, "Render debug mouse rays");
+                    // if ui.button("Clear lines").clicked() {
+                    //     // self.engine.renderer.lines.clear();
+                    //     unimplemented!();
+                    // }
                 });
 
                 ui.separator();
 
-                ui.collapsing("Background", |ui| {
-                    ui.horizontal(|ui| {
-                        // ui.selectable_value(
-                        //     &mut self.scene.background,
-                        //     Background::default(),
-                        //     "Color",
-                        // );
+                ui.collapsing("Background", |_ui| {
+                    unimplemented!();
 
-                        if ui.selectable_label(false, "HDRI").clicked() {
-                            let sender = self.sender.clone();
-
-                            std::thread::spawn(move || {
-                                if let Some(path) = FileDialog::new()
-                                    .set_can_create_directories(true)
-                                    .set_directory("/")
-                                    .pick_folder()
-                                {
-                                    sender.send(EngineEvent::ImportHDRIBackground(path)).unwrap();
-                                }
-                            });
-                        }
-                    });
+                    // ui.horizontal(|ui| {
+                    //     // ui.selectable_value(
+                    //     //     &mut self.scene.background,
+                    //     //     Background::default(),
+                    //     //     "Color",
+                    //     // );
+                    //
+                    //     if ui.selectable_label(false, "HDRI").clicked() {
+                    //         let sender = self.sender.clone();
+                    //
+                    //         std::thread::spawn(move || {
+                    //             if let Some(path) = FileDialog::new()
+                    //                 .set_can_create_directories(true)
+                    //                 .set_directory("/")
+                    //                 .pick_folder()
+                    //             {
+                    //                 sender.send(EngineEvent::ImportHDRIBackground(path)).unwrap();
+                    //             }
+                    //         });
+                    //     }
+                    // });
                 });
 
-                ui.collapsing("Lighting", |ui| {
-                    ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
+                ui.collapsing("Lighting", |_ui| {
+                    unimplemented!();
+
+                    // ui.checkbox(&mut self.state.gui.render_lights, "Render lights");
                 });
             });
 
             // Update the viewport size with the amount of space after then panels have been added
-            self.engine
-                .renderer
-                .update_viewport(ctx.available_rect(), &mut self.camera);
+            viewport_changed.write(ViewportChanged(Viewport(Some(ctx.available_rect()))));
         });
     }
+}
 
-    /// Load a models and create an instance of it in the world
-    fn import_model(&mut self, path: &Path, display: &Display<WindowSurface>) -> color_eyre::Result<()> {
-        let handles = self.engine.resources.get_geometry_handles(path, Some(display))?;
+fn mouse_ray(mouse_position: Vector2<f64>, inv_vp: &Matrix4<f32>, viewport: egui::Rect) -> Ray {
+    // mouse coordinates in window coordinates
+    // mouse_position
 
-        let group_node = self.world.graph.add_root_node(WorldNode::default());
+    // mouse coordinates in viewport coordinates
+    let x_in_viewport = (mouse_position.x as f32) - viewport.left();
+    let y_in_viewport = (mouse_position.y as f32) - viewport.top();
 
-        for geometry_handle in handles {
-            let world_node = WorldNode::default();
-            let world_graph_node = self.world.graph.add_node(world_node);
-            self.world.graph.add_edge(group_node, world_graph_node);
+    // mouse coordinates in ndc coordinates (-1..1)
+    let x_ndc = maths::linear_map(x_in_viewport, 0.0, viewport.width(), -1.0, 1.0);
 
-            self.world
-                .physics_context
-                .colliders
-                .insert(world_graph_node, ColliderSet::from(geometry_handle));
-            self.world.geometries.insert(world_graph_node, geometry_handle);
-        }
+    // for y, 1 is top and -1 is bottom
+    let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
 
-        Ok(())
-    }
+    // position of mouse coordinate on near and far plane in clip space
+    let near_clip = Vector4::new(x_ndc, y_ndc, -1.0, 1.0);
+    let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
 
-    fn mouse_ray(&self) -> Ray {
-        // mouse coordinates in window coordinates
-        let mouse = self.engine.input.mouse_position().unwrap();
+    // unproject to get points in world space
+    let near_world_h = inv_vp * near_clip;
+    let far_world_h = inv_vp * far_clip;
 
-        // mouse coordinates in viewport coordinates
-        let viewport = self.engine.renderer.viewport.unwrap();
-        let x_in_viewport = (mouse.x as f32) - viewport.left();
-        let y_in_viewport = (mouse.y as f32) - viewport.top();
+    // convert homogenous coordinates into cartesian
+    let near_world = near_world_h.xyz() / near_world_h.w;
+    let far_world = far_world_h.xyz() / far_world_h.w;
 
-        // mouse coordinates in ndc coordinates (-1..1)
-        let x_ndc = maths::linear_map(x_in_viewport, 0.0, viewport.width(), -1.0, 1.0);
+    let origin = near_world;
+    let direction = (far_world - near_world).normalize();
 
-        // for y, 1 is top and -1 is bottom
-        let y_ndc = maths::linear_map(y_in_viewport, 0.0, viewport.height(), 1.0, -1.0);
-
-        let vp = self.camera.perspective_projection() * self.camera.view();
-        let inv_vp = vp.try_inverse().unwrap();
-
-        // position of mouse coordinate on near and far plane in clip space
-        let near_clip = Vector4::new(x_ndc, y_ndc, -1.0, 1.0);
-        let far_clip = Vector4::new(x_ndc, y_ndc, 1.0, 1.0);
-
-        // unproject to get points in world space
-        let near_world_h = inv_vp * near_clip;
-        let far_world_h = inv_vp * far_clip;
-
-        // convert homogenous coordinates into cartesian
-        let near_world = near_world_h.xyz() / near_world_h.w;
-        let far_world = far_world_h.xyz() / far_world_h.w;
-
-        let origin = near_world;
-        let direction = (far_world - near_world).normalize();
-
-        Ray::new(origin.into(), direction.into())
-    }
+    Ray::new(origin.into(), direction.into())
 }
