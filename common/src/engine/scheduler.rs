@@ -182,9 +182,9 @@ impl Scheduler {
     where
         O: Into<SystemOrder>,
     {
-        self.stages[stage as usize].register_continuous_order(system_order);        
+        self.stages[stage as usize].register_continuous_order(system_order);
     }
-    
+
     /// These systems run once when triggered, regardless of the number of times they are triggered.
     pub fn register_triggered<E, S, P>(&mut self, system: S, stage: Stage)
     where

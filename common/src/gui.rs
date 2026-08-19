@@ -9,9 +9,9 @@ use common::engine::renderer::{Viewport, ViewportChanged};
 use common::engine::scheduler::Scheduler;
 use common::world::World;
 use common_macros::Resource;
+use egui_glium::EguiGlium;
 use egui_glium::egui_winit::egui;
 use egui_glium::egui_winit::egui::{Align, Button, ViewportId};
-use egui_glium::EguiGlium;
 use log::info;
 
 // TODO move gui state into its own resource

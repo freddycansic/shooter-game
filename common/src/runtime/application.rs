@@ -7,12 +7,12 @@ use crate::runtime::RuntimeContext;
 use crate::subsystems::frame_timing::{FrameTiming, FrameTimingSubsystem};
 use crate::subsystems::window_size::{WindowSize, WindowSizeSubsystem};
 use crate::world::World;
+use common::engine::renderer::RendererSubsystem;
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
-use common::engine::renderer::RendererSubsystem;
 
 pub trait Application {
     fn new(context: &RuntimeContext) -> Self;
