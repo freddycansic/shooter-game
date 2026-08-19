@@ -42,7 +42,7 @@ impl Events {
     pub fn write(&mut self, event: Box<dyn EventMessage>) {
         self.queue.push(event);
     }
-    
+
     /// Read all the incoming events which have come from another thread.
     /// Push on to normal queue, ready to be used.
     pub fn consume_external(&mut self) {

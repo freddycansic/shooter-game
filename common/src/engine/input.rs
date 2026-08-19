@@ -129,7 +129,7 @@ impl Input {
             }
         }
     }
-    
+
     fn process_mouse_button_event(&mut self, button: MouseButton, state: ElementState) {
         match button {
             MouseButton::Other(code) => warn!("Unidentified mouse button event received with code {}", code),

@@ -140,7 +140,7 @@ impl World {
             events.consume_external();
         }
     }
-    
+
     pub fn execute_command_queue(&mut self) {
         self.execute_destroy_command_queue();
         self.execute_spawn_command_queue();

@@ -4,8 +4,8 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use common::maths::Ray;
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
-use glium::glutin::surface::WindowSurface;
 use glium::Display;
+use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};

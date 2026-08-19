@@ -153,7 +153,7 @@ impl OrbitalCameraSubsystem {
 
     fn window_resized(mut camera: ResMut<OrbitalCamera>, window_size: Res<WindowSize>) {
         camera.update_projection_matrices(window_size.width as f32, window_size.height as f32);
-    }   
+    }
 }
 
 impl Subsystem for OrbitalCameraSubsystem {
