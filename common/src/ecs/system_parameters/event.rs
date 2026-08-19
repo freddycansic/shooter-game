@@ -21,7 +21,7 @@ impl<'w, 's, T: Event + 'static> EventReader<'w, 's, T> {
         }
     }
 
-    pub fn read(&mut self) -> impl Iterator<Item = &T> {
+    pub fn read(&mut self) -> impl Iterator<Item=&T> {
         // only read new events
         let events = &self.events.queue[*self.event_cursor..];
 
@@ -78,6 +78,7 @@ impl<T: Event + 'static> SystemParameter for EventWriter<'_, T> {
     }
 }
 
+#[derive(Clone)]
 pub struct EventSender<T: Event> {
     sender: Sender<Box<dyn EventMessage>>,
     _marker: PhantomData<T>,

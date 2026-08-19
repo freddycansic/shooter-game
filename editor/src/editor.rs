@@ -2,13 +2,14 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use common::maths::Ray;
+use common::maths::{Ray, Transform};
 use egui_glium::egui_winit::egui::{self, Align, Button, Pos2};
 use glium::Display;
 use glium::glutin::surface::WindowSurface;
 use itertools::Itertools;
 use log::info;
 use nalgebra::{Matrix4, Point3, Vector2, Vector4};
+use rfd::{AsyncFileDialog, FileDialog};
 use winit::event::{MouseButton, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::keyboard::KeyCode;
@@ -18,7 +19,8 @@ use common::camera::{OrbitalCamera, OrbitalCameraSubsystem};
 use common::colors::{Color, ColorExt};
 use common::ecs::entity::Entity;
 use common::ecs::system_parameters::application_context::ApplicationContext;
-use common::ecs::system_parameters::event::{EventReader, EventWriter};
+use common::ecs::system_parameters::commands::Commands;
+use common::ecs::system_parameters::event::{EventReader, EventSender, EventWriter};
 use common::ecs::system_parameters::query::Query;
 use common::ecs::system_parameters::res::{Res, ResMut};
 use common::engine::assets::{Assets, GeometryHandle, TextureHandle};
@@ -40,6 +42,9 @@ enum EngineEvent {
     LoadProject(String),
     ImportModel(PathBuf),
 }
+
+#[derive(Event, Clone)]
+struct ImportModel(pub PathBuf);
 
 #[derive(Event)]
 struct ViewportClick {
@@ -85,6 +90,10 @@ impl Application for Editor {
 
         editor
             .scheduler
+            .register_triggered::<ImportModel, _, _>(Self::import_model, Stage::Main);
+
+        editor
+            .scheduler
             .register_continuous_order(SystemOrder::first(Self::render_gui).then(Self::render), Stage::Render);
 
         // TODO temporary, should make selection subsystem
@@ -114,8 +123,7 @@ impl Application for Editor {
         _event_loop: &ActiveEventLoop,
         _window: &Window,
         _display: &Display<WindowSurface>,
-    ) {
-    }
+    ) {}
 
     fn world(&mut self) -> &mut World {
         &mut self.world
@@ -254,32 +262,36 @@ impl Editor {
     }
 
     /// Load a models and create an instance of it in the world
-    fn import_model(&mut self, _path: &Path, _display: &Display<WindowSurface>) -> color_eyre::Result<()> {
-        unimplemented!();
+    fn import_model(
+        mut import_model: EventReader<ImportModel>,
+        mut commands: Commands,
+        mut assets: ResMut<Assets>,
+        context: ApplicationContext,
+    ) {
+        for path in import_model.read() {
+            let handles = assets.get_geometry_handles(&path.0, Some(context.display())).unwrap();
 
-        // let handles = self.engine.assets.get_geometry_handles(path, Some(display))?;
-        //
-        // let group_node = self.world.graph.add_root_node(WorldNode::default());
-        //
-        // for geometry_handle in handles {
-        //     let world_node = WorldNode::default();
-        //     let world_graph_node = self.world.graph.add_node(world_node);
-        //     self.world.graph.add_edge(group_node, world_graph_node);
-        //
-        //     self.world
-        //         .physics_context
-        //         .colliders
-        //         .insert(world_graph_node, ColliderSet::from(geometry_handle));
-        //     self.world.geometries.insert(world_graph_node, geometry_handle);
-        // }
-        //
-        // Ok(())
+            for geometry_handle in handles {
+                commands.spawn((geometry_handle, WorldTransform(Transform::identity())));
+                //
+                // let world_node = WorldNode::default();
+                // let world_graph_node = self.world.graph.add_node(world_node);
+                // self.world.graph.add_edge(group_node, world_graph_node);
+                //
+                // self.world
+                //     .physics_context
+                //     .colliders
+                //     .insert(world_graph_node, ColliderSet::from(geometry_handle));
+                // self.world.geometries.insert(world_graph_node, geometry_handle);
+            }
+        }
     }
 
     fn render_gui(
         mut gui: ResMut<Gui>,
         context: ApplicationContext,
         mut viewport_changed: EventWriter<ViewportChanged>,
+        import_model: EventSender<ImportModel>,
     ) {
         gui.0.run(context.window(), |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -325,24 +337,21 @@ impl Editor {
 
                         ui.menu_button("Project", |ui| {
                             if ui.add(Button::new("Import models")).clicked() {
-                                unimplemented!();
+                                let sender = import_model.clone();
 
-                                // let sender = self.sender.clone();
-                                //
-                                // std::thread::spawn(move || {
-                                //     if let Some(paths) = FileDialog::new()
-                                //         .add_filter("gltf", &["gltf", "glb"])
-                                //         .set_can_create_directories(true)
-                                //         .set_directory("/")
-                                //         .pick_files()
-                                //     {
-                                //         for path in paths {
-                                //             sender.send(EngineEvent::ImportModel(path)).unwrap();
-                                //         }
-                                //     }
-                                // });
-                                //
-                                // ui.close();
+                                std::thread::spawn(move || {
+                                    let files = FileDialog::new().add_filter("gltf", &["gltf", "glb"]).pick_files();
+
+                                    if let Some(files) = files {
+                                        for file in files {
+                                            sender.send(ImportModel(file));
+                                        }
+                                    } else {
+                                        log::warn!("No glTF files found");
+                                    }
+                                });
+
+                                ui.close();
                             }
                         });
 
