@@ -15,8 +15,43 @@ pub enum Stage {
     Count,
 }
 
+/// A specified ordering of systems that must run one after the other.
+#[derive(Debug, PartialEq)]
+pub struct SystemOrder(pub Vec<System>);
+
+impl SystemOrder {
+    pub fn first<S, P>(system: S) -> Self
+    where
+        S: IntoSystem<P>,
+    {
+        SystemOrder(vec![system.into_system()])
+    }
+
+    pub fn then<S, P>(mut self, system: S) -> Self
+    where
+        S: IntoSystem<P>,
+    {
+        self.0.push(system.into_system());
+        self
+    }
+}
+
+impl From<Vec<System>> for SystemOrder {
+    fn from(value: Vec<System>) -> Self {
+        SystemOrder(value)
+    }
+}
+
+impl SystemOrder {
+    pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
+        for system in &mut self.0 {
+            system.run(world, access);
+        }
+    }
+}
+
 pub struct SchedulerStage {
-    pub continuous_systems: Vec<System>,
+    pub continuous_systems: Vec<SystemOrder>,
     pub triggerable_systems: Vec<System>,
     pub triggers: FxHashMap<StableId, Vec<StableId>>,
 }
@@ -38,13 +73,23 @@ impl SchedulerStage {
         S: IntoSystem<P>,
     {
         let new_system = system.into_system();
+        let new_system_order = SystemOrder(vec![new_system]);
+
+        self.register_continuous_order(new_system_order);
+    }
+
+    pub fn register_continuous_order<O>(&mut self, system_order: O)
+    where
+        O: Into<SystemOrder>,
+    {
+        let new_system_order = system_order.into();
 
         assert!(
-            !self.continuous_systems.contains(&new_system),
+            !self.continuous_systems.contains(&new_system_order),
             "The system has already been registered"
         );
 
-        self.continuous_systems.push(new_system);
+        self.continuous_systems.push(new_system_order);
     }
 
     /// These systems run once when triggered, regardless of the number of times they are triggered.
@@ -133,6 +178,13 @@ impl Scheduler {
         self.stages[stage as usize].register_continuous(system);
     }
 
+    pub fn register_continuous_order<O>(&mut self, system_order: O, stage: Stage)
+    where
+        O: Into<SystemOrder>,
+    {
+        self.stages[stage as usize].register_continuous_order(system_order);        
+    }
+    
     /// These systems run once when triggered, regardless of the number of times they are triggered.
     pub fn register_triggered<E, S, P>(&mut self, system: S, stage: Stage)
     where
@@ -144,7 +196,7 @@ impl Scheduler {
 
     pub fn run(&mut self, world: &mut World, access: &mut dyn ApplicationAccess) {
         world.consume_external_events();
-        
+
         for stage in self.stages.iter_mut() {
             stage.run(world, access);
         }

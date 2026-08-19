@@ -69,8 +69,8 @@ impl Gui {
         }
     }
 
-    fn show(mut gui: ResMut<Gui>, commands: ApplicationContext, mut viewport_changed: EventWriter<ViewportChanged>) {
-        gui.0.run(commands.window(), |ctx| {
+    fn show(mut gui: ResMut<Gui>, context: ApplicationContext, mut viewport_changed: EventWriter<ViewportChanged>) {
+        gui.0.run(context.window(), |ctx| {
             egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
                 egui::MenuBar::new().ui(ui, |ui| {
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
